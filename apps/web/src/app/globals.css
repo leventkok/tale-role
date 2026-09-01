@@ -1,0 +1,51 @@
+:root {
+  color-scheme: dark;
+  font-family: Georgia, "Times New Roman", serif;
+  background: #14120f;
+  color: #f4efe6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+
+a {
+  color: #e2c48a;
+}
+
+form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #4a4338;
+  background: #1c1916;
+  color: inherit;
+}
+
+button {
+  padding: 0.7rem 1rem;
+  border: 0;
+  background: #e2c48a;
+  color: #14120f;
+  font: inherit;
+  cursor: pointer;
+}

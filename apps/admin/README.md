@@ -1,5 +1,5 @@
 # apps/admin
 
-Operator console on a separate origin so the player bundle cannot leak admin UI.
+Separate origin for operators (default port 3001) so the player bundle cannot leak this UI.
 
-System admins join every lobby as an invisible `system_admin` spectator.
+System admins spectate every lobby as `system_admin` and must not appear in public presence.

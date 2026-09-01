@@ -6,7 +6,7 @@ AI-hosted tabletop FRP. One model tells the story. Another proposes mechanics as
 
 ## Status
 
-Foundation (F0). Auth, lobbies, and models are not shipped yet.
+F1 platform shell: in-memory Go auth + OTP, Next.js BFF cookies, admin spectator origin, Electron `talerole://` stub.
 
 ## Invariants
 
@@ -36,9 +36,10 @@ Identity lives in Postgres (masterfabric-go). World state lives in MongoDB.
 ```bash
 npm install
 npm test
+cd apps/api && go test ./...
 ```
 
-Copy `.env.example` to `.env.local`. Never commit real secrets.
+Web: `npm run dev:web` (needs `API_URL`, see `apps/web/README.md`). Admin: `npm run dev:admin` on port 3001.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [SECURITY.md](SECURITY.md).
 

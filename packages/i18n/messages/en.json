@@ -6,7 +6,27 @@
   "nav": {
     "play": "Play",
     "host": "Host",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "register": "Create account"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "otp": "6-digit code",
+    "submit": "Continue",
+    "verify": "Verify",
+    "otpHint": "Enter the code from your email. The code is never shown in the app.",
+    "needAccount": "Need an account?",
+    "haveAccount": "Already registered?"
+  },
+  "home": {
+    "signedInAs": "Signed in as {email}",
+    "cta": "Join a table or host a universe."
+  },
+  "admin": {
+    "title": "Spectator console",
+    "hint": "You join every room invisibly. Players never see this seat."
   },
   "table": {
     "pass": "Pass",
