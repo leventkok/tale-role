@@ -31,6 +31,23 @@
   "table": {
     "pass": "Pass",
     "wait": "Wait",
-    "roll": "Roll"
+    "roll": "Roll",
+    "roomName": "Room name",
+    "roomId": "Room id",
+    "dice": "Dice",
+    "joinMode": "Access",
+    "joinLink": "Invite link / id",
+    "joinPassword": "Room password",
+    "password": "Password",
+    "create": "Create table",
+    "join": "Join",
+    "character": "Character name",
+    "statHint": "Six stats, 1–6 each, total 18.",
+    "saveCharacter": "Save character",
+    "start": "Roll initiative",
+    "order": "Turn order",
+    "skill": "Skill",
+    "notes": "What do you do?",
+    "presence": "At the table"
   }
 }

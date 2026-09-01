@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
+	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/httpapi"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
@@ -27,7 +28,7 @@ func main() {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }
 	}
-	handler := httpapi.New(svc, log, cfg)
+	handler := httpapi.New(svc, game.NewTable(), log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
 
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{
