@@ -23,6 +23,10 @@ func main() {
 	}
 
 	svc := app.NewService(memory.NewStore(), cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
+	if devOTP := os.Getenv("TALEROLE_DEV_OTP"); devOTP != "" {
+		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
+		svc.IssueOTP = func() (string, error) { return devOTP, nil }
+	}
 	handler := httpapi.New(svc, log, cfg)
 
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
