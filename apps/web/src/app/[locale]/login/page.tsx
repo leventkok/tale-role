@@ -11,12 +11,14 @@ export default async function LoginPage({
   setRequestLocale(locale);
   const t = await getTranslations();
   return (
-    <main>
-      <h1>{t("nav.signIn")}</h1>
-      <AuthForm mode="login" />
-      <p>
-        <Link href="/register">{t("nav.register")}</Link>
-      </p>
+    <main className="auth-wrap">
+      <div className="panel auth-card">
+        <h1>{t("nav.signIn")}</h1>
+        <AuthForm mode="login" />
+        <p className="muted">
+          {t("auth.needAccount")} <Link href="/register">{t("nav.register")}</Link>
+        </p>
+      </div>
     </main>
   );
 }

@@ -23,34 +23,43 @@ export default async function HomePage({
       cache: "no-store",
     });
     if (me.ok) {
-      const body = (await me.json()) as { email?: string };
-      email = body.email ?? null;
+      email = ((await me.json()) as { email?: string }).email ?? null;
     }
   }
 
   return (
-    <main>
-      <h1>{t("app.name")}</h1>
-      <p>{t("app.tagline")}</p>
+    <main className="page">
+      <section className="hero">
+        <p className="pill">{t("app.tagline")}</p>
+        <h1>{t("app.name")}</h1>
+        <p className="lede">{email ? t("home.signedInAs", { email }) : t("home.cta")}</p>
+      </section>
       {email ? (
-        <>
-          <p>{t("home.signedInAs", { email })}</p>
-          <p>{t("home.cta")}</p>
-          <p>
-            <Link href="/host">{t("nav.host")}</Link>
-            {" · "}
-            <Link href="/play">{t("nav.play")}</Link>
-          </p>
-          <form action="/api/auth/logout" method="post">
-            <button type="submit">{t("nav.signOut")}</button>
-          </form>
-        </>
+        <div className="grid-2">
+          <article className="card">
+            <h2>{t("nav.host")}</h2>
+            <p className="muted">{t("home.hostLead")}</p>
+            <Link className="btn" href="/host">
+              {t("nav.host")}
+            </Link>
+          </article>
+          <article className="card">
+            <h2>{t("nav.play")}</h2>
+            <p className="muted">{t("home.playLead")}</p>
+            <Link className="btn" href="/play">
+              {t("nav.play")}
+            </Link>
+          </article>
+        </div>
       ) : (
-        <p>
-          <Link href="/login">{t("nav.signIn")}</Link>
-          {" · "}
-          <Link href="/register">{t("nav.register")}</Link>
-        </p>
+        <div className="btn-row">
+          <Link className="btn" href="/login">
+            {t("nav.signIn")}
+          </Link>
+          <Link className="btn ghost" href="/register">
+            {t("nav.register")}
+          </Link>
+        </div>
       )}
     </main>
   );

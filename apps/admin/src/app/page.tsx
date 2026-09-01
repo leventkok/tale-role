@@ -1,6 +1,6 @@
 export default function AdminHome() {
   return (
-    <main style={{ maxWidth: "40rem", margin: "0 auto", padding: "3rem 1.25rem" }}>
+    <main className="console">
       <h1>Tale Role spectator</h1>
       <p>
         System admins join every room as <code>system_admin</code>. That seat is omitted from

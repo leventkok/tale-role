@@ -10,6 +10,17 @@
     "signOut": "Çıkış",
     "register": "Hesap oluştur"
   },
+  "ui": {
+    "theme": "Tema"
+  },
+  "themes": {
+    "high-fantasy": "Yüksek fantezi",
+    "gothic-horror": "Gotik korku",
+    "space-opera": "Uzay operası",
+    "cyber-noir": "Siber-noir",
+    "post-apocalyptic": "Kıyamet sonrası",
+    "fairytale": "Masalsı"
+  },
   "auth": {
     "email": "E-posta",
     "password": "Şifre",
@@ -22,7 +33,9 @@
   },
   "home": {
     "signedInAs": "{email} olarak giriş yaptın",
-    "cta": "Masaya katıl veya evren kur."
+    "cta": "Masaya katıl veya evren kur.",
+    "hostLead": "Özel oda aç. Id paylaş veya şifre koy.",
+    "playLead": "Davet id ile otur. Statlarını dağıt. Zar konuşsun."
   },
   "admin": {
     "title": "İzleyici konsolu",
@@ -48,6 +61,23 @@
     "order": "Sıra",
     "skill": "Beceri",
     "notes": "Ne yapıyorsun?",
-    "presence": "Masadakiler"
+    "presence": "Masadakiler",
+    "storyteller": "Anlatıcı",
+    "sceneSoon": "Sahne görseli burada olacak — sohbetin içinde değil.",
+    "waiting": "Fenerler bekliyor. Konuş, pas geç veya bekle.",
+    "hp": "HP",
+    "copyId": "Id kopyala",
+    "copied": "Kopyalandı",
+    "loading": "Fenerler yanıyor…",
+    "statTotal": "{n} / 18",
+    "you": "Sen",
+    "gm": "Ev sahibi",
+    "awaitStart": "Ev sahibi inisiyatif atana kadar bekle.",
+    "awaitSheet": "Karaktere ad ver. 18 puanı harca — ne fazla, ne eksik.",
+    "kindAction": "eylem",
+    "kindPass": "pas",
+    "kindWait": "bekle",
+    "hit": "isabet",
+    "missLabel": "kaçırdı"
   }
 }

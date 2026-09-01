@@ -35,7 +35,11 @@ export function JoinForm() {
         {t("password")}
         <input value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      ) : null}
       <button type="submit">{t("join")}</button>
     </form>
   );

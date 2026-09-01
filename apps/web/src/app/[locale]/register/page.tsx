@@ -11,12 +11,14 @@ export default async function RegisterPage({
   setRequestLocale(locale);
   const t = await getTranslations();
   return (
-    <main>
-      <h1>{t("nav.register")}</h1>
-      <AuthForm mode="register" />
-      <p>
-        <Link href="/login">{t("nav.signIn")}</Link>
-      </p>
+    <main className="auth-wrap">
+      <div className="panel auth-card">
+        <h1>{t("nav.register")}</h1>
+        <AuthForm mode="register" />
+        <p className="muted">
+          {t("auth.haveAccount")} <Link href="/login">{t("nav.signIn")}</Link>
+        </p>
+      </div>
     </main>
   );
 }

@@ -9,7 +9,7 @@ export default async function TablePage({
   const { locale, roomId } = await params;
   setRequestLocale(locale);
   return (
-    <main>
+    <main className="stage-wrap">
       <TableClient roomId={roomId} />
     </main>
   );

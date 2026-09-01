@@ -13,9 +13,12 @@ export default async function VerifyPage({
   setRequestLocale(locale);
   const t = await getTranslations();
   return (
-    <main>
-      <h1>{t("auth.verify")}</h1>
-      <AuthForm mode="verify" email={email} />
+    <main className="auth-wrap">
+      <div className="panel auth-card">
+        <h1>{t("auth.verify")}</h1>
+        <p className="muted">{t("auth.otpHint")}</p>
+        <AuthForm mode="verify" email={email} />
+      </div>
     </main>
   );
 }
