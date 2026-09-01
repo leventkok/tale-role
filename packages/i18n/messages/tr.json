@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "Tale Role",
+    "tagline": "Masayı anlatı yönetir."
+  },
+  "nav": {
+    "play": "Oyna",
+    "host": "Kur",
+    "signIn": "Giriş"
+  },
+  "table": {
+    "pass": "Pas",
+    "wait": "Bekle",
+    "roll": "Zar at"
+  }
+}

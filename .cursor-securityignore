@@ -1,0 +1,7 @@
+# Paths the security scanner may skip (generated / vendored only).
+# Never ignore source, env examples, or CI.
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
