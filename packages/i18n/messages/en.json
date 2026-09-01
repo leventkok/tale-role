@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "Tale Role",
+    "tagline": "The table tells the tale."
+  },
+  "nav": {
+    "play": "Play",
+    "host": "Host",
+    "signIn": "Sign in"
+  },
+  "table": {
+    "pass": "Pass",
+    "wait": "Wait",
+    "roll": "Roll"
+  }
+}

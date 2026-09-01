@@ -1,0 +1,8 @@
+title = "gitleaks config"
+
+[allowlist]
+  description = "placeholders only"
+  paths = [
+    '''\.env\.example$''',
+    '''package-lock\.json$''',
+  ]

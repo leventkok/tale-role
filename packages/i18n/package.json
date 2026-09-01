@@ -1,0 +1,15 @@
+{
+  "name": "@tale-role/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./messages/en.json": "./messages/en.json",
+    "./messages/tr.json": "./messages/tr.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/index.test.ts"
+  }
+}

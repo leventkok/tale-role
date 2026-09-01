@@ -1,0 +1,22 @@
+{
+  "name": "tale-role",
+  "private": true,
+  "description": "Tale Role — AI-hosted FRP table",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/i18n",
+    "packages/game-schema"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
