@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
+	"github.com/leventkok/tale-role/apps/api/internal/application/world"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
 	gateway "github.com/leventkok/tale-role/services/llm-gateway"
@@ -21,6 +22,7 @@ import (
 type Server struct {
 	svc        *app.Service
 	table      *game.Table
+	worlds     *world.Catalog
 	llm        *gateway.Service
 	log        *slog.Logger
 	cfg        config.Config
@@ -31,7 +33,7 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 	if llm == nil {
 		llm = gateway.New()
 	}
-	s := &Server{svc: svc, table: table, llm: llm, log: log, cfg: cfg, adminEmail: adminEmail}
+	s := &Server{svc: svc, table: table, worlds: world.NewCatalog(), llm: llm, log: log, cfg: cfg, adminEmail: adminEmail}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -63,6 +65,9 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 			r.Post("/licenses/register", s.registerLicense)
 			r.Get("/licenses/me", s.myLicenses)
 			r.Post("/rooms", s.createRoom)
+			r.Get("/universes", s.listUniverses)
+			r.Post("/universes", s.createUniverse)
+			r.Get("/universes/{universeID}", s.getUniverse)
 			r.Get("/rooms/{roomID}", s.getRoom)
 			r.Post("/rooms/{roomID}/join", s.joinRoom)
 			r.Post("/rooms/{roomID}/characters", s.setCharacter)
@@ -215,11 +220,11 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
 	case errors.Is(err, app.ErrUnauthorized):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
-	case errors.Is(err, game.ErrNotFound):
+	case errors.Is(err, game.ErrNotFound), errors.Is(err, world.ErrNotFound):
 		httperr.Write(w, s.log, http.StatusNotFound, "not found", err)
-	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden):
+	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden), errors.Is(err, world.ErrForbidden):
 		httperr.Write(w, s.log, http.StatusForbidden, "forbidden", err)
-	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter):
+	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter), errors.Is(err, world.ErrInvalid):
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	default:
 		httperr.Write(w, s.log, http.StatusInternalServerError, "an internal error occurred", err)

@@ -263,6 +263,11 @@ textarea {
   font: inherit;
 }
 
+textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
 input:focus,
 select:focus,
 textarea:focus {

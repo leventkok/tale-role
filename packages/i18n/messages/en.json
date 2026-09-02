@@ -6,6 +6,7 @@
   "nav": {
     "play": "Play",
     "host": "Host",
+    "universe": "Universe",
     "signIn": "Sign in",
     "signOut": "Sign out",
     "register": "Create account"
@@ -34,8 +35,9 @@
   "home": {
     "signedInAs": "Signed in as {email}",
     "cta": "Join a table or host a universe.",
-    "hostLead": "Open a private room. Share the id, or lock it with a password.",
-    "playLead": "Sit down with an invite id. Spend your stats. Let the dice speak."
+    "hostLead": "Compile a universe, then open a private room.",
+    "playLead": "Sit down with an invite id. Spend your stats. Let the dice speak.",
+    "universeLead": "Name, tone, theme, and NPCs become a versioned prompt pack. The engine still owns dice."
   },
   "admin": {
     "title": "Spectator console",
@@ -79,5 +81,35 @@
     "kindWait": "wait",
     "hit": "hit",
     "missLabel": "miss"
+  },
+  "universe": {
+    "title": "Universe interview",
+    "lead": "Answer in steps. We compile a Tale Core prompt pack — no paid model, no invented dice.",
+    "stubHint": "The Storyteller is still a stub. Your pack is stored for when our adapter is ready.",
+    "step": "Step {n} of 3",
+    "nameEn": "Name (English)",
+    "nameTr": "Name (Turkish, optional)",
+    "era": "Era / age",
+    "tone": "Tone",
+    "taboos": "Taboos",
+    "theme": "Theme",
+    "dice": "Dice",
+    "rating": "Content rating",
+    "ratingEveryone": "Everyone",
+    "ratingTeen": "Teen",
+    "ratingMature": "Mature",
+    "npcHint": "Optional NPC the table may meet. Alignment is for the Storyteller, not a player sheet.",
+    "npcName": "NPC name",
+    "alignment": "Alignment",
+    "alignGood": "Good",
+    "alignNeutral": "Neutral",
+    "alignEvil": "Evil",
+    "voice": "Voice notes",
+    "next": "Next",
+    "back": "Back",
+    "compile": "Compile pack and host",
+    "pick": "Universe",
+    "none": "No universe (dice only)",
+    "create": "New universe interview"
   }
 }

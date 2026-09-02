@@ -12,7 +12,7 @@ Use three terminals. Keep them running.
 
 ### 0. Branch
 
-Checkout the stack you want to click through (`feat/f3-llm-gateway` has auth + table + stub narrator).
+Checkout the stack you want to click through (`feat/f4-universe-wizard` has auth + table + stub narrator + universe interview).
 
 ### 1. API (terminal A)
 
@@ -116,4 +116,8 @@ Email delivery, Postgres, Mongo, trained models, scene images, Electron signing,
 
 No paid external LLM. Storyteller and mechanics are **our** fine-tunes, served from `services/llm-gateway` on our machines. Until adapters exist, the stub stays.
 
-Order: synthetic datasets under `llm/datasets` → train adapters (weights never in git) → eval gate → gateway loads those adapters. F4 (universe wizard) is the first feature that needs a live narrator rather than a stub.
+Order: synthetic datasets under `llm/datasets` → train adapters (weights never in git) → eval gate → gateway loads those adapters. F4 (universe wizard) is the first feature that needs a live narrator rather than a stub — the interview still compiles a prompt pack on the stub today.
+
+## F4 — universe interview
+
+Signed in: **Universe** → 3 steps (name/tone/taboos → theme + dice → NPC) → compile → Host with that universe selected. Room GET must show `theme_id` and must **not** include `compiled_prompt`. Dice still come from Go.

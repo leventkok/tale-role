@@ -206,6 +206,72 @@ func TestStorytellerAfterEngineAndAdminTrace(t *testing.T) {
 	}
 }
 
+func TestUniverseWizardBindsThemeToRoom(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	created := authed(t, h, http.MethodPost, "/api/v1/universes", token, map[string]any{
+		"name_en": "Ashwood", "theme_id": "gothic-horror", "era": "long night",
+		"tone": "hushed", "taboos": "no real-world politics",
+		"npcs": []map[string]string{{"name_en": "Warden", "alignment": "neutral", "voice": "dry"}},
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("universe: %d %s", created.Code, created.Body.String())
+	}
+	if !bytes.Contains(created.Body.Bytes(), []byte("compiled_prompt")) || !bytes.Contains(created.Body.Bytes(), []byte("gothic-horror")) {
+		t.Fatalf("expected compiled pack: %s", created.Body.String())
+	}
+	if bytes.Contains(created.Body.Bytes(), []byte("system_admin")) {
+		t.Fatal("pack leaked system_admin")
+	}
+	var uni struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(created.Body.Bytes(), &uni)
+	other := registerAndVerify(t, h, "player@tale.role")
+	if stolen := authed(t, h, http.MethodGet, "/api/v1/universes/"+uni.ID, other, nil); stolen.Code != http.StatusForbidden {
+		t.Fatalf("stolen universe: %d", stolen.Code)
+	}
+	room := authed(t, h, http.MethodPost, "/api/v1/rooms", token, map[string]string{
+		"join_mode": "link", "universe_id": uni.ID,
+	})
+	if room.Code != http.StatusCreated {
+		t.Fatalf("room: %d %s", room.Code, room.Body.String())
+	}
+	var createdRoom struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(room.Body.Bytes(), &createdRoom)
+	got := authed(t, h, http.MethodGet, "/api/v1/rooms/"+createdRoom.ID, token, nil)
+	if !bytes.Contains(got.Body.Bytes(), []byte("gothic-horror")) || bytes.Contains(got.Body.Bytes(), []byte("compiled_prompt")) {
+		t.Fatalf("room snapshot: %s", got.Body.String())
+	}
+	if join := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/join", other, map[string]string{}); join.Code != http.StatusOK {
+		t.Fatalf("player join: %d %s", join.Code, join.Body.String())
+	}
+	playerView := authed(t, h, http.MethodGet, "/api/v1/rooms/"+createdRoom.ID, other, nil)
+	if bytes.Contains(playerView.Body.Bytes(), []byte("compiled_prompt")) {
+		t.Fatalf("player saw compiled prompt: %s", playerView.Body.String())
+	}
+	stats := map[string]int{"str": 3, "dex": 3, "con": 3, "int": 3, "wis": 3, "cha": 3}
+	if sheet := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/characters", token, map[string]any{
+		"name": "Iri", "stats": stats,
+	}); sheet.Code != http.StatusCreated {
+		t.Fatalf("character: %d %s", sheet.Code, sheet.Body.String())
+	}
+	if start := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/start", token, map[string]string{}); start.Code != http.StatusOK {
+		t.Fatalf("start: %d %s", start.Code, start.Body.String())
+	}
+	turn := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/turns", token, map[string]any{
+		"kind": "action", "skill": "str", "notes": "knock", "dc": 12, "locale": "en",
+	})
+	if turn.Code != http.StatusOK {
+		t.Fatalf("turn: %d %s", turn.Code, turn.Body.String())
+	}
+	if !bytes.Contains(turn.Body.Bytes(), []byte("[gothic-horror]")) {
+		t.Fatalf("stub narrator should name the theme: %s", turn.Body.String())
+	}
+}
+
 func registerAndVerify(t *testing.T, h http.Handler, email string) string {
 	t.Helper()
 	post(t, h, "/api/v1/auth/register", map[string]string{"email": email, "password": "longenough"})

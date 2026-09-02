@@ -42,6 +42,7 @@ type NarrateRequest struct {
 	Total         int      `json:"total"`
 	Success       *bool    `json:"success"`
 	PresenceNames []string `json:"presence_names"`
+	ThemeID       string   `json:"theme_id,omitempty"`
 }
 
 type IntentRequest struct {
@@ -172,7 +173,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	}
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := packs.Voice(pack, locale)
-	prose := stubProse(locale, pack, actor, req.RoomName, outcome, req.DiceSystem, req.Rolls, req.Total, notes)
+	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
@@ -240,7 +241,7 @@ func outcomeText(locale, kind string, success *bool) string {
 	return "misses"
 }
 
-func stubProse(locale, pack, actor, room, outcome, dice string, rolls []int, total int, notes string) string {
+func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes string) string {
 	rollBits := ""
 	if len(rolls) > 0 {
 		parts := make([]string, len(rolls))
@@ -248,6 +249,10 @@ func stubProse(locale, pack, actor, room, outcome, dice string, rolls []int, tot
 			parts[i] = fmt.Sprintf("%d", n)
 		}
 		rollBits = strings.Join(parts, "+")
+	}
+	place := room
+	if theme != "" {
+		place = room + " [" + theme + "]"
 	}
 	if pack == packs.V1Terse {
 		if locale == "tr" {
@@ -258,12 +263,12 @@ func stubProse(locale, pack, actor, room, outcome, dice string, rolls []int, tot
 	if locale == "tr" {
 		return fmt.Sprintf(
 			"%s salonunda %s %s. Motorun zarı (%s %s, toplam %d) anlatıyı bağlar. %s",
-			room, actor, outcome, dice, rollBits, total, notes,
+			place, actor, outcome, dice, rollBits, total, notes,
 		)
 	}
 	return fmt.Sprintf(
 		"In %s, %s %s. The engine's dice (%s %s, total %d) bind the tale. %s",
-		room, actor, outcome, dice, rollBits, total, notes,
+		place, actor, outcome, dice, rollBits, total, notes,
 	)
 }
 

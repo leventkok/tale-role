@@ -3,10 +3,13 @@ import { HostForm } from "@/components/host-form";
 
 export default async function HostPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ universe?: string }>;
 }) {
   const { locale } = await params;
+  const { universe } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations();
   return (
@@ -16,7 +19,7 @@ export default async function HostPage({
         <p className="lede">{t("home.hostLead")}</p>
       </section>
       <div className="panel narrow">
-        <HostForm />
+        <HostForm universeId={universe} />
       </div>
     </main>
   );

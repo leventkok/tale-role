@@ -6,6 +6,7 @@
   "nav": {
     "play": "Oyna",
     "host": "Kur",
+    "universe": "Evren",
     "signIn": "Giriş",
     "signOut": "Çıkış",
     "register": "Hesap oluştur"
@@ -34,8 +35,9 @@
   "home": {
     "signedInAs": "{email} olarak giriş yaptın",
     "cta": "Masaya katıl veya evren kur.",
-    "hostLead": "Özel oda aç. Id paylaş veya şifre koy.",
-    "playLead": "Davet id ile otur. Statlarını dağıt. Zar konuşsun."
+    "hostLead": "Önce evreni derle, sonra oda aç.",
+    "playLead": "Davet id ile otur. Statlarını dağıt. Zar konuşsun.",
+    "universeLead": "Ad, ton, tema ve NPC’ler sürümlü prompt pack olur. Zar hâlâ motorda."
   },
   "admin": {
     "title": "İzleyici konsolu",
@@ -79,5 +81,35 @@
     "kindWait": "bekle",
     "hit": "isabet",
     "missLabel": "kaçırdı"
+  },
+  "universe": {
+    "title": "Evren mülakatı",
+    "lead": "Adım adım cevapla. Tale Core prompt pack derlenir — ücretli model yok, zar uydurulmaz.",
+    "stubHint": "Anlatıcı hâlâ stub. Pack, kendi adapter’ımız gelince kullanılmak üzere saklanır.",
+    "step": "Adım {n} / 3",
+    "nameEn": "Ad (İngilizce)",
+    "nameTr": "Ad (Türkçe, isteğe bağlı)",
+    "era": "Çağ",
+    "tone": "Ton",
+    "taboos": "Tabular",
+    "theme": "Tema",
+    "dice": "Zar",
+    "rating": "İçerik",
+    "ratingEveryone": "Herkes",
+    "ratingTeen": "Genç",
+    "ratingMature": "Yetişkin",
+    "npcHint": "Masada karşılaşılacak isteğe bağlı NPC. Hiza Anlatıcı içindir, oyuncu kağıdı değil.",
+    "npcName": "NPC adı",
+    "alignment": "Hiza",
+    "alignGood": "İyi",
+    "alignNeutral": "Nötr",
+    "alignEvil": "Kötü",
+    "voice": "Ses notu",
+    "next": "İleri",
+    "back": "Geri",
+    "compile": "Pack derle ve masa kur",
+    "pick": "Evren",
+    "none": "Evren yok (yalnız zar)",
+    "create": "Yeni evren mülakatı"
   }
 }
