@@ -1,6 +1,8 @@
 package gateway_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -64,7 +66,31 @@ func TestLivePromptSwapChangesVoice(t *testing.T) {
 		t.Fatalf("swap did not change voice: %s", b.Prose)
 	}
 	rt := svc.Runtime()
-	if rt.PromptPack != "v1-terse" || rt.AdapterID != "stub" {
+	if rt.PromptPack != "v1-terse" || rt.AdapterID != "stub" || rt.Inference != "stub" {
 		t.Fatalf("runtime: %+v", rt)
+	}
+}
+
+func TestLocalAdapterRequiresWeightsOnDisk(t *testing.T) {
+	svc := gateway.New()
+	if err := svc.Swap("v1", "local"); err == nil {
+		t.Fatal("local swap must fail without weights")
+	}
+	empty := t.TempDir()
+	svc.ConfigureLocal(empty)
+	if svc.Runtime().WeightsReady {
+		t.Fatal("empty dir is not ready")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "adapter_config.json"), []byte(`{"id":"storyteller-v0"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	svc.ConfigureLocal(dir)
+	rt := svc.Runtime()
+	if !rt.WeightsReady || !rt.AdapterDirConfigured || rt.AdapterID != "local" {
+		t.Fatalf("expected local ready: %+v", rt)
+	}
+	if rt.Inference != "stub" {
+		t.Fatal("inference stays stub until the local runner ships")
 	}
 }

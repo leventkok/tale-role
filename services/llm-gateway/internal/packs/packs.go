@@ -4,6 +4,7 @@ const (
 	V1      = "v1"
 	V1Terse = "v1-terse"
 	Stub    = "stub"
+	Local   = "local"
 )
 
 func Known(id string) bool {

@@ -1,0 +1,9 @@
+{
+  "id": "storyteller-v0",
+  "role": "storyteller",
+  "status": "untrained",
+  "base_model": "Qwen2.5-32B-Instruct",
+  "train_file": "llm/datasets/synthetic/storyteller.jsonl",
+  "serve": "services/llm-gateway",
+  "notes": "Open-weight base. Our LoRA stays in private object storage. No paid API."
+}

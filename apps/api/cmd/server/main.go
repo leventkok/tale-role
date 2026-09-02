@@ -14,6 +14,7 @@ import (
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/httpapi"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
+	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
 
 func main() {
@@ -28,7 +29,13 @@ func main() {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }
 	}
-	handler := httpapi.New(svc, game.NewTable(), nil, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
+	llm := gateway.New()
+	llm.ConfigureLocal(os.Getenv("TALEROLE_ADAPTER_DIR"))
+	if os.Getenv("TALEROLE_ADAPTER_DIR") != "" {
+		rt := llm.Runtime()
+		log.Info("llm adapters", "dir_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)
+	}
+	handler := httpapi.New(svc, game.NewTable(), llm, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
 
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{

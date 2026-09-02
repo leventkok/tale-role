@@ -110,11 +110,10 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Email delivery, Postgres, Mongo, real LLM/Ollama, scene images, Electron signing, KVKK export.
+Email delivery, Postgres, Mongo, trained models, scene images, Electron signing, KVKK export.
 
-## When a real LLM lands
+## When our models land
 
-1. **Next code slice (optional, before F4):** OpenAI-compatible adapter behind the existing gateway (`OLLAMA_URL` / `OPENAI_BASE_URL` + stub fallback). No weights in git.
-2. **Own Storyteller + mechanics fine-tunes:** after GPU/host + synthetic datasets + eval gate (F6). Adapters stay in object storage.
+No paid external LLM. Storyteller and mechanics are **our** fine-tunes, served from `services/llm-gateway` on our machines. Until adapters exist, the stub stays.
 
-F4 (universe wizard) is the first feature that really needs a live narrator rather than a stub.
+Order: synthetic datasets under `llm/datasets` → train adapters (weights never in git) → eval gate → gateway loads those adapters. F4 (universe wizard) is the first feature that needs a live narrator rather than a stub.

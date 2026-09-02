@@ -53,8 +53,11 @@ type IntentRequest struct {
 }
 
 type RuntimeView struct {
-	AdapterID  string `json:"adapter_id"`
-	PromptPack string `json:"prompt_pack"`
+	AdapterID            string `json:"adapter_id"`
+	PromptPack           string `json:"prompt_pack"`
+	AdapterDirConfigured bool   `json:"adapter_dir_configured"`
+	WeightsReady         bool   `json:"weights_ready"`
+	Inference            string `json:"inference"`
 }
 
 type Trace struct {
@@ -68,10 +71,12 @@ type Trace struct {
 }
 
 type Service struct {
-	mu      sync.Mutex
-	adapter string
-	pack    string
-	traces  []Trace
+	mu            sync.Mutex
+	adapter       string
+	pack          string
+	traces        []Trace
+	adapterDirSet bool
+	weightsReady  bool
 }
 
 func New() *Service {
@@ -81,7 +86,13 @@ func New() *Service {
 func (s *Service) Runtime() RuntimeView {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return RuntimeView{AdapterID: s.adapter, PromptPack: s.pack}
+	return RuntimeView{
+		AdapterID:            s.adapter,
+		PromptPack:           s.pack,
+		AdapterDirConfigured: s.adapterDirSet,
+		WeightsReady:         s.weightsReady,
+		Inference:            packs.Stub,
+	}
 }
 
 func (s *Service) Swap(pack, adapter string) error {
@@ -94,14 +105,32 @@ func (s *Service) Swap(pack, adapter string) error {
 	if adapter == "" {
 		adapter = packs.Stub
 	}
-	if adapter != packs.Stub {
+	if adapter != packs.Stub && adapter != packs.Local {
 		return fmt.Errorf("unknown adapter")
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if adapter == packs.Local && !s.weightsReady {
+		return fmt.Errorf("local weights missing")
+	}
 	s.pack = pack
 	s.adapter = adapter
-	s.mu.Unlock()
 	return nil
+}
+
+func (s *Service) ConfigureLocal(dir string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if strings.TrimSpace(dir) == "" {
+		s.adapterDirSet = false
+		s.weightsReady = false
+		return
+	}
+	s.adapterDirSet = true
+	s.weightsReady = ProbeWeights(dir)
+	if s.weightsReady {
+		s.adapter = packs.Local
+	}
 }
 
 func (s *Service) Traces() []Trace {

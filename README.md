@@ -17,6 +17,7 @@ F3 dual LLM: in-process Storyteller + mechanics stubs, PII redaction, live promp
 - Tale Core dice: **d20 default**, `2d6` as a plugin
 - No regional/national UI themes
 - System admins spectate every room invisibly
+- No paid third-party LLM APIs; we train and host our own Storyteller + mechanics models
 
 ## Monorepo
 

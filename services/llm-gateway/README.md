@@ -2,7 +2,9 @@
 
 Storyteller (LLM1) and mechanics (LLM2) inference. Scale independently.
 
-F3 ships **stub adapters** plus versioned prompt packs (`v1`, `v1-terse`). Fine-tune weights stay in object storage — never git. Swap is live: the next turn uses the new pack.
+F3 ships **stub adapters** plus versioned prompt packs (`v1`, `v1-terse`). Our fine-tunes land later via `TALEROLE_ADAPTER_DIR` (files on our disk — no paid API). Inference stays stub until the local runner is wired.
+
+Fine-tune weights stay in object storage — never git. Swap is live: the next turn uses the new pack.
 
 PII redaction (email, long digit runs, phone-like strings) happens before a prompt is recorded or returned.
 

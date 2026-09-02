@@ -1,0 +1,6 @@
+{"locale":"en","input":{"notes":"I slam into the door","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"en","input":{"notes":"I skip this round","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"I hold and watch the stairs","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"talk us past the guard","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"tr","input":{"notes":"kapıyı zorla","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"tr","input":{"notes":"bu turu pas geç","kind":"pass","skill":""},"output":{"kind":"pass"}}
