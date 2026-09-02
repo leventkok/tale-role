@@ -6,7 +6,27 @@
   "nav": {
     "play": "Oyna",
     "host": "Kur",
-    "signIn": "Giriş"
+    "signIn": "Giriş",
+    "signOut": "Çıkış",
+    "register": "Hesap oluştur"
+  },
+  "auth": {
+    "email": "E-posta",
+    "password": "Şifre",
+    "otp": "6 haneli kod",
+    "submit": "Devam",
+    "verify": "Doğrula",
+    "otpHint": "E-postadaki kodu gir. Kod uygulamada gösterilmez.",
+    "needAccount": "Hesabın yok mu?",
+    "haveAccount": "Zaten kayıtlı mısın?"
+  },
+  "home": {
+    "signedInAs": "{email} olarak giriş yaptın",
+    "cta": "Masaya katıl veya evren kur."
+  },
+  "admin": {
+    "title": "İzleyici konsolu",
+    "hint": "Tüm odalara görünmeden katılırsın. Oyuncular bu koltuğu görmez."
   },
   "table": {
     "pass": "Pas",

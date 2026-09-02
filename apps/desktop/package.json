@@ -1,0 +1,9 @@
+{
+  "name": "@tale-role/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron ."
+  }
+}

@@ -1,5 +1,10 @@
 # apps/desktop
 
-Electron shell (Windows + macOS). Deep links: `talerole://join/{token}`.
+Electron shell (Windows + macOS). Loads the web app and registers `talerole://join/...`.
 
-Registered-product licensing ships in F1.
+```bash
+# from repo root, with apps/web running
+npx electron apps/desktop
+```
+
+Device id is a hostname hash exposed via `window.taleRoleDesktop` for `POST /api/v1/licenses/register`. The JWT stays in the HttpOnly web cookie; never put it in `localStorage`.

@@ -8,11 +8,15 @@
   },
   "workspaces": [
     "packages/i18n",
-    "packages/game-schema"
+    "packages/game-schema",
+    "apps/web",
+    "apps/admin"
   ],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:web": "npm run dev -w @tale-role/web",
+    "dev:admin": "npm run dev -w @tale-role/admin"
   },
   "devDependencies": {
     "@types/node": "^20.17.19",
