@@ -26,9 +26,10 @@ type Config struct {
 
 func Load() Config {
 	origins := splitCSV(env("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001"))
+	host, port := listenAddr()
 	return Config{
-		Host:               env("SERVER_HOST", "127.0.0.1"),
-		Port:               env("SERVER_PORT", "8080"),
+		Host:               host,
+		Port:               port,
 		JWTSecret:          env("JWT_SECRET", "change-me-in-production"),
 		JWTExpiry:          8 * time.Hour,
 		CORSAllowedOrigins: origins,
@@ -60,6 +61,24 @@ func (c Config) Mail() string {
 
 func (c Config) JWTSecretIsDefault() bool {
 	return c.JWTSecret == "change-me-in-production"
+}
+
+// listenAddr binds loopback for laptop/tunnel sitting. PaaS injects PORT
+// (Render, Fly, Cloud Run); then we listen on all interfaces unless SERVER_HOST is set.
+func listenAddr() (host, port string) {
+	port = os.Getenv("PORT")
+	if port == "" {
+		port = env("SERVER_PORT", "8080")
+	}
+	host = os.Getenv("SERVER_HOST")
+	if host == "" {
+		if os.Getenv("PORT") != "" {
+			host = "0.0.0.0"
+		} else {
+			host = "127.0.0.1"
+		}
+	}
+	return host, port
 }
 
 func env(key, fallback string) string {
