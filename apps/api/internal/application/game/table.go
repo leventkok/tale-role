@@ -107,6 +107,13 @@ type NPCLine struct {
 	Text  string `json:"text"`
 }
 
+type Scene struct {
+	ThemeID      string `json:"theme_id"`
+	VisualPrompt string `json:"visual_prompt"`
+	ImageSVG     string `json:"image_svg"`
+	Inference    string `json:"inference"`
+}
+
 type Room struct {
 	ID         string                `json:"id"`
 	Name       string                `json:"name"`
@@ -122,6 +129,7 @@ type Room struct {
 	UniverseID string                `json:"universe_id,omitempty"`
 	ThemeID    string                `json:"theme_id,omitempty"`
 	PromptPack string                `json:"prompt_pack_version,omitempty"`
+	Scene      *Scene                `json:"-"`
 	CreatedAt  time.Time             `json:"created_at"`
 }
 
@@ -139,6 +147,7 @@ type PublicRoom struct {
 	UniverseID        string      `json:"universe_id,omitempty"`
 	ThemeID           string      `json:"theme_id,omitempty"`
 	PromptPackVersion string      `json:"prompt_pack_version,omitempty"`
+	Scene             *Scene      `json:"scene,omitempty"`
 }
 
 type Table struct {
@@ -327,6 +336,18 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	return turn, nil
 }
 
+func (t *Table) AttachScene(roomID string, sc Scene) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return ErrNotFound
+	}
+	cp := sc
+	r.Scene = &cp
+	return nil
+}
+
 func (t *Table) AttachNarrative(roomID string, n Narrative) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -377,6 +398,10 @@ func snapshot(r *Room) *PublicRoom {
 		UniverseID:        r.UniverseID,
 		ThemeID:           r.ThemeID,
 		PromptPackVersion: r.PromptPack,
+	}
+	if r.Scene != nil {
+		cp := *r.Scene
+		out.Scene = &cp
 	}
 	for _, m := range r.Members {
 		if m.Role == "system_admin" {

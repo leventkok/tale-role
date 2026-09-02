@@ -66,6 +66,7 @@
     "presence": "Masadakiler",
     "storyteller": "Anlatıcı",
     "sceneSoon": "Sahne görseli burada olacak — sohbetin içinde değil.",
+    "sceneStub": "Stub sahne. Ücretli görsel API yok.",
     "waiting": "Fenerler bekliyor. Konuş, pas geç veya bekle.",
     "hp": "HP",
     "copyId": "Id kopyala",

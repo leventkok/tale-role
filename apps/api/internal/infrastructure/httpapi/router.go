@@ -16,6 +16,7 @@ import (
 	"github.com/leventkok/tale-role/apps/api/internal/application/world"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
+	worker "github.com/leventkok/tale-role/services/image-worker"
 	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
 
@@ -24,6 +25,7 @@ type Server struct {
 	table      *game.Table
 	worlds     *world.Catalog
 	llm        *gateway.Service
+	images     *worker.Service
 	log        *slog.Logger
 	cfg        config.Config
 	adminEmail string
@@ -33,7 +35,7 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 	if llm == nil {
 		llm = gateway.New()
 	}
-	s := &Server{svc: svc, table: table, worlds: world.NewCatalog(), llm: llm, log: log, cfg: cfg, adminEmail: adminEmail}
+	s := &Server{svc: svc, table: table, worlds: world.NewCatalog(), llm: llm, images: worker.New(), log: log, cfg: cfg, adminEmail: adminEmail}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)

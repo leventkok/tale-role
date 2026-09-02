@@ -12,6 +12,8 @@ F3 dual LLM: in-process Storyteller + mechanics stubs, PII redaction, live promp
 
 F4 universe interview: owner compiles a versioned prompt pack; rooms bind `theme_id`; players never see `compiled_prompt`.
 
+F5 scene panel: stub SVG beside the Storyteller, keyed by theme. Not in chat. Turn loop does not wait on a real image model.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)

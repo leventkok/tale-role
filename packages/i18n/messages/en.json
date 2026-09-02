@@ -66,6 +66,7 @@
     "presence": "At the table",
     "storyteller": "Storyteller",
     "sceneSoon": "Scene art will sit here — never inside the chat.",
+    "sceneStub": "Stub scene. No paid image API.",
     "waiting": "The lanterns hold. Speak, pass, or wait.",
     "hp": "HP",
     "copyId": "Copy id",

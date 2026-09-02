@@ -262,13 +262,47 @@ func TestUniverseWizardBindsThemeToRoom(t *testing.T) {
 		t.Fatalf("start: %d %s", start.Code, start.Body.String())
 	}
 	turn := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/turns", token, map[string]any{
-		"kind": "action", "skill": "str", "notes": "knock", "dc": 12, "locale": "en",
+		"kind": "action", "skill": "str", "notes": "knock, cc spy@tale.role", "dc": 12, "locale": "en",
 	})
 	if turn.Code != http.StatusOK {
 		t.Fatalf("turn: %d %s", turn.Code, turn.Body.String())
 	}
 	if !bytes.Contains(turn.Body.Bytes(), []byte("[gothic-horror]")) {
 		t.Fatalf("stub narrator should name the theme: %s", turn.Body.String())
+	}
+	if bytes.Contains(turn.Body.Bytes(), []byte("image_svg")) {
+		t.Fatal("scene art must not inline in the chronicle turn")
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	var snap *httptest.ResponseRecorder
+	var scene struct {
+		ThemeID      string `json:"theme_id"`
+		VisualPrompt string `json:"visual_prompt"`
+		ImageSVG     string `json:"image_svg"`
+		Inference    string `json:"inference"`
+	}
+	for time.Now().Before(deadline) {
+		snap = authed(t, h, http.MethodGet, "/api/v1/rooms/"+createdRoom.ID, token, nil)
+		var body struct {
+			Scene *struct {
+				ThemeID      string `json:"theme_id"`
+				VisualPrompt string `json:"visual_prompt"`
+				ImageSVG     string `json:"image_svg"`
+				Inference    string `json:"inference"`
+			} `json:"scene"`
+		}
+		_ = json.Unmarshal(snap.Body.Bytes(), &body)
+		if body.Scene != nil && strings.Contains(body.Scene.ImageSVG, `data-theme="gothic-horror"`) {
+			scene = *body.Scene
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if scene.ImageSVG == "" || scene.Inference != "stub" {
+		t.Fatalf("expected stub scene on room: %s", snap.Body.String())
+	}
+	if strings.Contains(scene.VisualPrompt, "spy@tale.role") || strings.Contains(scene.ImageSVG, "system_admin") {
+		t.Fatal("scene leaked pii or spectator")
 	}
 }
 

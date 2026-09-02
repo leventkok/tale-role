@@ -110,7 +110,7 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Email delivery, Postgres, Mongo, trained models, scene images, Electron signing, KVKK export.
+Email delivery, Postgres, Mongo, trained models, Electron signing, KVKK export.
 
 ## When our models land
 
@@ -121,3 +121,7 @@ Order: synthetic datasets under `llm/datasets` → train adapters (weights never
 ## F4 — universe interview
 
 Signed in: **Universe** → 3 steps (name/tone/taboos → theme + dice → NPC) → compile → Host with that universe selected. Room GET must show `theme_id` and must **not** include `compiled_prompt`. Dice still come from Go.
+
+## F5 — scene panel
+
+After a roll, the Storyteller **side panel** (not the chronicle) shows a stub SVG for the room theme. Turn JSON must not contain `image_svg`. No paid image API.
