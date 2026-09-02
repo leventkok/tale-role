@@ -21,6 +21,7 @@ build/
 
 # go
 bin/
+talerole-server
 *.exe
 *.exe~
 *.dll

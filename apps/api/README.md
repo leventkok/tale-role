@@ -12,6 +12,8 @@ go test ./...
 go run ./cmd/server
 ```
 
+Without `PORT`, the process binds `127.0.0.1:8080` (laptop / Cloudflare tunnel). Hosted runtimes set `PORT`; the process then binds `0.0.0.0`. Do not set `TALEROLE_DEV_OTP` there.
+
 ## Auth
 
 - `POST /api/v1/auth/register` — 6-digit OTP required (code is never in the JSON body)
