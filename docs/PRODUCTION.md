@@ -6,7 +6,7 @@ Tale Role is meant to run as hosted services, not on a laptop disk.
 Browser → Next.js (Vercel)
         → apps/api (Render)
              ├─ MongoDB Atlas
-             ├─ SMTP (Hostinger mailbox)
+             ├─ OTP mail (Resend HTTPS on Render free; SMTP only if the host allows 587)
              └─ HTTPS → llm-runner (GPU, later)
                           └─ Hugging Face Hub (private repos, from_pretrained)
 ```
@@ -32,6 +32,8 @@ Never git. Never paste into chat.
 On **Render** (`talerole-api`):
 
 - `JWT_SECRET` — Blueprint generates one; rotate if it leaked
+- `RESEND_API_KEY` — dashboard only. OTP over HTTPS (Render free cannot use SMTP 587)
+- `RESEND_FROM=Tale Role <onboarding@resend.dev>` until `talerole.com` is verified in Resend
 - `MONGO_URI` — Atlas connection string (`mongodb+srv://…`)
 - `MONGO_DB=talerole`
 - `SMTP_HOST=smtp.hostinger.com`
@@ -51,7 +53,7 @@ Leave `TALEROLE_DEV_OTP` unset. Atlas Network Access must allow Render egress (f
 1. Merge this hosting PR. Wait for green CI.
 2. Create Atlas (M0) + a Hostinger mailbox `noreply@talerole.com`.
 3. Deploy `talerole-api` on Render (Blueprint `render.yaml`, Frankfurt). The workspace already has free `navgo-api`; a second free web service may be rejected — use Starter if so.
-4. Confirm `https://<service>.onrender.com/health/ready` returns `"persistence":"mongo"` and `"mail":"smtp"`.
+4. Confirm `https://<service>.onrender.com/health/ready` returns `"persistence":"mongo"` and `"mail":"resend"` (or `"mail":"smtp"` on a host that allows 587).
 5. Create two Vercel projects from `leventkok/tale-role`: root `apps/web` and `apps/admin`. Set `API_URL`.
 6. Cloudflare DNS: replace tunnel CNAMEs with Vercel (`cname.vercel-dns.com`) for apex/`www`/`admin`, and the Render hostname for `api`. Keep MX/TXT.
 7. Zero Trust: remove the published application routes that pointed at `localhost`.

@@ -62,15 +62,20 @@ func main() {
 	}
 
 	svc := app.NewService(ident, cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
-	mailer := mail.SMTP{
-		Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom,
-		User: cfg.SMTPUser, Pass: cfg.SMTPPass,
-	}
-	svc.Mailer = mailer
-	if mailer.Enabled() {
-		log.Info("mail", "transport", "smtp", "addr", mailer.Addr())
+	if cfg.ResendAPIKey != "" {
+		svc.Mailer = mail.Resend{APIKey: cfg.ResendAPIKey, From: cfg.ResendFrom}
+		log.Info("mail", "transport", "resend")
 	} else {
-		log.Warn("SMTP_HOST unset; OTP email is not sent")
+		mailer := mail.SMTP{
+			Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom,
+			User: cfg.SMTPUser, Pass: cfg.SMTPPass,
+		}
+		svc.Mailer = mailer
+		if mailer.Enabled() {
+			log.Info("mail", "transport", "smtp", "addr", mailer.Addr())
+		} else {
+			log.Warn("SMTP_HOST unset; OTP email is not sent")
+		}
 	}
 	if devOTP := os.Getenv("TALEROLE_DEV_OTP"); devOTP != "" {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")

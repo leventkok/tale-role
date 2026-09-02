@@ -32,7 +32,8 @@
     "verify": "Doğrula",
     "otpHint": "E-postadaki kodu gir. Kod uygulamada gösterilmez.",
     "needAccount": "Hesabın yok mu?",
-    "haveAccount": "Zaten kayıtlı mısın?"
+    "haveAccount": "Zaten kayıtlı mısın?",
+    "timeout": "Sunucu yanıt vermedi. Tekrar dene."
   },
   "home": {
     "signedInAs": "{email} olarak giriş yaptın",

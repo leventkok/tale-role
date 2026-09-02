@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { apiBase, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { apiFetch, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const upstream = await fetch(`${apiBase()}/api/v1/auth/otp/verify`, {
+  const upstream = await apiFetch("/api/v1/auth/otp/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

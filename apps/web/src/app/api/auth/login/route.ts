@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiBase, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { apiFetch, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 
 type Upstream = Record<string, unknown>;
 
@@ -16,7 +16,7 @@ function withOptionalSession(status: number, data: Upstream) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const upstream = await fetch(`${apiBase()}/api/v1/auth/login`, {
+  const upstream = await apiFetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
