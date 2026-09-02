@@ -1,0 +1,81 @@
+# Documentary schema. The live schema is built in Go (httpapi/graphql.go).
+# POST /graphql. REST BFF remains the primary client path. No GraphiQL.
+
+type Query {
+  health: Health!
+  me: User
+  room(id: ID!): Room
+  universes: [UniverseSummary!]!
+  universe(id: ID!): Universe
+}
+
+type Mutation {
+  createRoom(
+    name: String
+    joinMode: String
+    password: String
+    diceSystem: String
+    universeId: ID
+  ): RoomCreated
+  joinRoom(roomId: ID!, password: String): Boolean!
+}
+
+type Health {
+  status: String!
+  persistence: String!
+  llm: String!
+  images: String!
+}
+
+type User {
+  id: ID!
+  email: String!
+  verified: Boolean!
+}
+
+type Room {
+  id: ID!
+  name: String!
+  hostId: String!
+  diceSystem: String!
+  joinMode: String!
+  started: Boolean!
+  universeId: String
+  themeId: String
+  promptPackVersion: String
+  presence: [Member!]!
+  characters: [Character!]!
+}
+
+type Member {
+  userId: String!
+  role: String!
+}
+
+type Character {
+  userId: String!
+  name: String!
+  hp: Int!
+}
+
+type UniverseSummary {
+  id: ID!
+  nameEn: String!
+  themeId: String!
+  diceSystem: String!
+  promptPackVersion: String!
+}
+
+type Universe {
+  id: ID!
+  nameEn: String!
+  themeId: String!
+  diceSystem: String!
+  compiledPrompt: String
+}
+
+type RoomCreated {
+  id: ID!
+  diceSystem: String!
+  universeId: String
+}

@@ -1,6 +1,6 @@
 # apps/web
 
-Player + GM Next.js app. Default locale `en`. Session is an **HttpOnly** cookie set by the Next.js BFF (`API_URL` → Go). The JWT is never written to `localStorage`.
+Player + GM Next.js app. Default locale `en`. Session is an **HttpOnly** cookie set by the Next.js BFF (`API_URL` → Go). The JWT is never written to `localStorage`. `POST /api/graphql` proxies to Go `/graphql` and forwards the cookie when present (anonymous `health` / `me` still work).
 
 ```bash
 # terminal 1

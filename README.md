@@ -18,6 +18,8 @@ F6 privacy: export + erase, eval gate in CI, unsigned Electron pack config. Infe
 
 F7 Mongo: `infra/scripts/compose-up.ps1` starts object storage. Set `MONGO_URI` so users, rooms, and universes survive API restart. Identity on Mongo for this capstone; masterfabric-go Postgres remains the later IAM home.
 
+F8 GraphQL: `POST /graphql` (and Next.js `/api/graphql`) wraps table, universe, and `me`. REST stays. No GraphiQL. Room queries never include `compiled_prompt`.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)

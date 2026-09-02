@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/graphql-go/graphql"
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/application/world"
@@ -26,6 +27,7 @@ type Server struct {
 	worlds     *world.Catalog
 	llm        *gateway.Service
 	images     *worker.Service
+	gql        graphql.Schema
 	log        *slog.Logger
 	cfg        config.Config
 	adminEmail string
@@ -39,6 +41,11 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 		worlds = world.NewCatalog()
 	}
 	s := &Server{svc: svc, table: table, worlds: worlds, llm: llm, images: worker.New(), log: log, cfg: cfg, adminEmail: adminEmail}
+	schema, err := s.graphQLSchema()
+	if err != nil {
+		panic(err)
+	}
+	s.gql = schema
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -57,6 +64,7 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 		httperr.JSON(w, http.StatusOK, map[string]string{"status": "alive"})
 	})
 	r.Get("/health/ready", s.ready)
+	r.With(s.optionalAuth).Post("/graphql", s.graphQL)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/register", s.register)
