@@ -50,7 +50,7 @@ func (s *Server) ready(w http.ResponseWriter, _ *http.Request) {
 	rt := s.llm.Runtime()
 	httperr.JSON(w, http.StatusOK, map[string]any{
 		"status":      "ready",
-		"persistence": "memory",
+		"persistence": s.cfg.Persistence(),
 		"llm":         rt.Inference,
 		"images":      "stub",
 	})

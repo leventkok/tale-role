@@ -31,11 +31,14 @@ type Server struct {
 	adminEmail string
 }
 
-func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Logger, cfg config.Config, adminEmail string) http.Handler {
+func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gateway.Service, log *slog.Logger, cfg config.Config, adminEmail string) http.Handler {
 	if llm == nil {
 		llm = gateway.New()
 	}
-	s := &Server{svc: svc, table: table, worlds: world.NewCatalog(), llm: llm, images: worker.New(), log: log, cfg: cfg, adminEmail: adminEmail}
+	if worlds == nil {
+		worlds = world.NewCatalog()
+	}
+	s := &Server{svc: svc, table: table, worlds: worlds, llm: llm, images: worker.New(), log: log, cfg: cfg, adminEmail: adminEmail}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)

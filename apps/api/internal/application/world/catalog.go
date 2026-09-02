@@ -22,29 +22,29 @@ var themes = map[string]struct{}{
 }
 
 type NPC struct {
-	ID        string `json:"id"`
-	NameEN    string `json:"name_en"`
-	NameTR    string `json:"name_tr,omitempty"`
-	Alignment string `json:"alignment"`
-	Voice     string `json:"voice,omitempty"`
+	ID        string `json:"id" bson:"id"`
+	NameEN    string `json:"name_en" bson:"name_en"`
+	NameTR    string `json:"name_tr,omitempty" bson:"name_tr,omitempty"`
+	Alignment string `json:"alignment" bson:"alignment"`
+	Voice     string `json:"voice,omitempty" bson:"voice,omitempty"`
 }
 
 type Universe struct {
-	ID                string    `json:"id"`
-	OwnerID           string    `json:"owner_id"`
-	NameEN            string    `json:"name_en"`
-	NameTR            string    `json:"name_tr,omitempty"`
-	ThemeID           string    `json:"theme_id"`
-	DiceSystem        string    `json:"dice_system"`
-	RulesetID         string    `json:"ruleset_id"`
-	PromptPackVersion string    `json:"prompt_pack_version"`
-	ContentRating     string    `json:"content_rating"`
-	Era               string    `json:"era,omitempty"`
-	Tone              string    `json:"tone,omitempty"`
-	Taboos            string    `json:"taboos,omitempty"`
-	NPCs              []NPC     `json:"npcs"`
-	CompiledPrompt    string    `json:"compiled_prompt,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                string    `json:"id" bson:"_id"`
+	OwnerID           string    `json:"owner_id" bson:"owner_id"`
+	NameEN            string    `json:"name_en" bson:"name_en"`
+	NameTR            string    `json:"name_tr,omitempty" bson:"name_tr,omitempty"`
+	ThemeID           string    `json:"theme_id" bson:"theme_id"`
+	DiceSystem        string    `json:"dice_system" bson:"dice_system"`
+	RulesetID         string    `json:"ruleset_id" bson:"ruleset_id"`
+	PromptPackVersion string    `json:"prompt_pack_version" bson:"prompt_pack_version"`
+	ContentRating     string    `json:"content_rating" bson:"content_rating"`
+	Era               string    `json:"era,omitempty" bson:"era,omitempty"`
+	Tone              string    `json:"tone,omitempty" bson:"tone,omitempty"`
+	Taboos            string    `json:"taboos,omitempty" bson:"taboos,omitempty"`
+	NPCs              []NPC     `json:"npcs" bson:"npcs"`
+	CompiledPrompt    string    `json:"compiled_prompt,omitempty" bson:"compiled_prompt,omitempty"`
+	CreatedAt         time.Time `json:"created_at" bson:"created_at"`
 }
 
 type Summary struct {
@@ -70,10 +70,42 @@ type Draft struct {
 type Catalog struct {
 	mu    sync.Mutex
 	items map[string]*Universe
+	sink  UniverseSink
+}
+
+type UniverseSink interface {
+	UpsertUniverse(*Universe) error
+	DeleteUniverse(id string) error
 }
 
 func NewCatalog() *Catalog {
 	return &Catalog{items: map[string]*Universe{}}
+}
+
+func (c *Catalog) SetSink(s UniverseSink) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sink = s
+}
+
+func (c *Catalog) Load(rows []*Universe) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, u := range rows {
+		if u == nil || u.ID == "" {
+			continue
+		}
+		cp := *u
+		c.items[u.ID] = &cp
+	}
+}
+
+func (c *Catalog) persist(u *Universe) {
+	if c.sink == nil || u == nil {
+		return
+	}
+	cp := *u
+	_ = c.sink.UpsertUniverse(&cp)
 }
 
 func (c *Catalog) Create(ownerID string, d Draft) (*Universe, error) {
@@ -136,6 +168,7 @@ func (c *Catalog) Create(ownerID string, d Draft) (*Universe, error) {
 	c.mu.Lock()
 	c.items[u.ID] = u
 	c.mu.Unlock()
+	c.persist(u)
 	return u, nil
 }
 
@@ -190,6 +223,9 @@ func (c *Catalog) ForgetOwner(ownerID string) {
 	for id, u := range c.items {
 		if u.OwnerID == ownerID {
 			delete(c.items, id)
+			if c.sink != nil {
+				_ = c.sink.DeleteUniverse(id)
+			}
 		}
 	}
 }

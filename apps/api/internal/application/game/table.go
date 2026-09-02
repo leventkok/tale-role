@@ -32,12 +32,12 @@ var (
 )
 
 type Stats struct {
-	STR int `json:"str"`
-	DEX int `json:"dex"`
-	CON int `json:"con"`
-	INT int `json:"int"`
-	WIS int `json:"wis"`
-	CHA int `json:"cha"`
+	STR int `json:"str" bson:"str"`
+	DEX int `json:"dex" bson:"dex"`
+	CON int `json:"con" bson:"con"`
+	INT int `json:"int" bson:"int"`
+	WIS int `json:"wis" bson:"wis"`
+	CHA int `json:"cha" bson:"cha"`
 }
 
 func (s Stats) Total() int {
@@ -74,44 +74,44 @@ func (s Stats) Skill(name string) (int, error) {
 }
 
 type Character struct {
-	UserID string `json:"user_id"`
-	Name   string `json:"name"`
-	Stats  Stats  `json:"stats"`
-	HP     int    `json:"hp"`
+	UserID string `json:"user_id" bson:"user_id"`
+	Name   string `json:"name" bson:"name"`
+	Stats  Stats  `json:"stats" bson:"stats"`
+	HP     int    `json:"hp" bson:"hp"`
 }
 
 type Member struct {
-	UserID string `json:"user_id"`
-	Role   string `json:"role"` // player | gm | system_admin
+	UserID string `json:"user_id" bson:"user_id"`
+	Role   string `json:"role" bson:"role"`
 }
 
 type Turn struct {
-	ActorID    string     `json:"actor_id"`
-	Kind       string     `json:"kind"`
-	DiceSystem string     `json:"dice_system"`
-	Rolls      []int      `json:"rolls"`
-	Total      int        `json:"total"`
-	Success    *bool      `json:"success"`
-	Notes      string     `json:"notes,omitempty"`
-	Narrative  *Narrative `json:"narrative,omitempty"`
+	ActorID    string     `json:"actor_id" bson:"actor_id"`
+	Kind       string     `json:"kind" bson:"kind"`
+	DiceSystem string     `json:"dice_system" bson:"dice_system"`
+	Rolls      []int      `json:"rolls" bson:"rolls"`
+	Total      int        `json:"total" bson:"total"`
+	Success    *bool      `json:"success" bson:"success"`
+	Notes      string     `json:"notes,omitempty" bson:"notes,omitempty"`
+	Narrative  *Narrative `json:"narrative,omitempty" bson:"narrative,omitempty"`
 }
 
 type Narrative struct {
-	Locale   string    `json:"locale"`
-	Prose    string    `json:"prose"`
-	NPCLines []NPCLine `json:"npc_lines"`
+	Locale   string    `json:"locale" bson:"locale"`
+	Prose    string    `json:"prose" bson:"prose"`
+	NPCLines []NPCLine `json:"npc_lines" bson:"npc_lines"`
 }
 
 type NPCLine struct {
-	NPCID string `json:"npc_id"`
-	Text  string `json:"text"`
+	NPCID string `json:"npc_id" bson:"npc_id"`
+	Text  string `json:"text" bson:"text"`
 }
 
 type Scene struct {
-	ThemeID      string `json:"theme_id"`
-	VisualPrompt string `json:"visual_prompt"`
-	ImageSVG     string `json:"image_svg"`
-	Inference    string `json:"inference"`
+	ThemeID      string `json:"theme_id" bson:"theme_id"`
+	VisualPrompt string `json:"visual_prompt" bson:"visual_prompt"`
+	ImageSVG     string `json:"image_svg" bson:"image_svg"`
+	Inference    string `json:"inference" bson:"inference"`
 }
 
 type Room struct {
@@ -154,6 +154,7 @@ type Table struct {
 	mu    sync.Mutex
 	rooms map[string]*Room
 	roll  func(sides int) int
+	sink  RoomSink
 }
 
 func NewTable() *Table {
@@ -196,6 +197,7 @@ func (t *Table) Create(hostID, name, joinMode, password, dice string) (*Room, er
 	t.mu.Lock()
 	t.rooms[r.ID] = r
 	t.mu.Unlock()
+	t.persist(r)
 	return r, nil
 }
 
@@ -209,6 +211,7 @@ func (t *Table) BindUniverse(roomID, universeID, themeID, pack string) error {
 	r.UniverseID = universeID
 	r.ThemeID = themeID
 	r.PromptPack = pack
+	t.persist(r)
 	return nil
 }
 
@@ -229,6 +232,7 @@ func (t *Table) Join(roomID, userID, password, role string) error {
 		role = "player"
 	}
 	r.Members[userID] = Member{UserID: userID, Role: role}
+	t.persist(r)
 	return nil
 }
 
@@ -255,6 +259,7 @@ func (t *Table) SetCharacter(roomID, userID, name string, stats Stats) error {
 		Stats:  stats,
 		HP:     8 + stats.CON,
 	}
+	t.persist(r)
 	return nil
 }
 
@@ -284,6 +289,7 @@ func (t *Table) Start(roomID, userID string) error {
 	}
 	r.TurnOrder = order
 	r.Started = true
+	t.persist(r)
 	return nil
 }
 
@@ -308,6 +314,7 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	turn := Turn{ActorID: userID, Kind: kind, DiceSystem: r.DiceSystem, Notes: notes}
 	if kind == "pass" || kind == "wait" {
 		r.Turns = append(r.Turns, turn)
+		t.persist(r)
 		return turn, nil
 	}
 	if dc <= 0 {
@@ -333,6 +340,7 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	turn.Total = total
 	turn.Success = &okHit
 	r.Turns = append(r.Turns, turn)
+	t.persist(r)
 	return turn, nil
 }
 
@@ -345,6 +353,7 @@ func (t *Table) AttachScene(roomID string, sc Scene) error {
 	}
 	cp := sc
 	r.Scene = &cp
+	t.persist(r)
 	return nil
 }
 
@@ -357,6 +366,7 @@ func (t *Table) AttachNarrative(roomID string, n Narrative) error {
 	}
 	cp := n
 	r.Turns[len(r.Turns)-1].Narrative = &cp
+	t.persist(r)
 	return nil
 }
 
@@ -464,6 +474,7 @@ func (t *Table) ForgetUser(userID string) {
 	for id, r := range t.rooms {
 		if r.HostID == userID {
 			delete(t.rooms, id)
+			t.remove(id)
 			continue
 		}
 		delete(r.Members, userID)
@@ -482,5 +493,6 @@ func (t *Table) ForgetUser(userID string) {
 				r.Turns[i].Narrative = nil
 			}
 		}
+		t.persist(r)
 	}
 }

@@ -4,7 +4,7 @@ Work in `C:\Users\leven\Documents\development\project\talerole`.
 
 There is **no real LLM** yet. Chronicle prose is a stub template. Dice, HP, and turn order come from Go.
 
-Restarting the API wipes users and rooms (in-memory).
+Without `MONGO_URI`, restarting the API wipes users and rooms. With Compose Mongo, they survive.
 
 ## One sitting — F1 + F2 + F3 stubs
 
@@ -12,7 +12,14 @@ Use three terminals. Keep them running.
 
 ### 0. Branch
 
-Checkout the stack you want to click through (`feat/f4-universe-wizard` has auth + table + stub narrator + universe interview).
+Checkout the stack you want to click through (`feat/f7-mongo-hosting` has persistence when Mongo is up).
+
+Optional Mongo (survives API restart):
+
+```powershell
+cd C:\Users\leven\Documents\development\project\talerole
+.\infra\scripts\compose-up.ps1
+```
 
 ### 1. API (terminal A)
 
@@ -21,6 +28,8 @@ cd C:\Users\leven\Documents\development\project\talerole\apps\api
 $env:TALEROLE_DEV_OTP="123456"
 $env:TALEROLE_ADMIN_EMAIL="admin@tale.role"
 $env:CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001"
+$env:MONGO_URI="mongodb://127.0.0.1:27017"
+$env:MONGO_DB="talerole"
 go run ./cmd/server
 ```
 
@@ -128,4 +137,8 @@ After a roll, the Storyteller **side panel** (not the chronicle) shows a stub SV
 
 ## F6 — privacy
 
-Signed in: **Account** → download JSON (no password hash) → type `DELETE` to erase. After erase, `/api/me` is 401. **Privacy** is public. `/health/ready` reports `persistence: memory` and `llm: stub`.
+Signed in: **Account** → download JSON (no password hash) → type `DELETE` to erase. After erase, `/api/me` is 401. **Privacy** is public. `/health/ready` reports `persistence: memory` (or `mongo` when `MONGO_URI` is set) and `llm: stub`.
+
+## F7 — Mongo
+
+`.\infra\scripts\compose-up.ps1` then API with `MONGO_URI`. Create a room, restart the API, join the same id. `/health/ready` → `"persistence":"mongo"`.

@@ -14,7 +14,9 @@ F4 universe interview: owner compiles a versioned prompt pack; rooms bind `theme
 
 F5 scene panel: stub SVG beside the Storyteller, keyed by theme. Not in chat. Turn loop does not wait on a real image model.
 
-F6 privacy: export + erase, eval gate in CI, unsigned Electron pack config. Persistence is still memory. Inference is still stub.
+F6 privacy: export + erase, eval gate in CI, unsigned Electron pack config. Inference is still stub.
+
+F7 Mongo: `infra/scripts/compose-up.ps1` starts object storage. Set `MONGO_URI` so users, rooms, and universes survive API restart. Identity on Mongo for this capstone; masterfabric-go Postgres remains the later IAM home.
 
 ## Invariants
 
