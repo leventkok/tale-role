@@ -36,6 +36,11 @@ export default async function HomePage({
         <>
           <p>{t("home.signedInAs", { email })}</p>
           <p>{t("home.cta")}</p>
+          <p>
+            <Link href="/host">{t("nav.host")}</Link>
+            {" · "}
+            <Link href="/play">{t("nav.play")}</Link>
+          </p>
           <form action="/api/auth/logout" method="post">
             <button type="submit">{t("nav.signOut")}</button>
           </form>

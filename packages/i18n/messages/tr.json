@@ -31,6 +31,23 @@
   "table": {
     "pass": "Pas",
     "wait": "Bekle",
-    "roll": "Zar at"
+    "roll": "Zar at",
+    "roomName": "Oda adı",
+    "roomId": "Oda id",
+    "dice": "Zar",
+    "joinMode": "Erişim",
+    "joinLink": "Davet / id",
+    "joinPassword": "Oda şifresi",
+    "password": "Şifre",
+    "create": "Masa kur",
+    "join": "Katıl",
+    "character": "Karakter adı",
+    "statHint": "Altı stat, her biri 1–6, toplam 18.",
+    "saveCharacter": "Karakteri kaydet",
+    "start": "İnisiyatif at",
+    "order": "Sıra",
+    "skill": "Beceri",
+    "notes": "Ne yapıyorsun?",
+    "presence": "Masadakiler"
   }
 }

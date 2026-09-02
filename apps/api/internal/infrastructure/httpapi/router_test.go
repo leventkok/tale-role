@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
+	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/httpapi"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
@@ -25,7 +26,7 @@ func setup(t *testing.T) (http.Handler, *app.Service) {
 		CORSAllowedOrigins: []string{"http://localhost:3000"},
 		MaxBodyBytes:       1 << 20,
 	}
-	h := httpapi.New(svc, slog.New(slog.NewTextHandler(io.Discard, nil)), cfg)
+	h := httpapi.New(svc, game.NewTable(), slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "admin@tale.role")
 	return h, svc
 }
 
@@ -118,6 +119,44 @@ func TestGenericInternalErrorShape(t *testing.T) {
 	if bytes.Contains(rec.Body.Bytes(), []byte("panic")) {
 		t.Fatal("must not leak internals")
 	}
+}
+
+func TestRoomHTTPHidesAdmin(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	created := authed(t, h, http.MethodPost, "/api/v1/rooms", token, map[string]string{
+		"name": "Ashwood", "join_mode": "link", "dice_system": "d20",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create room: %d %s", created.Code, created.Body.String())
+	}
+	var room struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(created.Body.Bytes(), &room)
+	adminTok := registerAndVerify(t, h, "admin@tale.role")
+	join := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/join", adminTok, map[string]string{})
+	if join.Code != http.StatusOK {
+		t.Fatalf("admin join: %d %s", join.Code, join.Body.String())
+	}
+	got := authed(t, h, http.MethodGet, "/api/v1/rooms/"+room.ID, token, nil)
+	if bytes.Contains(got.Body.Bytes(), []byte("system_admin")) {
+		t.Fatalf("admin leaked: %s", got.Body.String())
+	}
+}
+
+func registerAndVerify(t *testing.T, h http.Handler, email string) string {
+	t.Helper()
+	post(t, h, "/api/v1/auth/register", map[string]string{"email": email, "password": "longenough"})
+	ok := post(t, h, "/api/v1/auth/otp/verify", map[string]string{"email": email, "code": "123456"})
+	var tok struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(ok.Body.Bytes(), &tok)
+	if tok.Token == "" {
+		t.Fatalf("no token for %s: %s", email, ok.Body.String())
+	}
+	return tok.Token
 }
 
 func post(t *testing.T, h http.Handler, path string, body any) *httptest.ResponseRecorder {

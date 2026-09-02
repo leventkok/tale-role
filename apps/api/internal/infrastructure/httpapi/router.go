@@ -12,18 +12,21 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
+	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
 )
 
 type Server struct {
-	svc *app.Service
-	log *slog.Logger
-	cfg config.Config
+	svc        *app.Service
+	table      *game.Table
+	log        *slog.Logger
+	cfg        config.Config
+	adminEmail string
 }
 
-func New(svc *app.Service, log *slog.Logger, cfg config.Config) http.Handler {
-	s := &Server{svc: svc, log: log, cfg: cfg}
+func New(svc *app.Service, table *game.Table, log *slog.Logger, cfg config.Config, adminEmail string) http.Handler {
+	s := &Server{svc: svc, table: table, log: log, cfg: cfg, adminEmail: adminEmail}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -54,6 +57,12 @@ func New(svc *app.Service, log *slog.Logger, cfg config.Config) http.Handler {
 			r.Get("/me", s.me)
 			r.Post("/licenses/register", s.registerLicense)
 			r.Get("/licenses/me", s.myLicenses)
+			r.Post("/rooms", s.createRoom)
+			r.Get("/rooms/{roomID}", s.getRoom)
+			r.Post("/rooms/{roomID}/join", s.joinRoom)
+			r.Post("/rooms/{roomID}/characters", s.setCharacter)
+			r.Post("/rooms/{roomID}/start", s.startRoom)
+			r.Post("/rooms/{roomID}/turns", s.actRoom)
 		})
 	})
 	return r
@@ -184,6 +193,12 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
 	case errors.Is(err, app.ErrUnauthorized):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
+	case errors.Is(err, game.ErrNotFound):
+		httperr.Write(w, s.log, http.StatusNotFound, "not found", err)
+	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden):
+		httperr.Write(w, s.log, http.StatusForbidden, "forbidden", err)
+	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter):
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	default:
 		httperr.Write(w, s.log, http.StatusInternalServerError, "an internal error occurred", err)
 	}
