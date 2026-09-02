@@ -543,6 +543,11 @@ button:disabled,
   font-size: 1.15rem;
 }
 
+.turn .prose {
+  margin: 0.45rem 0 0;
+  color: var(--ink);
+}
+
 .pill select {
   border: 0;
   background: transparent;

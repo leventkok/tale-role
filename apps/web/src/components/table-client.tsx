@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 const emptyStats = { str: 3, dex: 3, con: 3, int: 3, wis: 3, cha: 3 };
 const SKILLS = ["str", "dex", "con", "int", "wis", "cha"] as const;
@@ -31,6 +31,7 @@ type Room = {
     rolls?: number[];
     total?: number;
     success?: boolean | null;
+    narrative?: { prose?: string };
   }[];
 };
 
@@ -42,6 +43,7 @@ function kindLabel(kind: string, t: (key: "kindPass" | "kindWait" | "kindAction"
 
 export function TableClient({ roomId }: { roomId: string }) {
   const t = useTranslations("table");
+  const locale = useLocale();
   const [room, setRoom] = useState<Room | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [name, setName] = useState("Adventurer");
@@ -122,7 +124,7 @@ export function TableClient({ roomId }: { roomId: string }) {
     await fetch(`/api/rooms/${roomId}/turns`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, skill, notes, dc: 12 }),
+      body: JSON.stringify({ kind, skill, notes, dc: 12, locale }),
     });
     setNotes("");
     setBusy(false);
@@ -188,6 +190,7 @@ export function TableClient({ roomId }: { roomId: string }) {
                   <div className="kind">{kindLabel(turn.kind, t)}</div>
                   <strong>{labelFor(turn.actor_id)}</strong>
                   {turn.notes ? <p style={{ margin: "0.35rem 0 0" }}>{turn.notes}</p> : null}
+                  {turn.narrative?.prose ? <p className="prose">{turn.narrative.prose}</p> : null}
                   {turn.rolls?.length ? (
                     <p className="dice-pips" style={{ margin: "0.4rem 0 0" }}>
                       {turn.rolls.join(" + ")}

@@ -22,3 +22,8 @@ go run ./cmd/server
 - `GET /api/v1/licenses/me`
 
 OTP delivery (email) is not wired yet; tests inject a fixed issuer. Production must send mail and keep codes out of logs.
+
+## LLM
+
+Turns call the in-process llm-gateway library after the engine writes dice: mechanics JSON is traced for admins; Storyteller prose is attached to the public turn. `system_admin` is omitted from that context. PII is redacted before prompts are stored.
+

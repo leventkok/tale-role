@@ -44,9 +44,19 @@ Same two terminals. Then:
 
 In-memory store: restarting the API wipes users and rooms.
 
+## Later — F3 dual LLM (after the F3 PR)
+
+Same API + web terminals. Optional: `npm run dev:admin`.
+
+1. Play a turn — the chronicle should show Storyteller prose. Dice still come from the Go engine.
+2. Notes that contain an email must appear as `[redacted]` in admin traces (http://127.0.0.1:3001), never as raw PII.
+3. Spectator signs in with `TALEROLE_ADMIN_EMAIL` on :3001, swaps `v1` → `v1-terse`, plays another turn; voice changes. Players do not see mechanic JSON.
+4. `system_admin` still never appears in presence or Storyteller context.
+
+Fine-tune weights are not in this phase.
+
 ## Later (do not test yet)
 
-- F3: two LLMs / live admin prompt swap
 - F4: universe wizard + themes
 - F5: scene images beside Storyteller
-- F6: KVKK export/delete, signed desktop builds
+- F6: KVKK export/delete, signed desktop builds, real model eval

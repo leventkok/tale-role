@@ -8,6 +8,8 @@ AI-hosted tabletop FRP. One model tells the story. Another proposes mechanics as
 
 F1 platform shell: in-memory Go auth + OTP, Next.js BFF cookies, admin spectator origin, Electron `talerole://` stub.
 
+F3 dual LLM: in-process Storyteller + mechanics stubs, PII redaction, live prompt-pack swap, admin traces.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)

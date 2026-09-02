@@ -15,18 +15,23 @@ import (
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
+	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
 
 type Server struct {
 	svc        *app.Service
 	table      *game.Table
+	llm        *gateway.Service
 	log        *slog.Logger
 	cfg        config.Config
 	adminEmail string
 }
 
-func New(svc *app.Service, table *game.Table, log *slog.Logger, cfg config.Config, adminEmail string) http.Handler {
-	s := &Server{svc: svc, table: table, log: log, cfg: cfg, adminEmail: adminEmail}
+func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Logger, cfg config.Config, adminEmail string) http.Handler {
+	if llm == nil {
+		llm = gateway.New()
+	}
+	s := &Server{svc: svc, table: table, llm: llm, log: log, cfg: cfg, adminEmail: adminEmail}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -35,7 +40,7 @@ func New(svc *app.Service, table *game.Table, log *slog.Logger, cfg config.Confi
 	r.Use(securityHeaders)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSAllowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: allowCredentials(cfg.CORSAllowedOrigins),
 		MaxAge:           300,
@@ -63,6 +68,12 @@ func New(svc *app.Service, table *game.Table, log *slog.Logger, cfg config.Confi
 			r.Post("/rooms/{roomID}/characters", s.setCharacter)
 			r.Post("/rooms/{roomID}/start", s.startRoom)
 			r.Post("/rooms/{roomID}/turns", s.actRoom)
+			r.Group(func(r chi.Router) {
+				r.Use(s.adminOnly)
+				r.Get("/admin/runtime", s.adminRuntime)
+				r.Put("/admin/runtime", s.adminSwap)
+				r.Get("/admin/traces", s.adminTraces)
+			})
 		})
 	})
 	return r
@@ -182,6 +193,17 @@ func (s *Server) auth(next http.Handler) http.Handler {
 		}
 		ctx := withUser(r.Context(), u)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (s *Server) adminOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := userFrom(r)
+		if u == nil || s.adminEmail == "" || u.Email != s.adminEmail {
+			httperr.Write(w, s.log, http.StatusForbidden, "forbidden", nil)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

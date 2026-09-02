@@ -28,7 +28,7 @@ func main() {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }
 	}
-	handler := httpapi.New(svc, game.NewTable(), log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
+	handler := httpapi.New(svc, game.NewTable(), nil, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
 
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{

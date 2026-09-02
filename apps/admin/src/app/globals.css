@@ -32,3 +32,66 @@ body {
 .console code {
   color: #c9a227;
 }
+
+form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.3rem;
+  color: #9a8f96;
+}
+
+input,
+button {
+  font: inherit;
+}
+
+input {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #2e2a33;
+  background: #141318;
+  color: #efe8e4;
+}
+
+button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  background: #c9a227;
+  color: #140f08;
+  cursor: pointer;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+}
+
+.traces {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.traces li {
+  border: 1px solid #2e2a33;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.traces pre {
+  white-space: pre-wrap;
+  color: #c9a227;
+}
+
+.alert {
+  color: #b55252;
+}
