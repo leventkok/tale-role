@@ -46,6 +46,28 @@ func TestResendRejectsBadRecipient(t *testing.T) {
 	}
 }
 
+func TestResendFromStripsNewlines(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"test"}`))
+	}))
+	defer srv.Close()
+	m := Resend{
+		APIKey:  "re_test",
+		From:    "Tale Role <onboarding@\nresend.dev\n>",
+		BaseURL: srv.URL,
+		Client:  srv.Client(),
+	}
+	if err := m.SendOTP("host@tale.role", "111111"); err != nil {
+		t.Fatal(err)
+	}
+	if got["from"] != "Tale Role <onboarding@resend.dev>" {
+		t.Fatalf("from: %v", got["from"])
+	}
+}
+
 func TestResendSurfacesHTTPStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
