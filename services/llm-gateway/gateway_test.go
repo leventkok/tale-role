@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -81,39 +79,30 @@ func TestLivePromptSwapChangesVoice(t *testing.T) {
 	}
 }
 
-func TestLocalAdapterRequiresWeightsOnDisk(t *testing.T) {
+func TestHubAdapterRequiresModelIDs(t *testing.T) {
 	svc := gateway.New()
-	if err := svc.Swap("v1", "local"); err == nil {
-		t.Fatal("local swap must fail without weights")
+	if err := svc.Swap("v1", "hub"); err == nil {
+		t.Fatal("hub swap must fail without model ids")
 	}
-	empty := t.TempDir()
-	svc.ConfigureLocal(empty)
+	svc.ConfigureHub("", "")
 	if svc.Runtime().WeightsReady {
-		t.Fatal("empty dir is not ready")
+		t.Fatal("empty hub is not ready")
 	}
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "adapter_config.json"), []byte(`{"id":"storyteller-v0"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	svc.ConfigureLocal(dir)
+	svc.ConfigureHub("your-org/talerole-storyteller", "your-org/talerole-mechanics")
 	rt := svc.Runtime()
-	if !rt.WeightsReady || !rt.AdapterDirConfigured || rt.AdapterID != "local" {
-		t.Fatalf("expected local ready: %+v", rt)
+	if !rt.WeightsReady || !rt.AdapterDirConfigured || rt.AdapterID != "hub" {
+		t.Fatalf("expected hub ready: %+v", rt)
 	}
 	if rt.Inference != "stub" {
 		t.Fatal("inference stays stub until a runner URL is set")
 	}
 	svc.SetRunners("http://127.0.0.1:9", "")
-	if svc.Runtime().Inference != "local" {
-		t.Fatalf("expected local inference with runner url: %+v", svc.Runtime())
+	if svc.Runtime().Inference != "hub" {
+		t.Fatalf("expected hub inference with runner url: %+v", svc.Runtime())
 	}
 }
 
-func TestLocalRunnerNarrateAndFallback(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "adapter_config.json"), []byte(`{"id":"storyteller-v0"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
+func TestHubRunnerNarrateAndFallback(t *testing.T) {
 	ok := true
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +110,7 @@ func TestLocalRunnerNarrateAndFallback(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		_ = json.NewEncoder(w).Encode(gateway.Narrative{
 			Locale: "en",
-			Prose:  "Local Mira hits. Engine total " + strconv.Itoa(req.Total) + " for spy@tale.role.",
+			Prose:  "Hub Mira hits. Engine total " + strconv.Itoa(req.Total) + " for spy@tale.role.",
 		})
 	})
 	mux.HandleFunc("/v1/intent", func(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +120,7 @@ func TestLocalRunnerNarrateAndFallback(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	svc := gateway.New()
-	svc.ConfigureLocal(dir)
+	svc.ConfigureHub("your-org/talerole-storyteller", "your-org/talerole-mechanics")
 	svc.SetRunners(srv.URL, srv.URL)
 	n := svc.Narrate(gateway.NarrateRequest{
 		Locale: "en", ActorName: "Mira", Kind: "action", Total: 17, Success: &ok, Notes: "kick",
@@ -148,7 +137,7 @@ func TestLocalRunnerNarrateAndFallback(t *testing.T) {
 	}
 
 	down := gateway.New()
-	down.ConfigureLocal(dir)
+	down.ConfigureHub("your-org/talerole-storyteller", "")
 	down.SetRunners("http://127.0.0.1:1", "")
 	fallback := down.Narrate(gateway.NarrateRequest{Locale: "en", ActorName: "Mira", Kind: "wait", RoomName: "Ashwood"})
 	if !strings.Contains(fallback.Prose, "The engine's dice") {

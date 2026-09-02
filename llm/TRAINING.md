@@ -1,39 +1,33 @@
 # Training our models
 
-Tale Role does **not** call paid third-party LLM APIs. Storyteller and mechanics are our fine-tunes, loaded by `services/llm-gateway`.
+Tale Role does **not** call paid third-party LLM APIs (no OpenAI, Anthropic, Hugging Face Inference API). Storyteller and mechanics are **our** fine-tunes.
 
-Until adapters exist, the gateway uses the **stub**. That is expected.
+Weights live in **private Hugging Face Hub repos**. The GPU runner does `from_pretrained(HF_MODEL_ID)` on our host. The game API never holds tensors or `HF_TOKEN`.
+
+Until Hub repos and a runner URL exist, the gateway uses the **stub**. That is expected.
 
 ## What lives in git
 
 - Synthetic JSONL under `llm/datasets/synthetic/` (no player logs, no PII)
 - Model cards (`llm/storyteller/card.json`, `llm/mechanics/card.json`)
-- This playbook
+- This playbook and the Colab notebook
 
 ## What never lives in git
 
-- `.safetensors`, `.gguf`, `.bin`, raw transcripts, emails, API keys
-
-Put trained adapters in private object storage or a disk path **outside** the repo, then point the process at that directory:
-
-```powershell
-$env:TALEROLE_ADAPTER_DIR="D:\talerole-adapters"
-```
-
-Gateway reports `weights_ready` only if that directory contains a recognizable adapter file. Inference is `"local"` only when that is true **and** a runner URL is set (`LLM_STORYTELLER_URL` / `LLM_MECHANICS_URL` / `LLM_RUNNER_URL`). Without either, runtime stays on `stub`.
+- `.safetensors`, `.gguf`, `.bin`, raw transcripts, emails, `HF_TOKEN`
 
 ## Colab (7B QLoRA)
 
-Open `llm/notebooks/qlora_mechanics_7b.ipynb` on a GPU runtime. It trains the mechanics adapter on synthetic JSONL. Export the adapter folder to private disk — never commit `.safetensors`. Storyteller can use the same 7B recipe as a stand-in; the 32B card waits for a larger host.
+Open `llm/notebooks/qlora_mechanics_7b.ipynb` on a GPU runtime. Last cell pushes the adapter to a **private** Hub repo. Storyteller can use the same 7B recipe as a stand-in; the 32B card waits for a larger GPU host.
 
-## Recipe (your GPU host)
+## Recipe (live)
 
-1. Grow `llm/datasets/synthetic/` with more invented scenes. Keep `locale` `en` or `tr`.
-2. Run `npm test -w @tale-role/game-schema` — eval rejects PII, `system_admin`, and mechanics rows that invent dice.
-3. Fine-tune QLoRA (Colab notebook or this playbook) on the open base named in each card. Constrained decoding for mechanics JSON.
-4. Export adapters to `$TALEROLE_ADAPTER_DIR/storyteller` and `.../mechanics`.
-5. Start `services/llm-runner/serve.py` per role (optional split; one process is fine).
-6. Point the API at those URLs. Eval again on a held-out slice before swapping the live pack.
-7. Serve through `services/llm-gateway` only — never from the browser.
+1. Grow `llm/datasets/synthetic/`. Keep `locale` `en` or `tr`.
+2. `npm test -w @tale-role/game-schema` — eval rejects PII, `system_admin`, and mechanics rows that invent dice.
+3. Fine-tune QLoRA. Constrained decoding for mechanics JSON.
+4. Upload adapters to private Hub repos (`your-org/talerole-storyteller`, `your-org/talerole-mechanics`).
+5. Deploy `services/llm-runner` on a GPU host with `HF_MODEL_ID` + `HF_TOKEN`.
+6. Game API: `HF_STORYTELLER_MODEL`, `HF_MECHANICS_MODEL`, `LLM_STORYTELLER_URL`, `LLM_MECHANICS_URL`. Inference becomes `"hub"`.
+7. Never serve from the browser. Dice still come from Go.
 
 Do not paste player tables into the train set. Synthesize.

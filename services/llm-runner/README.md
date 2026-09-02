@@ -1,24 +1,32 @@
 # llm-runner
 
-Local HTTP process for **our** adapters. No paid third-party APIs. Weights stay on disk (`TALEROLE_ADAPTER_DIR`), never git.
+GPU process that **pulls our adapters from Hugging Face Hub** (`from_pretrained`) and serves `/v1/narrate` and `/v1/intent`.
 
-Until PEFT weights exist, `--allow-unloaded` serves bound templates so the Go gateway path can be wired. Real QLoRA export comes from `llm/notebooks/qlora_mechanics_7b.ipynb`.
+This is **not** Hugging Face Inference API (paid, third-party). Hub is private object storage for weights. Inference runs on **our** host. `HF_TOKEN` stays in the host secret manager — never git, never the browser, never the game API.
 
-Storyteller and mechanics can run as **two processes** if you want them on separate GPUs or hosts. One process is enough until you measure load.
+## Production
 
-```powershell
-cd C:\Users\leven\Documents\development\project\talerole
-$env:TALEROLE_ADAPTER_DIR="D:\talerole-adapters"
-python services/llm-runner/serve.py --role storyteller --port 8091 --adapter-dir $env:TALEROLE_ADAPTER_DIR\storyteller
-python services/llm-runner/serve.py --role mechanics --port 8092 --adapter-dir $env:TALEROLE_ADAPTER_DIR\mechanics
+1. Push LoRA/adapters to **private** Hub repos (Colab notebook last cell, or `huggingface-cli upload`).
+2. Deploy this service on a GPU box (Render GPU, Fly, your VM).
+3. Env on the **runner**:
+
+```
+HF_MODEL_ID=your-org/talerole-storyteller
+HF_TOKEN=hf_...          # read-only, private repo
+PORT=8091
 ```
 
-API / gateway:
+Second process for mechanics with `HF_MODEL_ID=your-org/talerole-mechanics`.
 
-```powershell
-$env:LLM_STORYTELLER_URL="http://127.0.0.1:8091"
-$env:LLM_MECHANICS_URL="http://127.0.0.1:8092"
-$env:TALEROLE_ADAPTER_DIR="D:\talerole-adapters"
+4. Env on the **game API** (no HF token):
+
+```
+HF_STORYTELLER_MODEL=your-org/talerole-storyteller
+HF_MECHANICS_MODEL=your-org/talerole-mechanics
+LLM_STORYTELLER_URL=https://storyteller.your.host
+LLM_MECHANICS_URL=https://mechanics.your.host
 ```
 
-`/health/ready` reports `"llm":"local"` only when the adapter dir looks ready **and** a runner URL is set. If the runner is down, the gateway falls back to the stub so the table still rolls in Go.
+`/health/ready` is `"llm":"hub"` when Hub model ids and runner URLs are set. Runner down → stub, dice still from Go.
+
+CI never downloads weights.

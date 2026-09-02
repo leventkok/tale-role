@@ -5,5 +5,5 @@
   "base_model": "Qwen2.5-7B-Instruct",
   "train_file": "llm/datasets/synthetic/mechanics.jsonl",
   "serve": "services/llm-gateway",
-  "notes": "JSON-only adapter. Must never emit dice, HP, or turn order. No paid API. Train: llm/notebooks/qlora_mechanics_7b.ipynb"
+  "notes": "JSON-only adapter. Must never emit dice, HP, or turn order. No paid API. Train in Colab; store on private Hugging Face Hub."
 }

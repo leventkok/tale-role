@@ -20,7 +20,7 @@ func main() {
 		log.Warn("LLM_GATEWAY_ADMIN_TOKEN is unset; admin swap stays locked")
 	}
 	svc := gateway.New()
-	svc.ConfigureLocal(os.Getenv("TALEROLE_ADAPTER_DIR"))
+	svc.ConfigureHub(os.Getenv("HF_STORYTELLER_MODEL"), os.Getenv("HF_MECHANICS_MODEL"))
 	svc.SetRunners(gateway.RunnerURLsFromEnv())
 	addr := fmt.Sprintf("%s:%s", host, port)
 	srv := &http.Server{

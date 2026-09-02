@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// ProbeWeights is true when dir looks like our private adapter export.
-// Inference is "local" only when this is true and a runner URL is set.
+// ProbeWeights is true when a directory looks like an adapter export.
+// Production does not use this: Hub model ids + a runner URL do.
 func ProbeWeights(dir string) bool {
 	if strings.TrimSpace(dir) == "" {
 		return false

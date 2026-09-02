@@ -161,6 +161,6 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/graphql -ContentTy
 
 Compose starts Mailhog. API with `SMTP_HOST=127.0.0.1` `SMTP_PORT=1025`. Register, open http://127.0.0.1:8025, copy the 6-digit code. `/health/ready` includes `"mail":"smtp"`. Register JSON must not contain the code. `TALEROLE_DEV_OTP` still bypasses randomness for local sitting; leave it unset to force Mailhog.
 
-## F10 — local LLM
+## F10 — Hugging Face Hub
 
-Without adapters, `/health/ready` stays `"llm":"stub"`. Train in Colab: `llm/notebooks/qlora_mechanics_7b.ipynb`. Put the export on a private disk, set `TALEROLE_ADAPTER_DIR`, start `python services/llm-runner/serve.py --role storyteller --port 8091`, set `LLM_STORYTELLER_URL`. Then ready reports `"llm":"local"`. Kill the runner: table still plays (stub fallback). Dice totals still come from Go. No paid API.
+Without Hub model ids, `/health/ready` stays `"llm":"stub"`. Train in Colab, push to a **private** repo, deploy `services/llm-runner` with `HF_MODEL_ID` + `HF_TOKEN`, set `HF_STORYTELLER_MODEL` and `LLM_STORYTELLER_URL` on the API. Ready reports `"llm":"hub"`. Kill the runner: table still plays (stub). Dice from Go. This is not a paid Hugging Face Inference API.

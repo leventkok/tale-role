@@ -22,7 +22,7 @@ F8 GraphQL: `POST /graphql` (and Next.js `/api/graphql`) wraps table, universe, 
 
 F9 SMTP OTP: Compose Mailhog (`127.0.0.1:1025`, UI `:8025`) delivers the 6-digit code. Store still bcrypt-hashes it. `TALEROLE_DEV_OTP` is a local bypass. Codes never appear in JSON or logs.
 
-F10 local LLM: Colab QLoRA notebook + `services/llm-runner`. Gateway uses `"local"` only when adapters are on disk and a runner URL is set; otherwise stub. No paid APIs. Dice still come from Go.
+F10 Hugging Face Hub: private repos hold our adapters. GPU runner pulls them with `from_pretrained`. API talks to that runner over HTTPS. Inference is `"hub"` when model ids + runner URL are set; otherwise stub. Not a paid Inference API. Dice still come from Go.
 
 ## Invariants
 
@@ -59,7 +59,7 @@ cd apps/api && go test ./...
 
 Web: `npm run dev:web` (needs `API_URL`, see `apps/web/README.md`). Admin: `npm run dev:admin` on port 3001.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [SECURITY.md](SECURITY.md), and [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## License
 

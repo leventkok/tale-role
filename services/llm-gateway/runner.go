@@ -39,8 +39,8 @@ func (s *Service) SetRunners(storyteller, mechanics string) {
 }
 
 func (s *Service) inferenceLocked() string {
-	if s.adapter == packs.Local && s.weightsReady && s.storytellerURL != "" {
-		return packs.Local
+	if (s.adapter == packs.Hub || s.adapter == packs.Local) && s.weightsReady && s.storytellerURL != "" {
+		return packs.Hub
 	}
 	return packs.Stub
 }
@@ -48,7 +48,7 @@ func (s *Service) inferenceLocked() string {
 func (s *Service) useLocal(role string) (base string, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.adapter != packs.Local || !s.weightsReady {
+	if packs.NormalizeAdapter(s.adapter) != packs.Hub || !s.weightsReady {
 		return "", false
 	}
 	if role == "mechanics" {

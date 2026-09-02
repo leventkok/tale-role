@@ -79,6 +79,8 @@ type Service struct {
 	traces         []Trace
 	adapterDirSet  bool
 	weightsReady   bool
+	hubStoryteller string
+	hubMechanics   string
 	storytellerURL string
 	mechanicsURL   string
 	client         *http.Client
@@ -110,17 +112,30 @@ func (s *Service) Swap(pack, adapter string) error {
 	if adapter == "" {
 		adapter = packs.Stub
 	}
-	if adapter != packs.Stub && adapter != packs.Local {
+	adapter = packs.NormalizeAdapter(adapter)
+	if adapter != packs.Stub && adapter != packs.Hub {
 		return fmt.Errorf("unknown adapter")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if adapter == packs.Local && !s.weightsReady {
-		return fmt.Errorf("local weights missing")
+	if adapter == packs.Hub && !s.weightsReady {
+		return fmt.Errorf("hub models missing")
 	}
 	s.pack = pack
 	s.adapter = adapter
 	return nil
+}
+
+func (s *Service) ConfigureHub(storyteller, mechanics string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hubStoryteller = strings.TrimSpace(storyteller)
+	s.hubMechanics = strings.TrimSpace(mechanics)
+	s.adapterDirSet = s.hubStoryteller != "" || s.hubMechanics != ""
+	s.weightsReady = s.adapterDirSet
+	if s.weightsReady {
+		s.adapter = packs.Hub
+	}
 }
 
 func (s *Service) ConfigureLocal(dir string) {
@@ -134,7 +149,7 @@ func (s *Service) ConfigureLocal(dir string) {
 	s.adapterDirSet = true
 	s.weightsReady = ProbeWeights(dir)
 	if s.weightsReady {
-		s.adapter = packs.Local
+		s.adapter = packs.Hub
 	}
 }
 
