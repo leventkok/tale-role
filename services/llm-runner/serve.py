@@ -26,13 +26,47 @@ def redact(text: str) -> str:
 
 
 def load_pipeline(model_id: str, token: str | None):
-    from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+    import torch
+    from huggingface_hub import list_repo_files
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
 
-    tok = AutoTokenizer.from_pretrained(model_id, token=token, trust_remote_code=True)
+    quant = None
+    if os.environ.get("HF_LOAD_IN_4BIT") == "1":
+        use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        quant = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16 if use_bf16 else torch.float16,
+        )
+    tok_id = model_id
+    files = set(list_repo_files(model_id, token=token))
+    if "adapter_config.json" in files:
+        from peft import PeftConfig, PeftModel
+
+        cfg = PeftConfig.from_pretrained(model_id, token=token)
+        tok_id = cfg.base_model_name_or_path
+        tok = AutoTokenizer.from_pretrained(tok_id, token=token, trust_remote_code=True)
+        if tok.pad_token is None:
+            tok.pad_token = tok.eos_token
+        base = AutoModelForCausalLM.from_pretrained(
+            tok_id,
+            token=token,
+            device_map="auto",
+            trust_remote_code=True,
+            quantization_config=quant,
+        )
+        model = PeftModel.from_pretrained(base, model_id, token=token)
+        return pipeline("text-generation", model=model, tokenizer=tok, return_full_text=False)
+
+    tok = AutoTokenizer.from_pretrained(tok_id, token=token, trust_remote_code=True)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(
-        model_id, token=token, device_map="auto", trust_remote_code=True
+        model_id,
+        token=token,
+        device_map="auto",
+        trust_remote_code=True,
+        quantization_config=quant,
     )
     return pipeline("text-generation", model=model, tokenizer=tok, return_full_text=False)
 

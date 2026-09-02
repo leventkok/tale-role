@@ -1,6 +1,400 @@
-{"locale":"en","input":{"notes":"I slam into the door","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
-{"locale":"en","input":{"notes":"I skip this round","kind":"pass","skill":""},"output":{"kind":"pass"}}
-{"locale":"en","input":{"notes":"I hold and watch the stairs","kind":"wait","skill":""},"output":{"kind":"wait"}}
-{"locale":"en","input":{"notes":"talk us past the guard","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
-{"locale":"tr","input":{"notes":"kapıyı zorla","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"en","input":{"notes":"wrench the stuck lever down","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":15}}
+{"locale":"tr","input":{"notes":"defterin eksik sayfasını fark et","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":16}}
+{"locale":"en","input":{"notes":"crack the mirror-writing riddle","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":11,"targetId":"obj-door-1"}}
+{"locale":"tr","input":{"notes":"pencerenin tahtalarını sök","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16}}
+{"locale":"tr","input":{"notes":"meşale ışığı sönene dek bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"rip the nailed shut door","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":13}}
+{"locale":"tr","input":{"notes":"bu tur elimi tut","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"sallanan bıçağın altından yuvarlan","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14,"targetId":"npc-hound-1"}}
+{"locale":"en","input":{"notes":"carry the stone slab across","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":9,"targetId":"obj-gate-1"}}
+{"locale":"en","input":{"notes":"hold position and listen","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"düşen kafesten yuvarlanıp kaç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"en","input":{"notes":"keep marching through the sandstorm","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11,"targetId":"obj-door-1"}}
+{"locale":"en","input":{"notes":"let the turn slide by","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"köprünün halatını tut","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"tr","input":{"notes":"çapa zincirini yukarı çek","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11}}
+{"locale":"tr","input":{"notes":"bekle, ağaç sınırını gözle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"spring the mantrap safely","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"bu el pas, elimde bir şey yok","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"yıldız haritası bulmacasını çöz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9}}
+{"locale":"tr","input":{"notes":"sıkışan kolu aşağı zorla","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":15}}
+{"locale":"tr","input":{"notes":"sahanlığı gözetle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"concede my move","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"stay my hand this turn","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"bacadan parmak ucuyla tırman","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":11}}
+{"locale":"tr","input":{"notes":"önümüzdeki pusuyu sez","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":16}}
+{"locale":"en","input":{"notes":"hold my seat through the poison feast","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"tr","input":{"notes":"hiçbir şey yapma, akışına bırak","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"tüccarın kesesini aşır","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":10}}
+{"locale":"tr","input":{"notes":"merdiven başında tut","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"wait, let the fog roll in","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"keep vigil at the well","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"kırık rünü yeniden kur","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"tr","input":{"notes":"kan kaybına rağmen ayakta dur","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":10,"targetId":"obj-door-1"}}
+{"locale":"en","input":{"notes":"hold the watch on the ramparts","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"let the moment go by","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"ağaç sınırını hareket için gözle","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":9}}
+{"locale":"tr","input":{"notes":"kiler kapağını tekmele","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":9}}
+{"locale":"en","input":{"notes":"shrug off the serpent's venom","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"tr","input":{"notes":"tünelin doğru dönüşlerini hatırla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":12}}
+{"locale":"en","input":{"notes":"hold against the sleeping draught","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":20}}
+{"locale":"en","input":{"notes":"pass, save my strength","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"talk the bandits into leaving","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"en","input":{"notes":"notice the wine's off color","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":10}}
+{"locale":"en","input":{"notes":"catch the whisper down the hall","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":11,"targetId":"npc-guard-2"}}
+{"locale":"en","input":{"notes":"haggle the horse trader down","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13}}
+{"locale":"en","input":{"notes":"hold and pass in the brawl","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"ok mazgalları arasında dans et","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"denizkızının uyuşturan şarkısına diren","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":8,"targetId":"npc-bandit-3"}}
+{"locale":"en","input":{"notes":"wait out the storm in the doorway","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"charm the barmaid for gossip","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"en","input":{"notes":"track the wolf by broken twigs","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":14}}
+{"locale":"tr","input":{"notes":"devriyenin geçmesini bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"listen for the sentry's footsteps","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":10}}
+{"locale":"tr","input":{"notes":"kapı eşiğinde fırtınayı geçir","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"tightrope the washing line to the roof","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"yılanın zehrini atlat","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"tr","input":{"notes":"kontrol noktasından blöfle geç","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"en","input":{"notes":"recite the ritual's true order","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"tr","input":{"notes":"harita parçalarını birleştir","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"en","input":{"notes":"smell the smoke on the wind","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":13,"targetId":"npc-bandit-3"}}
+{"locale":"tr","input":{"notes":"eski kralın şifresini hatırla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":12}}
+{"locale":"tr","input":{"notes":"gevşek döşeme taşını fark et","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"en","input":{"notes":"sense the ambush ahead","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":16}}
+{"locale":"en","input":{"notes":"pick the strongbox lock","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":16}}
+{"locale":"tr","input":{"notes":"buz gibi nehre karşı diren","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":15}}
+{"locale":"en","input":{"notes":"sit tight, pass for now","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"mancınık açısını hesapla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":11}}
+{"locale":"tr","input":{"notes":"sırayı kadere bırak","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"meyhanecinin kızından dedikodu al","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"tr","input":{"notes":"paslı demir kapıyı zorla aç","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11,"targetId":"npc-merchant-1"}}
+{"locale":"tr","input":{"notes":"bu el aksiyonumdan feragat et","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"keep still and wait for the signal","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"arabayı çamurdan ittir","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}
+{"locale":"tr","input":{"notes":"kuyu başında nöbet tut","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"taş levhayı karşıya taşı","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"tr","input":{"notes":"çivilenmiş kapıyı sök","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":19}}
+{"locale":"tr","input":{"notes":"canavarı bestiyerden isimlendir","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9}}
+{"locale":"tr","input":{"notes":"gişe bekçisine masal anlat","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14,"targetId":"obj-door-1"}}
+{"locale":"tr","input":{"notes":"hamlemi bu el tut","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"kalabalıkta üstümüzdeki gözleri hisset","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8}}
+{"locale":"tr","input":{"notes":"çamurdaki izleri oku","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":11}}
+{"locale":"tr","input":{"notes":"kapı yüzbaşısını tatlı dille kandır","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":9}}
+{"locale":"en","input":{"notes":"decode the merchant's ledger","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":12}}
+{"locale":"en","input":{"notes":"watch the shadows and wait","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"spin a tale for the toll keeper","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":15}}
+{"locale":"tr","input":{"notes":"tefeciyi gözünü korkutup sustur","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"tr","input":{"notes":"yargıca masumiyetimi savun","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"en","input":{"notes":"lift the key ring off the belt","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":15}}
+{"locale":"en","input":{"notes":"squeeze through the sewer grate","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":18}}
+{"locale":"en","input":{"notes":"wait for the patrol to pass","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"geri dur ve pas geç","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"push the wagon out of the mud","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"en","input":{"notes":"fingertip-climb the chimney flue","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":10,"targetId":"npc-hound-1"}}
+{"locale":"tr","input":{"notes":"üçüncü nöbet boyunca uyanık kal","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":16}}
+{"locale":"en","input":{"notes":"push through the burning lungs","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":20,"targetId":"obj-gate-1"}}
+{"locale":"en","input":{"notes":"dance between the arrow slits","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"en","input":{"notes":"skip my turn in the fight","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"survive the thin mountain air","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11,"targetId":"npc-duchess-1"}}
+{"locale":"en","input":{"notes":"read the fading spell scroll","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"en","input":{"notes":"weather the plague ward's air","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"en","input":{"notes":"watch the stair and wait","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"savaş köpeğini şarkıyla yatıştır","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"tr","input":{"notes":"sözleşmedeki açığı gör","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"tr","input":{"notes":"şifacının titreyen ellerini gör","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":9}}
+{"locale":"tr","input":{"notes":"ayaz geçişine dayan","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"drag the wounded ox to shelter","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"tr","input":{"notes":"ipuçlarından katili çıkar","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"tr","input":{"notes":"gelgitin dönmesini bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"tur dönsün, bekle","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"notice the ledger's missing page","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"tr","input":{"notes":"uyuyan nöbetçinin yanından süzül","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13,"targetId":"npc-merchant-1"}}
+{"locale":"en","input":{"notes":"no action, I'll react instead","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"free-run across the rooftops","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13}}
+{"locale":"en","input":{"notes":"lie about the missing seal","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"tr","input":{"notes":"zehrin soğukluğunu göğüsle","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":8}}
+{"locale":"en","input":{"notes":"chart a course by the stars","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":14}}
+{"locale":"tr","input":{"notes":"dövüşte sırayı pas geç","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"hançeri ipe fırlat","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":12}}
+{"locale":"en","input":{"notes":"hold my action this round","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"skip ahead, nothing to do","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"kırbaç yerken ayakta kal","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"tr","input":{"notes":"rahibi mahzeni açmaya ikna et","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"en","input":{"notes":"step back and let it ride","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"kasa kapısını omuzla sıkıştır","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11}}
+{"locale":"tr","input":{"notes":"turun geçmesine izin ver","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"wait for the bell to toll","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"sense the cursed idol's chill","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":11}}
+{"locale":"tr","input":{"notes":"kemerinden anahtarlığı çek al","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":21}}
+{"locale":"tr","input":{"notes":"eski cetvelden gelgiti hesapla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"tr","input":{"notes":"kapıyı koçbaşına karşı payanda yap","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"en","input":{"notes":"keep an eye on the stairs below","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"heave the portcullis up","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16,"targetId":"npc-guard-2"}}
+{"locale":"en","input":{"notes":"deduce the killer from the clues","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":14}}
+{"locale":"en","input":{"notes":"wait until the torchlight fades","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"hear the tunnel collapse coming","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"en","input":{"notes":"piece together the map fragments","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":21,"targetId":"obj-chest-2"}}
+{"locale":"en","input":{"notes":"hotwire the clockwork lock","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":8}}
+{"locale":"en","input":{"notes":"give the turn to fate","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"reassemble the broken mechanism","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"tr","input":{"notes":"merdiveni gözle ve bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"forfeit my action this round","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"stall the executioner with a speech","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"tr","input":{"notes":"önce diğerleri oynasın","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"tut ve uzaktaki kapıyı gözle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"keep still and pass","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"gece nöbetçinin düdüğünü aşır","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":16,"targetId":"obj-door-1"}}
+{"locale":"tr","input":{"notes":"sahte parayı ayırt et","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":15}}
+{"locale":"tr","input":{"notes":"basınç plakasını devre dışı bırak","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":9}}
+{"locale":"en","input":{"notes":"hold at the top of the stairs","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"sahte fermanı gerçekmiş gibi yutur","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"tr","input":{"notes":"bitkinliğe rağmen çıkıntıya tutun","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"brace the gate against the ram","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}
+{"locale":"tr","input":{"notes":"geceyi ateşler içinde çıkar","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"en","input":{"notes":"pass, I'm out of ideas","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"hold back and pass","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"bend the iron bars apart","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11,"targetId":"npc-bandit-3"}}
+{"locale":"tr","input":{"notes":"lahdin kapağını itekle","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16}}
+{"locale":"tr","input":{"notes":"kasanın kilidini aç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":21,"targetId":"npc-bandit-3"}}
+{"locale":"en","input":{"notes":"solve the star-chart puzzle","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"en","input":{"notes":"listen at the study door","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":17}}
+{"locale":"tr","input":{"notes":"korkmuş köylüleri toparla","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"tr","input":{"notes":"tüccarın defterini çöz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":11,"targetId":"npc-guard-2"}}
+{"locale":"en","input":{"notes":"work out the lever sequence","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":10}}
+{"locale":"en","input":{"notes":"feel eyes on us in the crowd","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":15}}
+{"locale":"en","input":{"notes":"sense the beast's fear","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8}}
+{"locale":"tr","input":{"notes":"rehine takasını pazarlıkla çöz","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13}}
+{"locale":"tr","input":{"notes":"ilk hamleyi düşman yapsın","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"plead my innocence to the magistrate","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"en","input":{"notes":"wait, watch the treeline","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"tünel ağzını gözle ve tut","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"siperden avluyu gözle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"outlast the fever through the night","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"en","input":{"notes":"tear the tapestry down","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}
 {"locale":"tr","input":{"notes":"bu turu pas geç","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"recall the librarian's warning","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":10}}
+{"locale":"en","input":{"notes":"name the beast from the bestiary","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9}}
+{"locale":"tr","input":{"notes":"kanalizasyon ızgarasından sıkışıp geç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":12}}
+{"locale":"en","input":{"notes":"pass the initiative along","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"watch the window and wait","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"meyhanedeki kabadayıları yanına çek","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":15}}
+{"locale":"tr","input":{"notes":"küflü tayınları mideye indir","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":10}}
+{"locale":"tr","input":{"notes":"kalenin dik duvarına tırman","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":10}}
+{"locale":"tr","input":{"notes":"kırık mekanizmayı yeniden kur","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":15}}
+{"locale":"tr","input":{"notes":"surlarda nöbeti tut","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"endure the branding without a sound","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":15,"targetId":"obj-lever-1"}}
+{"locale":"tr","input":{"notes":"fıçının kapağını patlat","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10,"targetId":"npc-merchant-1"}}
+{"locale":"tr","input":{"notes":"hamlemden vazgeç","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"negotiate the hostage release","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":20,"targetId":"npc-jailer-1"}}
+{"locale":"tr","input":{"notes":"kol sırasını çöz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":11,"targetId":"obj-chest-2"}}
+{"locale":"en","input":{"notes":"lift the fallen beam off the path","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16}}
+{"locale":"en","input":{"notes":"break the padlock with a rock","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14,"targetId":"npc-duchess-1"}}
+{"locale":"tr","input":{"notes":"yanan ciğerlerine rağmen devam et","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"palm the ruby off the altar","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":17}}
+{"locale":"en","input":{"notes":"calculate the catapult angle","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9}}
+{"locale":"tr","input":{"notes":"veba koğuşunun havasına dayan","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":10}}
+{"locale":"tr","input":{"notes":"kapıyı gözle ve tut","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"reassure the trembling apprentice","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"en","input":{"notes":"watch the road and bide my time","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"let the others act first","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"kütüphanecinin uyarısını hatırla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":22}}
+{"locale":"tr","input":{"notes":"demir parmaklıkları büküp aç","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11,"targetId":"obj-gate-1"}}
+{"locale":"tr","input":{"notes":"panzehir tarifini hatırla","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":14}}
+{"locale":"tr","input":{"notes":"kayayı yana it","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16}}
+{"locale":"en","input":{"notes":"notice the loose flagstone","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8}}
+{"locale":"tr","input":{"notes":"gobleni duvardan çek indir","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"tr","input":{"notes":"nöbetçinin ayak sesini dinle","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":10}}
+{"locale":"tr","input":{"notes":"yalancının seğirmesini yakala","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":13}}
+{"locale":"en","input":{"notes":"remember the tunnel's true turns","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"tr","input":{"notes":"günlerce aç kalmaya dayan","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":22}}
+{"locale":"en","input":{"notes":"juggle the lit lanterns to distract","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":8}}
+{"locale":"tr","input":{"notes":"hayvanın korkusunu sez","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8,"targetId":"npc-duchess-1"}}
+{"locale":"en","input":{"notes":"stay awake through the third watch","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"grip the ledge past exhaustion","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":15,"targetId":"npc-bandit-3"}}
+{"locale":"tr","input":{"notes":"kavgada sıramı bırak","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"recall the antidote recipe","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":16}}
+{"locale":"en","input":{"notes":"bluff my way past the checkpoint","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13,"targetId":"npc-guard-1"}}
+{"locale":"en","input":{"notes":"hold and watch the tunnel mouth","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"gök kadranlarını hizala","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"en","input":{"notes":"notice the shrine's fresh offering","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8}}
+{"locale":"en","input":{"notes":"sweet-talk the gate captain","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"en","input":{"notes":"feel the draft from a hidden passage","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":19}}
+{"locale":"en","input":{"notes":"watch the gate and hold","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"cüce yazıtını çevir","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":12}}
+{"locale":"tr","input":{"notes":"hamlemi dostuma bırak","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"balance across the rotten rafters","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"kırık ayak parmağıyla son mili koş","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":8}}
+{"locale":"en","input":{"notes":"wait, listen for boots on stone","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"çamaşır ipinden çatıya geç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":17}}
+{"locale":"tr","input":{"notes":"çürük çatı kirişlerinde denge kur","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13}}
+{"locale":"en","input":{"notes":"yield my turn in the melee","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"wave the turn to my ally","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"kick the cellar hatch in","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"tr","input":{"notes":"kayıp mühür için yalan söyle","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"en","input":{"notes":"hold the collapsing bridge rope","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":15}}
+{"locale":"en","input":{"notes":"endure the frostbite crossing","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":20}}
+{"locale":"en","input":{"notes":"stomach the rancid rations","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":16}}
+{"locale":"en","input":{"notes":"bribe the jailer with promises","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":9}}
+{"locale":"en","input":{"notes":"sit this exchange out","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"power through the venom's chill","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":10}}
+{"locale":"en","input":{"notes":"pry the boards off the window","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":22}}
+{"locale":"en","input":{"notes":"haul the anchor chain up","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11}}
+{"locale":"en","input":{"notes":"no move, just watch it unfold","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"wait and watch the corridor","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"kırık dallardan kurdu izle","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":13}}
+{"locale":"tr","input":{"notes":"gölgeleri gözle ve bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"cut the coin purse strings quietly","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":15}}
+{"locale":"en","input":{"notes":"sing to soothe the war hound","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":15}}
+{"locale":"en","input":{"notes":"watch the treeline for movement","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":13}}
+{"locale":"en","input":{"notes":"reconstruct the shattered rune","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9}}
+{"locale":"en","input":{"notes":"resist the siren's numbing song","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14,"targetId":"npc-merchant-1"}}
+{"locale":"en","input":{"notes":"muscle the sarcophagus lid aside","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11}}
+{"locale":"tr","input":{"notes":"gizli geçitten gelen esintiyi hisset","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"en","input":{"notes":"hear the trap click home","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":22}}
+{"locale":"tr","input":{"notes":"pas, gücümü sakla","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"atla, yapacak bir şey yok","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"aksiyon yok, tepki vereceğim","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"read the horse's spooked ears","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":9}}
+{"locale":"en","input":{"notes":"take the whip and stay standing","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"en","input":{"notes":"let the round tick over","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"şarabın rengindeki bozukluğu fark et","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"en","input":{"notes":"recall the old king's cipher","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":14}}
+{"locale":"tr","input":{"notes":"sırayı kepenklere fırlat","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}
+{"locale":"tr","input":{"notes":"pencereyi gözle ve bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"zehirli ziyafette masada kal","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":16}}
+{"locale":"tr","input":{"notes":"gardiyanı vaatlerle ayart","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":16}}
+{"locale":"tr","input":{"notes":"köprünün inmesini bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"tabelayı sopa niyetine kökle","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":15}}
+{"locale":"tr","input":{"notes":"şövalyeyi düelloya kışkırt","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":16}}
+{"locale":"tr","input":{"notes":"çalışma odasının kapısında dinle","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"tr","input":{"notes":"şimdilik geri çekil","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"yaralı öküzü sürükleyip çek","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":12}}
+{"locale":"tr","input":{"notes":"uyku iksirine karşı diren","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11,"targetId":"npc-guard-1"}}
+{"locale":"en","input":{"notes":"hold and watch the far door","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"kese iplerini sessizce kes","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":22,"targetId":"npc-guard-2"}}
+{"locale":"tr","input":{"notes":"sıkı dur, şimdilik pas","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"roll away from the falling grate","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":11,"targetId":"npc-jailer-1"}}
+{"locale":"en","input":{"notes":"pickpocket the merchant's purse","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13}}
+{"locale":"en","input":{"notes":"flick the dagger at the rope","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"türbedeki taze adağı fark et","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":15}}
+{"locale":"tr","input":{"notes":"kapının yanında nöbet tut ve bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"wait until the moon clears the tower","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"recruit the tavern brawlers","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13}}
+{"locale":"tr","input":{"notes":"alt kattaki merdiveni kolla","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"climb the sheer keep wall","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"en","input":{"notes":"give up my move this turn","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"brace against the freezing river","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":13}}
+{"locale":"tr","input":{"notes":"mühürleri kapılarla eşleştir","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":22}}
+{"locale":"tr","input":{"notes":"haydutları çekip gitmeye ikna et","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":11}}
+{"locale":"en","input":{"notes":"run the last mile on a broken toe","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"tr","input":{"notes":"tünelin çökeceğini önceden duy","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":16,"targetId":"npc-priest-1"}}
+{"locale":"tr","input":{"notes":"kibirli düşesi pohpohla","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13}}
+{"locale":"tr","input":{"notes":"meyhane korkuluğundan atla","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":20}}
+{"locale":"tr","input":{"notes":"damdan dama koş","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":12}}
+{"locale":"en","input":{"notes":"wait for the bridge to lower","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"unravel the abbot's word game","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13,"targetId":"obj-gate-1"}}
+{"locale":"en","input":{"notes":"pass, I've got nothing","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"catch the thrown vial mid-air","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14,"targetId":"npc-bandit-3"}}
+{"locale":"en","input":{"notes":"resist the poisoned wine","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":10}}
+{"locale":"en","input":{"notes":"calm the panicking crowd","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"tr","input":{"notes":"başrahibin kelime oyununu çöz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":19}}
+{"locale":"tr","input":{"notes":"lanetli putun soğukluğunu sez","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":8}}
+{"locale":"en","input":{"notes":"read the storm in the clouds","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":14}}
+{"locale":"en","input":{"notes":"let the enemy make the first move","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"panikleyen kalabalığı yatıştır","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":15}}
+{"locale":"tr","input":{"notes":"ayna yazısı bilmecesini çöz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":16}}
+{"locale":"tr","input":{"notes":"yerinde dur ve dinle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"uproot the signpost for a club","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"tr","input":{"notes":"at cambazını pazarlıkla düşür","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"en","input":{"notes":"crush the brittle skull in my grip","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11,"targetId":"npc-guard-2"}}
+{"locale":"tr","input":{"notes":"inisiyatifi diğerine geçir","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"bulutlardaki fırtınayı oku","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":10}}
+{"locale":"en","input":{"notes":"wait for the tide to turn","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"rüzgardaki dumanı kokla","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"en","input":{"notes":"align the celestial dials","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":17}}
+{"locale":"en","input":{"notes":"force the rusted gate","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":16}}
+{"locale":"tr","input":{"notes":"dağlamayı ses çıkarmadan çek","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"thread the tripwire maze","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"en","input":{"notes":"slip past the sleeping guard","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":12,"targetId":"obj-chest-2"}}
+{"locale":"tr","input":{"notes":"gümrük memurunu yağla","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10,"targetId":"npc-guard-1"}}
+{"locale":"tr","input":{"notes":"bekle, nöbetçilerin turunu say","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"goad the knight into a duel","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":16}}
+{"locale":"tr","input":{"notes":"mutfak kapısından sıvış","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":19}}
+{"locale":"tr","input":{"notes":"kıpırdama, işareti bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"zehri lekesinden tanı","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":16}}
+{"locale":"tr","input":{"notes":"gaz tuzağında nefesini tut","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":15}}
+{"locale":"tr","input":{"notes":"ayinin doğru sırasını say","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13}}
+{"locale":"tr","input":{"notes":"yakuttan altarın üstünde parmakla al","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":16}}
+{"locale":"en","input":{"notes":"read the tracks in the mud","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":13,"targetId":"npc-guard-2"}}
+{"locale":"tr","input":{"notes":"bekle, taşta çizme sesi dinle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"seduce the secret out of the courtier","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"en","input":{"notes":"watch the courtyard from cover","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"disarm the pressure plate","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":15}}
+{"locale":"en","input":{"notes":"wait for the guard to nod off","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"smash the ale barrel open","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":13}}
+{"locale":"en","input":{"notes":"tough out the wound till dawn","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":14}}
+{"locale":"en","input":{"notes":"snap the chains on the cage","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"en","input":{"notes":"shoulder the barred door open","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":21}}
+{"locale":"en","input":{"notes":"spot the healer's shaking hands","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":11}}
+{"locale":"tr","input":{"notes":"yola devrilen kirişi kaldır","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":14}}
+{"locale":"tr","input":{"notes":"tuzağın kurulma sesini duy","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":18}}
+{"locale":"tr","input":{"notes":"kilidi bir maşayla aç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":16}}
+{"locale":"tr","input":{"notes":"havadaki şişeyi kap","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"en","input":{"notes":"translate the dwarven inscription","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":12}}
+{"locale":"en","input":{"notes":"keep watch on the landing","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"turun kaymasına izin ver","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"spot the flaw in the contract","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":16,"targetId":"npc-hound-1"}}
+{"locale":"en","input":{"notes":"intimidate the loan shark","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12}}
+{"locale":"tr","input":{"notes":"sal sahibini beklemeye ikna et","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":13}}
+{"locale":"tr","input":{"notes":"bir adım geri, akışına bırak","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"yolu gözle, zamanını kolla","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"tumble under the swinging blade","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13}}
+{"locale":"tr","input":{"notes":"anın geçmesine izin ver","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"devin ezen pençesine dayan","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"tr","input":{"notes":"atın ürkmüş kulaklarını oku","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":16}}
+{"locale":"en","input":{"notes":"identify the poison by its stain","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":14}}
+{"locale":"tr","input":{"notes":"tuzak ipleri arasından geç","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":21}}
+{"locale":"tr","input":{"notes":"çanın çalmasını bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"do nothing and let it play out","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"match the sigils to the doors","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":13,"targetId":"npc-bandit-3"}}
+{"locale":"en","input":{"notes":"sneak through the kitchen door","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":14}}
+{"locale":"tr","input":{"notes":"pas, fikrim kalmadı","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"vault the tavern railing","kind":"action","skill":"dex"},"output":{"kind":"action","skill":"dex","dc":13}}
+{"locale":"tr","input":{"notes":"yarayı şafağa dek diş sık taşı","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"en","input":{"notes":"convince the priest to open the crypt","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":10}}
+{"locale":"tr","input":{"notes":"arbedede pas geç","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"smooth-talk the customs clerk","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"tr","input":{"notes":"ince dağ havasında sağ kal","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"tr","input":{"notes":"kum fırtınasında yürümeye devam et","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":12}}
+{"locale":"tr","input":{"notes":"solmuş büyü tomarını oku","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":10}}
+{"locale":"tr","input":{"notes":"tir tir titreyen çırağı sakinleştir","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":16}}
+{"locale":"en","input":{"notes":"persuade the ferryman to wait","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":8}}
+{"locale":"en","input":{"notes":"wait, count the guards' rounds","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"kıpırdama, pas ver","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"kafesin zincirini kopar","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":19}}
+{"locale":"tr","input":{"notes":"bekle, sisin çökmesine izin ver","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"con the guild into a discount","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"tr","input":{"notes":"ay kuleyi geçene dek bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"rally the frightened villagers","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":14}}
+{"locale":"tr","input":{"notes":"bu tur hareketimi kullanma","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"spot the counterfeit coin","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":12}}
+{"locale":"tr","input":{"notes":"asma kilidi taşla kır","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}
+{"locale":"tr","input":{"notes":"nöbetçinin uyuklamasını bekle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"hurl the bench through the shutters","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":11}}
+{"locale":"en","input":{"notes":"spot the liar's twitch","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":15,"targetId":"obj-gate-1"}}
+{"locale":"tr","input":{"notes":"sürgülü kapıyı omuzla kır","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":21}}
+{"locale":"tr","input":{"notes":"bekle ve koridoru izle","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"wait, eyes on the stairwell","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"withstand the ogre's crushing grip","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"en","input":{"notes":"stand guard by the door and wait","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"tr","input":{"notes":"yıldızlara göre rota çiz","kind":"action","skill":"int"},"output":{"kind":"action","skill":"int","dc":9,"targetId":"npc-merchant-1"}}
+{"locale":"en","input":{"notes":"stand down for now","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"hamle yok, sadece izle","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"en","input":{"notes":"hold my breath in the gas trap","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":13}}
+{"locale":"tr","input":{"notes":"bekle, gözün merdiven boşluğunda","kind":"wait","skill":""},"output":{"kind":"wait"}}
+{"locale":"en","input":{"notes":"flatter the vain duchess","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":16}}
+{"locale":"en","input":{"notes":"let the round pass","kind":"pass","skill":""},"output":{"kind":"pass"}}
+{"locale":"tr","input":{"notes":"zehirli şaraba direnç göster","kind":"action","skill":"con"},"output":{"kind":"action","skill":"con","dc":11}}
+{"locale":"tr","input":{"notes":"koridordaki fısıltıyı yakala","kind":"action","skill":"wis"},"output":{"kind":"action","skill":"wis","dc":9}}
+{"locale":"tr","input":{"notes":"loncadan indirim kopar","kind":"action","skill":"cha"},"output":{"kind":"action","skill":"cha","dc":12,"targetId":"npc-guard-1"}}
+{"locale":"en","input":{"notes":"shove the boulder aside","kind":"action","skill":"str"},"output":{"kind":"action","skill":"str","dc":10}}

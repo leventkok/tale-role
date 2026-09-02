@@ -18,7 +18,7 @@ Until Hub repos and a runner URL exist, the gateway uses the **stub**. That is e
 
 ## Colab (7B QLoRA)
 
-Open `llm/notebooks/qlora_mechanics_7b.ipynb` on a GPU runtime. Last cell pushes the adapter to a **private** Hub repo. Storyteller can use the same 7B recipe as a stand-in; the 32B card waits for a larger GPU host.
+Open `llm/notebooks/qlora_mechanics_7b.ipynb` or `llm/notebooks/qlora_storyteller_7b.ipynb` on a **separate** GPU runtime. Last cell pushes that adapter to a **private** Hub repo. Do not train both roles in one Colab session. The 32B storyteller card waits for a larger GPU host.
 
 ## Recipe (live)
 
