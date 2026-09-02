@@ -19,14 +19,17 @@ func main() {
 	if token == "" {
 		log.Warn("LLM_GATEWAY_ADMIN_TOKEN is unset; admin swap stays locked")
 	}
+	svc := gateway.New()
+	svc.ConfigureLocal(os.Getenv("TALEROLE_ADAPTER_DIR"))
+	svc.SetRunners(gateway.RunnerURLsFromEnv())
 	addr := fmt.Sprintf("%s:%s", host, port)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      httpapi.New(gateway.New(), token),
+		Handler:      httpapi.New(svc, token),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-	log.Info("llm-gateway listening", "addr", addr)
+	log.Info("llm-gateway listening", "addr", addr, "inference", svc.Runtime().Inference)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error("gateway error", "error", err)
 		os.Exit(1)

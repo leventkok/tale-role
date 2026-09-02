@@ -22,6 +22,8 @@ F8 GraphQL: `POST /graphql` (and Next.js `/api/graphql`) wraps table, universe, 
 
 F9 SMTP OTP: Compose Mailhog (`127.0.0.1:1025`, UI `:8025`) delivers the 6-digit code. Store still bcrypt-hashes it. `TALEROLE_DEV_OTP` is a local bypass. Codes never appear in JSON or logs.
 
+F10 local LLM: Colab QLoRA notebook + `services/llm-runner`. Gateway uses `"local"` only when adapters are on disk and a runner URL is set; otherwise stub. No paid APIs. Dice still come from Go.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)
@@ -42,6 +44,7 @@ F9 SMTP OTP: Compose Mailhog (`127.0.0.1:1025`, UI `:8025`) delivers the 6-digit
 | `packages/i18n` | Locale registry (`en`, `tr`) |
 | `packages/game-schema` | Turn, intent, universe, presence contracts |
 | `services/llm-gateway` | Storyteller + mechanics models |
+| `services/llm-runner` | Local HTTP process for adapters on disk |
 | `compliance/` | Threat model and secret handling |
 
 Identity lives in Postgres (masterfabric-go). World state lives in MongoDB.

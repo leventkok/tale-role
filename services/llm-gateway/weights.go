@@ -8,7 +8,7 @@ import (
 )
 
 // ProbeWeights is true when dir looks like our private adapter export.
-// Inference still uses the stub until the local runner ships.
+// Inference is "local" only when this is true and a runner URL is set.
 func ProbeWeights(dir string) bool {
 	if strings.TrimSpace(dir) == "" {
 		return false

@@ -78,7 +78,8 @@ func main() {
 	}
 	llm := gateway.New()
 	llm.ConfigureLocal(os.Getenv("TALEROLE_ADAPTER_DIR"))
-	if os.Getenv("TALEROLE_ADAPTER_DIR") != "" {
+	llm.SetRunners(gateway.RunnerURLsFromEnv())
+	if os.Getenv("TALEROLE_ADAPTER_DIR") != "" || os.Getenv("LLM_RUNNER_URL") != "" || os.Getenv("LLM_STORYTELLER_URL") != "" {
 		rt := llm.Runtime()
 		log.Info("llm adapters", "dir_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)
 	}

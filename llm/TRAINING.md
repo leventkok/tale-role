@@ -20,15 +20,20 @@ Put trained adapters in private object storage or a disk path **outside** the re
 $env:TALEROLE_ADAPTER_DIR="D:\talerole-adapters"
 ```
 
-Gateway reports `weights_ready` only if that directory contains a recognizable adapter file. Without it, runtime stays on `stub`.
+Gateway reports `weights_ready` only if that directory contains a recognizable adapter file. Inference is `"local"` only when that is true **and** a runner URL is set (`LLM_STORYTELLER_URL` / `LLM_MECHANICS_URL` / `LLM_RUNNER_URL`). Without either, runtime stays on `stub`.
+
+## Colab (7B QLoRA)
+
+Open `llm/notebooks/qlora_mechanics_7b.ipynb` on a GPU runtime. It trains the mechanics adapter on synthetic JSONL. Export the adapter folder to private disk — never commit `.safetensors`. Storyteller can use the same 7B recipe as a stand-in; the 32B card waits for a larger host.
 
 ## Recipe (your GPU host)
 
 1. Grow `llm/datasets/synthetic/` with more invented scenes. Keep `locale` `en` or `tr`.
 2. Run `npm test -w @tale-role/game-schema` — eval rejects PII, `system_admin`, and mechanics rows that invent dice.
-3. Fine-tune LoRA on the open base named in each card (Qwen2.5 Instruct). Constrained decoding for mechanics JSON.
+3. Fine-tune QLoRA (Colab notebook or this playbook) on the open base named in each card. Constrained decoding for mechanics JSON.
 4. Export adapters to `$TALEROLE_ADAPTER_DIR/storyteller` and `.../mechanics`.
-5. Eval again on a held-out slice before swapping the live pack.
-6. Serve through `services/llm-gateway` only — never from the browser.
+5. Start `services/llm-runner/serve.py` per role (optional split; one process is fine).
+6. Point the API at those URLs. Eval again on a held-out slice before swapping the live pack.
+7. Serve through `services/llm-gateway` only — never from the browser.
 
 Do not paste player tables into the train set. Synthesize.

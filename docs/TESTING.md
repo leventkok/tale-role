@@ -123,7 +123,7 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Postgres, trained models, signed Electron installers, production DPA.
+Postgres, trained production weights, signed Electron installers, production DPA.
 
 ## When our models land
 
@@ -160,3 +160,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/graphql -ContentTy
 ## F9 — SMTP OTP
 
 Compose starts Mailhog. API with `SMTP_HOST=127.0.0.1` `SMTP_PORT=1025`. Register, open http://127.0.0.1:8025, copy the 6-digit code. `/health/ready` includes `"mail":"smtp"`. Register JSON must not contain the code. `TALEROLE_DEV_OTP` still bypasses randomness for local sitting; leave it unset to force Mailhog.
+
+## F10 — local LLM
+
+Without adapters, `/health/ready` stays `"llm":"stub"`. Train in Colab: `llm/notebooks/qlora_mechanics_7b.ipynb`. Put the export on a private disk, set `TALEROLE_ADAPTER_DIR`, start `python services/llm-runner/serve.py --role storyteller --port 8091`, set `LLM_STORYTELLER_URL`. Then ready reports `"llm":"local"`. Kill the runner: table still plays (stub fallback). Dice totals still come from Go. No paid API.

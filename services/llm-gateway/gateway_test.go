@@ -1,8 +1,12 @@
 package gateway_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -97,6 +101,57 @@ func TestLocalAdapterRequiresWeightsOnDisk(t *testing.T) {
 		t.Fatalf("expected local ready: %+v", rt)
 	}
 	if rt.Inference != "stub" {
-		t.Fatal("inference stays stub until the local runner ships")
+		t.Fatal("inference stays stub until a runner URL is set")
+	}
+	svc.SetRunners("http://127.0.0.1:9", "")
+	if svc.Runtime().Inference != "local" {
+		t.Fatalf("expected local inference with runner url: %+v", svc.Runtime())
+	}
+}
+
+func TestLocalRunnerNarrateAndFallback(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "adapter_config.json"), []byte(`{"id":"storyteller-v0"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ok := true
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		var req gateway.NarrateRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose:  "Local Mira hits. Engine total " + strconv.Itoa(req.Total) + " for spy@tale.role.",
+		})
+	})
+	mux.HandleFunc("/v1/intent", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.MechanicIntent{Kind: "action", Skill: "dex", DC: 14, Notes: "ok"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	svc := gateway.New()
+	svc.ConfigureLocal(dir)
+	svc.SetRunners(srv.URL, srv.URL)
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "en", ActorName: "Mira", Kind: "action", Total: 17, Success: &ok, Notes: "kick",
+	})
+	if !strings.Contains(n.Prose, "Engine total 17") {
+		t.Fatalf("runner prose: %s", n.Prose)
+	}
+	if strings.Contains(n.Prose, "spy@tale.role") {
+		t.Fatal("runner email not redacted")
+	}
+	intent := svc.ProposeIntent(gateway.IntentRequest{Kind: "action", Skill: "str", Notes: "kick"})
+	if intent.Skill != "dex" || intent.DC != 14 {
+		t.Fatalf("runner intent: %+v", intent)
+	}
+
+	down := gateway.New()
+	down.ConfigureLocal(dir)
+	down.SetRunners("http://127.0.0.1:1", "")
+	fallback := down.Narrate(gateway.NarrateRequest{Locale: "en", ActorName: "Mira", Kind: "wait", RoomName: "Ashwood"})
+	if !strings.Contains(fallback.Prose, "The engine's dice") {
+		t.Fatalf("expected stub fallback: %s", fallback.Prose)
 	}
 }
