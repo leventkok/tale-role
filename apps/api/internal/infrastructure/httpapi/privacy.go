@@ -53,5 +53,6 @@ func (s *Server) ready(w http.ResponseWriter, _ *http.Request) {
 		"persistence": s.cfg.Persistence(),
 		"llm":         rt.Inference,
 		"images":      "stub",
+		"mail":        s.cfg.Mail(),
 	})
 }

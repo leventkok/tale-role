@@ -10,7 +10,7 @@
 
 ## Runtime
 
-Store production secrets in the host secret manager (CI secrets, Render/Vercel env, OS keychain for Electron signing). Do not put secrets in `NEXT_PUBLIC_*`. Do not put secrets in LLM prompts by default.
+Store production secrets in the host secret manager (CI secrets, Render/Vercel env, OS keychain for Electron signing). SMTP passwords belong there too. Do not put secrets in `NEXT_PUBLIC_*`. Do not put secrets in LLM prompts by default.
 
 ## Agent rule
 

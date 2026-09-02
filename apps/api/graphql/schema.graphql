@@ -25,6 +25,7 @@ type Health {
   persistence: String!
   llm: String!
   images: String!
+  mail: String!
 }
 
 type User {

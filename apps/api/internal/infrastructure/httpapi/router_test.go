@@ -3,6 +3,7 @@ package httpapi_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -31,6 +32,31 @@ func setup(t *testing.T) (http.Handler, *app.Service) {
 	return h, svc
 }
 
+type failMailer struct{}
+
+func (failMailer) SendOTP(string, string) error { return errors.New("smtp down") }
+
+func TestRegisterMailFailure(t *testing.T) {
+	store := memory.NewStore()
+	svc := app.NewService(store, "test-secret", time.Hour, 10*time.Minute)
+	svc.IssueOTP = func() (string, error) { return "123456", nil }
+	svc.Mailer = failMailer{}
+	cfg := config.Config{
+		CORSAllowedOrigins: []string{"http://localhost:3000"},
+		MaxBodyBytes:       1 << 20,
+	}
+	h := httpapi.New(svc, game.NewTable(), nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "")
+	reg := post(t, h, "/api/v1/auth/register", map[string]string{
+		"email": "host@tale.role", "password": "longenough",
+	})
+	if reg.Code != http.StatusServiceUnavailable {
+		t.Fatalf("register: %d %s", reg.Code, reg.Body.String())
+	}
+	if bytes.Contains(reg.Body.Bytes(), []byte("123456")) || bytes.Contains(reg.Body.Bytes(), []byte("smtp down")) {
+		t.Fatalf("leaked: %s", reg.Body.String())
+	}
+}
+
 func TestHealth(t *testing.T) {
 	h, _ := setup(t)
 	req := httptest.NewRequest(http.MethodGet, "/health/live", nil)
@@ -44,7 +70,7 @@ func TestHealth(t *testing.T) {
 	if ready.Code != http.StatusOK {
 		t.Fatalf("ready: %d", ready.Code)
 	}
-	if !bytes.Contains(ready.Body.Bytes(), []byte(`"persistence":"memory"`)) || !bytes.Contains(ready.Body.Bytes(), []byte(`"llm":"stub"`)) {
+	if !bytes.Contains(ready.Body.Bytes(), []byte(`"persistence":"memory"`)) || !bytes.Contains(ready.Body.Bytes(), []byte(`"llm":"stub"`)) || !bytes.Contains(ready.Body.Bytes(), []byte(`"mail":"none"`)) {
 		t.Fatalf("scale signals: %s", ready.Body.String())
 	}
 }

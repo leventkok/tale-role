@@ -12,14 +12,16 @@ Use three terminals. Keep them running.
 
 ### 0. Branch
 
-Checkout the stack you want to click through (`feat/f8-graphql` adds `POST /graphql`; `feat/f7-mongo-hosting` has persistence when Mongo is up).
+Checkout the stack you want to click through (`feat/f9-smtp-otp` emails OTP via Mailhog; `feat/f8-graphql` adds `POST /graphql`; `feat/f7-mongo-hosting` has persistence when Mongo is up).
 
-Optional Mongo (survives API restart):
+Optional Mongo + Mailhog:
 
 ```powershell
 cd C:\Users\leven\Documents\development\project\talerole
 .\infra\scripts\compose-up.ps1
 ```
+
+Mailhog UI: http://127.0.0.1:8025
 
 ### 1. API (terminal A)
 
@@ -30,6 +32,8 @@ $env:TALEROLE_ADMIN_EMAIL="admin@tale.role"
 $env:CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001"
 $env:MONGO_URI="mongodb://127.0.0.1:27017"
 $env:MONGO_DB="talerole"
+$env:SMTP_HOST="127.0.0.1"
+$env:SMTP_PORT="1025"
 go run ./cmd/server
 ```
 
@@ -59,19 +63,19 @@ Leave http://127.0.0.1:3001 for later.
 
 | Role | Email | Password | OTP |
 | --- | --- | --- | --- |
-| Host | `host@tale.role` | `longenough` | `123456` |
-| Player | `player@tale.role` | `longenough` | `123456` |
-| Spectator | `admin@tale.role` | `longenough` | `123456` |
+| Host | `host@tale.role` | `longenough` | Mailhog, or `123456` if `TALEROLE_DEV_OTP` is set |
+| Player | `player@tale.role` | `longenough` | same |
+| Spectator | `admin@tale.role` | `longenough` | same |
 
 **Host (normal window)**
 
-1. Register `host@tale.role` → verify `123456` → land signed in.
+1. Register `host@tale.role` → verify the code from Mailhog (or `123456` with `TALEROLE_DEV_OTP`) → land signed in.
 2. Sign out, sign in again. Second login must **not** ask for OTP.
 3. DevTools → Application → Cookies: `talerole_session` is HttpOnly. JWT is **not** in `localStorage`.
 
 **Player (incognito / second browser)**
 
-4. Register `player@tale.role` → verify `123456`.
+4. Register `player@tale.role` → verify from Mailhog (or `123456`).
 
 ### 5. Table
 
@@ -100,7 +104,7 @@ Leave http://127.0.0.1:3001 for later.
 
 **Spectator (port 3001)**
 
-14. Sign in as `admin@tale.role` (OTP `123456` if first time).
+14. Sign in as `admin@tale.role` (OTP from Mailhog, or `123456` if first time with `TALEROLE_DEV_OTP`).
 15. Pack starts as `v1`. Click **Use v1-terse**.
 16. Back on the table, play another turn. New prose should include `[v1-terse]`.
 17. Traces list must show `[redacted]`, never `spy@tale.role`, and never raw `mechanic_intent` on the **player** chronicle.
@@ -119,7 +123,7 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Email delivery, Postgres, Mongo, trained models, signed Electron installers, production DPA.
+Postgres, trained models, signed Electron installers, production DPA.
 
 ## When our models land
 
@@ -152,3 +156,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/graphql -ContentTy
 ```
 
 `me` is null. Signed in, the same path forwards the session cookie. Room queries must not include `compiled_prompt`. Stolen `universe(id)` returns GraphQL errors, not the pack. Direct API: `POST http://127.0.0.1:8080/graphql`.
+
+## F9 — SMTP OTP
+
+Compose starts Mailhog. API with `SMTP_HOST=127.0.0.1` `SMTP_PORT=1025`. Register, open http://127.0.0.1:8025, copy the 6-digit code. `/health/ready` includes `"mail":"smtp"`. Register JSON must not contain the code. `TALEROLE_DEV_OTP` still bypasses randomness for local sitting; leave it unset to force Mailhog.

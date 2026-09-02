@@ -231,6 +231,8 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusConflict, "email taken", err)
 	case errors.Is(err, app.ErrOTPInvalid), errors.Is(err, app.ErrInvalidCredentials):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
+	case errors.Is(err, app.ErrMailFailed):
+		httperr.Write(w, s.log, http.StatusServiceUnavailable, "mail delivery failed", err)
 	case errors.Is(err, app.ErrUnauthorized):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
 	case errors.Is(err, game.ErrNotFound), errors.Is(err, world.ErrNotFound):

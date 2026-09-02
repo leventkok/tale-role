@@ -28,5 +28,6 @@ Browser / Electron (untrusted) → Next.js server → masterfabric-go → Postgr
 | T7 | Subject-access / erasure ignored | `GET /me/export` and `DELETE /me`; hashes never exported |
 | T8 | Signing cert in git | `*.p12` / `*.pem` gitignored; pack is unsigned until a human sets `CSC_LINK` |
 | T9 | GraphQL over-fetch / pack leak | No GraphiQL; room type has no `compiledPrompt`; universe Get is owner-only; invalid Bearer is 401 |
+| T10 | OTP brute-force / code in logs | 5 attempts then drop; bcrypt at rest; SMTP body only; never in JSON/logs; Mailhog is localhost |
 
 Prompt is not a policy. See [cursor-security MANIFEST](https://github.com/gurkanfikretgunak/cursor-security/blob/main/MANIFEST.md).

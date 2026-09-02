@@ -22,6 +22,7 @@ var (
 	ErrOTPInvalid         = errors.New("invalid otp")
 	ErrEmailTaken         = errors.New("email taken")
 	ErrUnauthorized       = errors.New("unauthorized")
+	ErrMailFailed         = errors.New("mail delivery failed")
 )
 
 type Service struct {
@@ -29,8 +30,10 @@ type Service struct {
 	jwtSecret []byte
 	jwtExpiry time.Duration
 	otpTTL    time.Duration
-	// IssueOTP, when set, overrides random OTP generation (tests only).
+	// IssueOTP, when set, overrides random OTP generation (tests / TALEROLE_DEV_OTP).
 	IssueOTP func() (string, error)
+	// Mailer sends the plaintext OTP. Nil skips delivery (CI without SMTP).
+	Mailer Mailer
 }
 
 func NewService(store Identity, jwtSecret string, jwtExpiry, otpTTL time.Duration) *Service {
@@ -74,7 +77,9 @@ func (s *Service) Login(email, password string) (token string, err error) {
 		return "", ErrInvalidCredentials
 	}
 	if !u.Verified {
-		_ = s.issueOTP(email)
+		if err := s.issueOTP(email); err != nil {
+			return "", err
+		}
 		return "", ErrOTPRequired
 	}
 	return s.sign(u)
@@ -175,6 +180,11 @@ func (s *Service) issueOTP(email string) error {
 	code, err := issue()
 	if err != nil {
 		return err
+	}
+	if s.Mailer != nil {
+		if err := s.Mailer.SendOTP(email, code); err != nil {
+			return fmt.Errorf("%w: %v", ErrMailFailed, err)
+		}
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
 	if err != nil {
