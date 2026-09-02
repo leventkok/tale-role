@@ -14,6 +14,7 @@ import (
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/application/world"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/httpapi"
+	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/mail"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
 	mongostore "github.com/leventkok/tale-role/apps/api/internal/infrastructure/mongo"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
@@ -61,6 +62,16 @@ func main() {
 	}
 
 	svc := app.NewService(ident, cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
+	mailer := mail.SMTP{
+		Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom,
+		User: cfg.SMTPUser, Pass: cfg.SMTPPass,
+	}
+	svc.Mailer = mailer
+	if mailer.Enabled() {
+		log.Info("mail", "transport", "smtp", "addr", mailer.Addr())
+	} else {
+		log.Warn("SMTP_HOST unset; OTP email is not sent")
+	}
 	if devOTP := os.Getenv("TALEROLE_DEV_OTP"); devOTP != "" {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }

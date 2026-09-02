@@ -10,12 +10,12 @@ import (
 func TestGraphQLHealthMeAndRoom(t *testing.T) {
 	h, _ := setup(t)
 	open := post(t, h, "/graphql", map[string]any{
-		"query": "{ health { status persistence llm images } me { email } }",
+		"query": "{ health { status persistence llm images mail } me { email } }",
 	})
 	if open.Code != http.StatusOK {
 		t.Fatalf("health: %d %s", open.Code, open.Body.String())
 	}
-	if !bytes.Contains(open.Body.Bytes(), []byte(`"persistence"`)) || !bytes.Contains(open.Body.Bytes(), []byte(`"llm"`)) {
+	if !bytes.Contains(open.Body.Bytes(), []byte(`"persistence"`)) || !bytes.Contains(open.Body.Bytes(), []byte(`"llm"`)) || !bytes.Contains(open.Body.Bytes(), []byte(`"mail":"none"`)) {
 		t.Fatalf("health payload: %s", open.Body.String())
 	}
 	if bytes.Contains(open.Body.Bytes(), []byte("password")) || bytes.Contains(open.Body.Bytes(), []byte("$2a$")) {

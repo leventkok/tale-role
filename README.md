@@ -20,6 +20,8 @@ F7 Mongo: `infra/scripts/compose-up.ps1` starts object storage. Set `MONGO_URI` 
 
 F8 GraphQL: `POST /graphql` (and Next.js `/api/graphql`) wraps table, universe, and `me`. REST stays. No GraphiQL. Room queries never include `compiled_prompt`.
 
+F9 SMTP OTP: Compose Mailhog (`127.0.0.1:1025`, UI `:8025`) delivers the 6-digit code. Store still bcrypt-hashes it. `TALEROLE_DEV_OTP` is a local bypass. Codes never appear in JSON or logs.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)

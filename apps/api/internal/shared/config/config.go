@@ -17,6 +17,11 @@ type Config struct {
 	OTPTTL             time.Duration
 	MongoURI           string
 	MongoDB            string
+	SMTPHost           string
+	SMTPPort           string
+	SMTPFrom           string
+	SMTPUser           string
+	SMTPPass           string
 }
 
 func Load() Config {
@@ -31,6 +36,11 @@ func Load() Config {
 		OTPTTL:             10 * time.Minute,
 		MongoURI:           env("MONGO_URI", ""),
 		MongoDB:            env("MONGO_DB", "talerole"),
+		SMTPHost:           env("SMTP_HOST", ""),
+		SMTPPort:           env("SMTP_PORT", "1025"),
+		SMTPFrom:           env("SMTP_FROM", "Tale Role <noreply@talerole.local>"),
+		SMTPUser:           env("SMTP_USER", ""),
+		SMTPPass:           env("SMTP_PASS", ""),
 	}
 }
 
@@ -39,6 +49,13 @@ func (c Config) Persistence() string {
 		return "mongo"
 	}
 	return "memory"
+}
+
+func (c Config) Mail() string {
+	if c.SMTPHost != "" {
+		return "smtp"
+	}
+	return "none"
 }
 
 func (c Config) JWTSecretIsDefault() bool {

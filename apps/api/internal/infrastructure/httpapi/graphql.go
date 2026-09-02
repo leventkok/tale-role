@@ -84,6 +84,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"persistence": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"llm":         &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"images":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"mail":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 		},
 	})
 	createdType := graphql.NewObject(graphql.ObjectConfig{
@@ -104,7 +105,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					rt := s.llm.Runtime()
 					return map[string]any{
 						"status": "ready", "persistence": s.cfg.Persistence(),
-						"llm": rt.Inference, "images": "stub",
+						"llm": rt.Inference, "images": "stub", "mail": s.cfg.Mail(),
 					}, nil
 				},
 			},

@@ -21,7 +21,7 @@ go run ./cmd/server
 - `POST /api/v1/licenses/register` — Electron registered product
 - `GET /api/v1/licenses/me`
 
-OTP delivery (email) is not wired yet; tests inject a fixed issuer. Production must send mail and keep codes out of logs.
+OTP is emailed when `SMTP_HOST` is set (local: Mailhog). Tests inject a fixed issuer and skip SMTP. Codes are bcrypt-hashed at rest and never written to logs or JSON. `TALEROLE_DEV_OTP` is a local-only bypass.
 
 ## LLM
 
