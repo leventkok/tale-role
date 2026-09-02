@@ -77,10 +77,11 @@ func main() {
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }
 	}
 	llm := gateway.New()
-	llm.ConfigureLocal(os.Getenv("TALEROLE_ADAPTER_DIR"))
-	if os.Getenv("TALEROLE_ADAPTER_DIR") != "" {
+	llm.ConfigureHub(os.Getenv("HF_STORYTELLER_MODEL"), os.Getenv("HF_MECHANICS_MODEL"))
+	llm.SetRunners(gateway.RunnerURLsFromEnv())
+	if os.Getenv("HF_STORYTELLER_MODEL") != "" || os.Getenv("HF_MECHANICS_MODEL") != "" || os.Getenv("LLM_RUNNER_URL") != "" || os.Getenv("LLM_STORYTELLER_URL") != "" {
 		rt := llm.Runtime()
-		log.Info("llm adapters", "dir_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)
+		log.Info("llm adapters", "hub_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)
 	}
 	handler := httpapi.New(svc, table, worlds, llm, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
 

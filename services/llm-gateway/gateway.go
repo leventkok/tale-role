@@ -3,6 +3,7 @@ package gateway
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -72,12 +73,17 @@ type Trace struct {
 }
 
 type Service struct {
-	mu            sync.Mutex
-	adapter       string
-	pack          string
-	traces        []Trace
-	adapterDirSet bool
-	weightsReady  bool
+	mu             sync.Mutex
+	adapter        string
+	pack           string
+	traces         []Trace
+	adapterDirSet  bool
+	weightsReady   bool
+	hubStoryteller string
+	hubMechanics   string
+	storytellerURL string
+	mechanicsURL   string
+	client         *http.Client
 }
 
 func New() *Service {
@@ -92,7 +98,7 @@ func (s *Service) Runtime() RuntimeView {
 		PromptPack:           s.pack,
 		AdapterDirConfigured: s.adapterDirSet,
 		WeightsReady:         s.weightsReady,
-		Inference:            packs.Stub,
+		Inference:            s.inferenceLocked(),
 	}
 }
 
@@ -106,17 +112,30 @@ func (s *Service) Swap(pack, adapter string) error {
 	if adapter == "" {
 		adapter = packs.Stub
 	}
-	if adapter != packs.Stub && adapter != packs.Local {
+	adapter = packs.NormalizeAdapter(adapter)
+	if adapter != packs.Stub && adapter != packs.Hub {
 		return fmt.Errorf("unknown adapter")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if adapter == packs.Local && !s.weightsReady {
-		return fmt.Errorf("local weights missing")
+	if adapter == packs.Hub && !s.weightsReady {
+		return fmt.Errorf("hub models missing")
 	}
 	s.pack = pack
 	s.adapter = adapter
 	return nil
+}
+
+func (s *Service) ConfigureHub(storyteller, mechanics string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hubStoryteller = strings.TrimSpace(storyteller)
+	s.hubMechanics = strings.TrimSpace(mechanics)
+	s.adapterDirSet = s.hubStoryteller != "" || s.hubMechanics != ""
+	s.weightsReady = s.adapterDirSet
+	if s.weightsReady {
+		s.adapter = packs.Hub
+	}
 }
 
 func (s *Service) ConfigureLocal(dir string) {
@@ -130,7 +149,7 @@ func (s *Service) ConfigureLocal(dir string) {
 	s.adapterDirSet = true
 	s.weightsReady = ProbeWeights(dir)
 	if s.weightsReady {
-		s.adapter = packs.Local
+		s.adapter = packs.Hub
 	}
 }
 
@@ -144,6 +163,18 @@ func (s *Service) Traces() []Trace {
 
 func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 	notes := pii.Redact(req.Notes)
+	req.Notes = notes
+	if base, ok := s.useLocal("mechanics"); ok {
+		var intent MechanicIntent
+		if err := s.callJSON(base+"/v1/intent", req, &intent); err == nil {
+			intent.Notes = pii.Redact(intent.Notes)
+			if intent.Kind == "" {
+				intent.Kind = req.Kind
+			}
+			s.record(req.RoomID, packs.Voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
+			return intent
+		}
+	}
 	kind := req.Kind
 	if kind == "" {
 		kind = "action"
@@ -167,12 +198,25 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	}
 	pack := s.currentPack()
 	notes := pii.Redact(req.Notes)
+	req.Notes = notes
 	actor := req.ActorName
 	if actor == "" {
 		actor = "Someone"
 	}
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := packs.Voice(pack, locale)
+	if base, ok := s.useLocal("storyteller"); ok {
+		var remote Narrative
+		if err := s.callJSON(base+"/v1/narrate", req, &remote); err == nil && strings.TrimSpace(remote.Prose) != "" {
+			remote.Locale = locale
+			remote.Prose = pii.Redact(remote.Prose)
+			if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
+				remote.Prose = strings.ReplaceAll(remote.Prose, "system_admin", "")
+			}
+			s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
+			return remote
+		}
+	}
 	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")

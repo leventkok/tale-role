@@ -123,7 +123,7 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Postgres, trained models, signed Electron installers, production DPA.
+Postgres, trained production weights, signed Electron installers, production DPA.
 
 ## When our models land
 
@@ -160,3 +160,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/graphql -ContentTy
 ## F9 — SMTP OTP
 
 Compose starts Mailhog. API with `SMTP_HOST=127.0.0.1` `SMTP_PORT=1025`. Register, open http://127.0.0.1:8025, copy the 6-digit code. `/health/ready` includes `"mail":"smtp"`. Register JSON must not contain the code. `TALEROLE_DEV_OTP` still bypasses randomness for local sitting; leave it unset to force Mailhog.
+
+## F10 — Hugging Face Hub
+
+Without Hub model ids, `/health/ready` stays `"llm":"stub"`. Train in Colab, push to a **private** repo, deploy `services/llm-runner` with `HF_MODEL_ID` + `HF_TOKEN`, set `HF_STORYTELLER_MODEL` and `LLM_STORYTELLER_URL` on the API. Ready reports `"llm":"hub"`. Kill the runner: table still plays (stub). Dice from Go. This is not a paid Hugging Face Inference API.
