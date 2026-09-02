@@ -12,7 +12,7 @@ Use three terminals. Keep them running.
 
 ### 0. Branch
 
-Checkout the stack you want to click through (`feat/f7-mongo-hosting` has persistence when Mongo is up).
+Checkout the stack you want to click through (`feat/f8-graphql` adds `POST /graphql`; `feat/f7-mongo-hosting` has persistence when Mongo is up).
 
 Optional Mongo (survives API restart):
 
@@ -142,3 +142,13 @@ Signed in: **Account** → download JSON (no password hash) → type `DELETE` to
 ## F7 — Mongo
 
 `.\infra\scripts\compose-up.ps1` then API with `MONGO_URI`. Create a room, restart the API, join the same id. `/health/ready` → `"persistence":"mongo"`.
+
+## F8 — GraphQL
+
+Anonymous (no cookie):
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/graphql -ContentType "application/json" -Body '{"query":"{ health { persistence llm } me { email } }"}'
+```
+
+`me` is null. Signed in, the same path forwards the session cookie. Room queries must not include `compiled_prompt`. Stolen `universe(id)` returns GraphQL errors, not the pack. Direct API: `POST http://127.0.0.1:8080/graphql`.
