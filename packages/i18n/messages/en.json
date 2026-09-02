@@ -10,6 +10,17 @@
     "signOut": "Sign out",
     "register": "Create account"
   },
+  "ui": {
+    "theme": "Theme"
+  },
+  "themes": {
+    "high-fantasy": "High fantasy",
+    "gothic-horror": "Gothic horror",
+    "space-opera": "Space opera",
+    "cyber-noir": "Cyber-noir",
+    "post-apocalyptic": "Post-apocalyptic",
+    "fairytale": "Fairytale"
+  },
   "auth": {
     "email": "Email",
     "password": "Password",
@@ -22,7 +33,9 @@
   },
   "home": {
     "signedInAs": "Signed in as {email}",
-    "cta": "Join a table or host a universe."
+    "cta": "Join a table or host a universe.",
+    "hostLead": "Open a private room. Share the id, or lock it with a password.",
+    "playLead": "Sit down with an invite id. Spend your stats. Let the dice speak."
   },
   "admin": {
     "title": "Spectator console",
@@ -48,6 +61,23 @@
     "order": "Turn order",
     "skill": "Skill",
     "notes": "What do you do?",
-    "presence": "At the table"
+    "presence": "At the table",
+    "storyteller": "Storyteller",
+    "sceneSoon": "Scene art will sit here — never inside the chat.",
+    "waiting": "The lanterns hold. Speak, pass, or wait.",
+    "hp": "HP",
+    "copyId": "Copy id",
+    "copied": "Copied",
+    "loading": "Lighting the lanterns…",
+    "statTotal": "{n} / 18",
+    "you": "You",
+    "gm": "Host",
+    "awaitStart": "Waiting for the host to call initiative.",
+    "awaitSheet": "Name the character. Spend 18 points — no more, no less.",
+    "kindAction": "action",
+    "kindPass": "pass",
+    "kindWait": "wait",
+    "hit": "hit",
+    "missLabel": "miss"
   }
 }

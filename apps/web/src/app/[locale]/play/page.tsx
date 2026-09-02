@@ -10,9 +10,14 @@ export default async function PlayPage({
   setRequestLocale(locale);
   const t = await getTranslations();
   return (
-    <main>
-      <h1>{t("nav.play")}</h1>
-      <JoinForm />
+    <main className="page">
+      <section className="hero">
+        <h1>{t("nav.play")}</h1>
+        <p className="lede">{t("home.playLead")}</p>
+      </section>
+      <div className="panel narrow">
+        <JoinForm />
+      </div>
     </main>
   );
 }
