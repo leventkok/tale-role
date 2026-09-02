@@ -32,6 +32,12 @@ func TestRedactsPIIAndOmitsAdminFromPrompt(t *testing.T) {
 	if !strings.Contains(n.Prose, pii.Marker) && !strings.Contains(n.Prose, "Iri") {
 		t.Fatalf("unexpected prose: %s", n.Prose)
 	}
+	themed := svc.Narrate(gateway.NarrateRequest{
+		Locale: "en", RoomName: "Ashwood", ActorName: "Iri", Kind: "wait", ThemeID: "gothic-horror",
+	})
+	if !strings.Contains(themed.Prose, "[gothic-horror]") {
+		t.Fatalf("theme missing from stub prose: %s", themed.Prose)
+	}
 	intent := svc.ProposeIntent(gateway.IntentRequest{
 		Locale: "en",
 		RoomID: "r1",

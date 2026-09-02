@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
@@ -16,13 +17,35 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 		JoinMode   string `json:"join_mode"`
 		Password   string `json:"password"`
 		DiceSystem string `json:"dice_system"`
+		UniverseID string `json:"universe_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 	u := userFrom(r)
-	room, err := s.table.Create(u.ID, body.Name, body.JoinMode, body.Password, body.DiceSystem)
+	dice := body.DiceSystem
+	name := body.Name
+	if body.UniverseID != "" {
+		uni, err := s.worlds.GetForHost(body.UniverseID, u.ID)
+		if err != nil {
+			s.writeAppError(w, err)
+			return
+		}
+		dice = uni.DiceSystem
+		if strings.TrimSpace(name) == "" {
+			name = uni.NameEN
+		}
+		room, err := s.table.Create(u.ID, name, body.JoinMode, body.Password, dice)
+		if err != nil {
+			s.writeAppError(w, err)
+			return
+		}
+		_ = s.table.BindUniverse(room.ID, uni.ID, uni.ThemeID, uni.PromptPackVersion)
+		httperr.JSON(w, http.StatusCreated, map[string]any{"id": room.ID, "dice_system": room.DiceSystem, "universe_id": uni.ID})
+		return
+	}
+	room, err := s.table.Create(u.ID, name, body.JoinMode, body.Password, dice)
 	if err != nil {
 		s.writeAppError(w, err)
 		return
@@ -133,6 +156,7 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 		Total:         turn.Total,
 		Success:       turn.Success,
 		PresenceNames: names,
+		ThemeID:       pub.ThemeID,
 	})
 	narr := game.Narrative{Locale: n.Locale, Prose: n.Prose, NPCLines: []game.NPCLine{}}
 	for _, line := range n.NPCLines {

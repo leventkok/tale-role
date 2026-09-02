@@ -37,6 +37,13 @@ export default async function HomePage({
       {email ? (
         <div className="grid-2">
           <article className="card">
+            <h2>{t("nav.universe")}</h2>
+            <p className="muted">{t("home.universeLead")}</p>
+            <Link className="btn" href="/universe/new">
+              {t("nav.universe")}
+            </Link>
+          </article>
+          <article className="card">
             <h2>{t("nav.host")}</h2>
             <p className="muted">{t("home.hostLead")}</p>
             <Link className="btn" href="/host">

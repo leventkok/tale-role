@@ -119,20 +119,26 @@ type Room struct {
 	TurnOrder  []string              `json:"turn_order"`
 	Turns      []Turn                `json:"turns"`
 	Started    bool                  `json:"started"`
+	UniverseID string                `json:"universe_id,omitempty"`
+	ThemeID    string                `json:"theme_id,omitempty"`
+	PromptPack string                `json:"prompt_pack_version,omitempty"`
 	CreatedAt  time.Time             `json:"created_at"`
 }
 
 type PublicRoom struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	HostID     string      `json:"host_id"`
-	DiceSystem string      `json:"dice_system"`
-	JoinMode   string      `json:"join_mode"`
-	Started    bool        `json:"started"`
-	TurnOrder  []string    `json:"turn_order"`
-	Presence   []Member    `json:"presence"`
-	Characters []Character `json:"characters"`
-	Turns      []Turn      `json:"turns"`
+	ID                string      `json:"id"`
+	Name              string      `json:"name"`
+	HostID            string      `json:"host_id"`
+	DiceSystem        string      `json:"dice_system"`
+	JoinMode          string      `json:"join_mode"`
+	Started           bool        `json:"started"`
+	TurnOrder         []string    `json:"turn_order"`
+	Presence          []Member    `json:"presence"`
+	Characters        []Character `json:"characters"`
+	Turns             []Turn      `json:"turns"`
+	UniverseID        string      `json:"universe_id,omitempty"`
+	ThemeID           string      `json:"theme_id,omitempty"`
+	PromptPackVersion string      `json:"prompt_pack_version,omitempty"`
 }
 
 type Table struct {
@@ -182,6 +188,19 @@ func (t *Table) Create(hostID, name, joinMode, password, dice string) (*Room, er
 	t.rooms[r.ID] = r
 	t.mu.Unlock()
 	return r, nil
+}
+
+func (t *Table) BindUniverse(roomID, universeID, themeID, pack string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return ErrNotFound
+	}
+	r.UniverseID = universeID
+	r.ThemeID = themeID
+	r.PromptPack = pack
+	return nil
 }
 
 func (t *Table) Join(roomID, userID, password, role string) error {
@@ -345,16 +364,19 @@ func (t *Table) Public(roomID string) (*PublicRoom, error) {
 
 func snapshot(r *Room) *PublicRoom {
 	out := &PublicRoom{
-		ID:         r.ID,
-		Name:       r.Name,
-		HostID:     r.HostID,
-		DiceSystem: r.DiceSystem,
-		JoinMode:   r.JoinMode,
-		Started:    r.Started,
-		TurnOrder:  append([]string{}, r.TurnOrder...),
-		Presence:   []Member{},
-		Characters: []Character{},
-		Turns:      append([]Turn{}, r.Turns...),
+		ID:                r.ID,
+		Name:              r.Name,
+		HostID:            r.HostID,
+		DiceSystem:        r.DiceSystem,
+		JoinMode:          r.JoinMode,
+		Started:           r.Started,
+		TurnOrder:         append([]string{}, r.TurnOrder...),
+		Presence:          []Member{},
+		Characters:        []Character{},
+		Turns:             append([]Turn{}, r.Turns...),
+		UniverseID:        r.UniverseID,
+		ThemeID:           r.ThemeID,
+		PromptPackVersion: r.PromptPack,
 	}
 	for _, m := range r.Members {
 		if m.Role == "system_admin" {

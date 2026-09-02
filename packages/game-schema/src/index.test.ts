@@ -19,6 +19,11 @@ describe("tale core contracts", () => {
       npcs: [],
     });
     assert.equal(parsed.diceSystem, "d20");
+    assert.equal(parsed.era, undefined);
+    assert.equal(
+      universeDocumentSchema.parse({ ...parsed, era: "late autumn", tone: "wary" }).era,
+      "late autumn",
+    );
     assert.equal(
       universeDocumentSchema.parse({ ...parsed, diceSystem: "2d6" }).diceSystem,
       "2d6",

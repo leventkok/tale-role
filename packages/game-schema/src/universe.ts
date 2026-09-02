@@ -37,6 +37,9 @@ export const universeDocumentSchema = z.object({
   ),
   promptPackVersion: z.string().min(1),
   contentRating: z.enum(["everyone", "teen", "mature"]).default("teen"),
+  era: z.string().max(120).optional(),
+  tone: z.string().max(120).optional(),
+  taboos: z.string().max(1000).optional(),
 });
 
 export type UniverseDocument = z.infer<typeof universeDocumentSchema>;

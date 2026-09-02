@@ -10,6 +10,8 @@ F1 platform shell: in-memory Go auth + OTP, Next.js BFF cookies, admin spectator
 
 F3 dual LLM: in-process Storyteller + mechanics stubs, PII redaction, live prompt-pack swap, admin traces.
 
+F4 universe interview: owner compiles a versioned prompt pack; rooms bind `theme_id`; players never see `compiled_prompt`.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)
