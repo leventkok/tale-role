@@ -27,7 +27,7 @@ func setup(t *testing.T) (http.Handler, *app.Service) {
 		CORSAllowedOrigins: []string{"http://localhost:3000"},
 		MaxBodyBytes:       1 << 20,
 	}
-	h := httpapi.New(svc, game.NewTable(), nil, slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "admin@tale.role")
+	h := httpapi.New(svc, game.NewTable(), nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "admin@tale.role")
 	return h, svc
 }
 

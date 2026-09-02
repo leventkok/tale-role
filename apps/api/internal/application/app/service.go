@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/leventkok/tale-role/apps/api/internal/domain/iam"
 	"github.com/leventkok/tale-role/apps/api/internal/domain/license"
-	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,7 +25,7 @@ var (
 )
 
 type Service struct {
-	store     *memory.Store
+	store     Identity
 	jwtSecret []byte
 	jwtExpiry time.Duration
 	otpTTL    time.Duration
@@ -34,7 +33,7 @@ type Service struct {
 	IssueOTP func() (string, error)
 }
 
-func NewService(store *memory.Store, jwtSecret string, jwtExpiry, otpTTL time.Duration) *Service {
+func NewService(store Identity, jwtSecret string, jwtExpiry, otpTTL time.Duration) *Service {
 	return &Service{
 		store:     store,
 		jwtSecret: []byte(jwtSecret),

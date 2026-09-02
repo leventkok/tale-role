@@ -15,6 +15,8 @@ type Config struct {
 	CORSAllowedOrigins []string
 	MaxBodyBytes       int64
 	OTPTTL             time.Duration
+	MongoURI           string
+	MongoDB            string
 }
 
 func Load() Config {
@@ -27,7 +29,16 @@ func Load() Config {
 		CORSAllowedOrigins: origins,
 		MaxBodyBytes:       envInt64("MAX_BODY_BYTES", 1<<20),
 		OTPTTL:             10 * time.Minute,
+		MongoURI:           env("MONGO_URI", ""),
+		MongoDB:            env("MONGO_DB", "talerole"),
 	}
+}
+
+func (c Config) Persistence() string {
+	if c.MongoURI != "" {
+		return "mongo"
+	}
+	return "memory"
 }
 
 func (c Config) JWTSecretIsDefault() bool {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
+	"github.com/leventkok/tale-role/apps/api/internal/application/world"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/httpapi"
 	"github.com/leventkok/tale-role/apps/api/internal/infrastructure/memory"
+	mongostore "github.com/leventkok/tale-role/apps/api/internal/infrastructure/mongo"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
@@ -24,7 +27,40 @@ func main() {
 		log.Warn("JWT_SECRET is unset; authentication uses a known default value")
 	}
 
-	svc := app.NewService(memory.NewStore(), cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
+	var ident app.Identity = memory.NewStore()
+	table := game.NewTable()
+	worlds := world.NewCatalog()
+	if cfg.MongoURI != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		store, err := mongostore.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
+		cancel()
+		if err != nil {
+			log.Error("mongo connect failed", "error", err)
+			os.Exit(1)
+		}
+		ident = store
+		loadCtx, loadCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		rooms, err := store.LoadRooms(loadCtx)
+		if err != nil {
+			log.Error("mongo load rooms", "error", err)
+			os.Exit(1)
+		}
+		unis, err := store.LoadUniverses(loadCtx)
+		loadCancel()
+		if err != nil {
+			log.Error("mongo load universes", "error", err)
+			os.Exit(1)
+		}
+		table.Load(rooms)
+		table.SetSink(store)
+		worlds.Load(unis)
+		worlds.SetSink(store)
+		log.Info("persistence", "engine", "mongo", "rooms", len(rooms), "universes", len(unis))
+	} else {
+		log.Warn("MONGO_URI unset; using in-memory store (restart wipes data)")
+	}
+
+	svc := app.NewService(ident, cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
 	if devOTP := os.Getenv("TALEROLE_DEV_OTP"); devOTP != "" {
 		log.Warn("TALEROLE_DEV_OTP is set; using a fixed OTP issuer (local only)")
 		svc.IssueOTP = func() (string, error) { return devOTP, nil }
@@ -35,7 +71,7 @@ func main() {
 		rt := llm.Runtime()
 		log.Info("llm adapters", "dir_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)
 	}
-	handler := httpapi.New(svc, game.NewTable(), llm, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
+	handler := httpapi.New(svc, table, worlds, llm, log, cfg, os.Getenv("TALEROLE_ADMIN_EMAIL"))
 
 	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{
@@ -47,7 +83,7 @@ func main() {
 	}
 
 	go func() {
-		log.Info("listening", "addr", addr)
+		log.Info("listening", "addr", addr, "persistence", cfg.Persistence())
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("server error", "error", err)
 			os.Exit(1)
