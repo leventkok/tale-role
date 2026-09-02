@@ -13,22 +13,22 @@ import (
 )
 
 const (
-	DefaultDice   = "d20"
-	StatBudget    = 18
-	StatMin       = 1
-	StatMax       = 6
+	DefaultDice     = "d20"
+	StatBudget      = 18
+	StatMin         = 1
+	StatMax         = 6
 	DefaultActionDC = 12
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrForbidden      = errors.New("forbidden")
-	ErrBadStats       = errors.New("invalid stats")
-	ErrHasCharacter   = errors.New("character exists")
-	ErrNoCharacter    = errors.New("character required")
-	ErrBadPassword    = errors.New("unauthorized")
-	ErrUnknownDice    = errors.New("unknown dice system")
-	ErrUnknownSkill   = errors.New("unknown skill")
+	ErrNotFound     = errors.New("not found")
+	ErrForbidden    = errors.New("forbidden")
+	ErrBadStats     = errors.New("invalid stats")
+	ErrHasCharacter = errors.New("character exists")
+	ErrNoCharacter  = errors.New("character required")
+	ErrBadPassword  = errors.New("unauthorized")
+	ErrUnknownDice  = errors.New("unknown dice system")
+	ErrUnknownSkill = errors.New("unknown skill")
 )
 
 type Stats struct {
@@ -86,41 +86,53 @@ type Member struct {
 }
 
 type Turn struct {
-	ActorID    string `json:"actor_id"`
-	Kind       string `json:"kind"`
-	DiceSystem string `json:"dice_system"`
-	Rolls      []int  `json:"rolls"`
-	Total      int    `json:"total"`
-	Success    *bool  `json:"success"`
-	Notes      string `json:"notes,omitempty"`
+	ActorID    string     `json:"actor_id"`
+	Kind       string     `json:"kind"`
+	DiceSystem string     `json:"dice_system"`
+	Rolls      []int      `json:"rolls"`
+	Total      int        `json:"total"`
+	Success    *bool      `json:"success"`
+	Notes      string     `json:"notes,omitempty"`
+	Narrative  *Narrative `json:"narrative,omitempty"`
+}
+
+type Narrative struct {
+	Locale   string    `json:"locale"`
+	Prose    string    `json:"prose"`
+	NPCLines []NPCLine `json:"npc_lines"`
+}
+
+type NPCLine struct {
+	NPCID string `json:"npc_id"`
+	Text  string `json:"text"`
 }
 
 type Room struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	HostID      string                `json:"host_id"`
-	DiceSystem  string                `json:"dice_system"`
-	JoinMode    string                `json:"join_mode"` // link | password
-	Password    string                `json:"-"`
-	Members     map[string]Member     `json:"-"`
-	Characters  map[string]*Character `json:"-"`
-	TurnOrder   []string              `json:"turn_order"`
-	Turns       []Turn                `json:"turns"`
-	Started     bool                  `json:"started"`
-	CreatedAt   time.Time             `json:"created_at"`
+	ID         string                `json:"id"`
+	Name       string                `json:"name"`
+	HostID     string                `json:"host_id"`
+	DiceSystem string                `json:"dice_system"`
+	JoinMode   string                `json:"join_mode"` // link | password
+	Password   string                `json:"-"`
+	Members    map[string]Member     `json:"-"`
+	Characters map[string]*Character `json:"-"`
+	TurnOrder  []string              `json:"turn_order"`
+	Turns      []Turn                `json:"turns"`
+	Started    bool                  `json:"started"`
+	CreatedAt  time.Time             `json:"created_at"`
 }
 
 type PublicRoom struct {
-	ID         string       `json:"id"`
-	Name       string       `json:"name"`
-	HostID     string       `json:"host_id"`
-	DiceSystem string       `json:"dice_system"`
-	JoinMode   string       `json:"join_mode"`
-	Started    bool         `json:"started"`
-	TurnOrder  []string     `json:"turn_order"`
-	Presence   []Member     `json:"presence"`
-	Characters []Character  `json:"characters"`
-	Turns      []Turn       `json:"turns"`
+	ID         string      `json:"id"`
+	Name       string      `json:"name"`
+	HostID     string      `json:"host_id"`
+	DiceSystem string      `json:"dice_system"`
+	JoinMode   string      `json:"join_mode"`
+	Started    bool        `json:"started"`
+	TurnOrder  []string    `json:"turn_order"`
+	Presence   []Member    `json:"presence"`
+	Characters []Character `json:"characters"`
+	Turns      []Turn      `json:"turns"`
 }
 
 type Table struct {
@@ -294,6 +306,18 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	turn.Success = &okHit
 	r.Turns = append(r.Turns, turn)
 	return turn, nil
+}
+
+func (t *Table) AttachNarrative(roomID string, n Narrative) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok || len(r.Turns) == 0 {
+		return ErrNotFound
+	}
+	cp := n
+	r.Turns[len(r.Turns)-1].Narrative = &cp
+	return nil
 }
 
 func (t *Table) View(roomID, userID string) (*PublicRoom, error) {

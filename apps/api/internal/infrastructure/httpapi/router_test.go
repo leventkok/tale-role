@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func setup(t *testing.T) (http.Handler, *app.Service) {
 		CORSAllowedOrigins: []string{"http://localhost:3000"},
 		MaxBodyBytes:       1 << 20,
 	}
-	h := httpapi.New(svc, game.NewTable(), slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "admin@tale.role")
+	h := httpapi.New(svc, game.NewTable(), nil, slog.New(slog.NewTextHandler(io.Discard, nil)), cfg, "admin@tale.role")
 	return h, svc
 }
 
@@ -142,6 +143,66 @@ func TestRoomHTTPHidesAdmin(t *testing.T) {
 	got := authed(t, h, http.MethodGet, "/api/v1/rooms/"+room.ID, token, nil)
 	if bytes.Contains(got.Body.Bytes(), []byte("system_admin")) {
 		t.Fatalf("admin leaked: %s", got.Body.String())
+	}
+}
+
+func TestStorytellerAfterEngineAndAdminTrace(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	created := authed(t, h, http.MethodPost, "/api/v1/rooms", token, map[string]string{
+		"name": "Ashwood", "join_mode": "link", "dice_system": "d20",
+	})
+	var room struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(created.Body.Bytes(), &room)
+	stats := map[string]int{"str": 3, "dex": 3, "con": 3, "int": 3, "wis": 3, "cha": 3}
+	sheet := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/characters", token, map[string]any{
+		"name": "Iri", "stats": stats,
+	})
+	if sheet.Code != http.StatusCreated {
+		t.Fatalf("character: %d %s", sheet.Code, sheet.Body.String())
+	}
+	if start := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/start", token, map[string]string{}); start.Code != http.StatusOK {
+		t.Fatalf("start: %d %s", start.Code, start.Body.String())
+	}
+	turn := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/turns", token, map[string]any{
+		"kind": "action", "skill": "str", "notes": "force the door, cc player@tale.role", "dc": 12, "locale": "en",
+	})
+	if turn.Code != http.StatusOK {
+		t.Fatalf("turn: %d %s", turn.Code, turn.Body.String())
+	}
+	if !bytes.Contains(turn.Body.Bytes(), []byte(`"prose"`)) {
+		t.Fatalf("expected storyteller prose: %s", turn.Body.String())
+	}
+	if bytes.Contains(turn.Body.Bytes(), []byte("mechanic_intent")) {
+		t.Fatal("mechanic intent must not appear on the player turn")
+	}
+	var payload map[string]any
+	_ = json.Unmarshal(turn.Body.Bytes(), &payload)
+	narr, _ := payload["narrative"].(map[string]any)
+	prose, _ := narr["prose"].(string)
+	if strings.Contains(prose, "player@tale.role") {
+		t.Fatalf("email in storyteller prose: %s", prose)
+	}
+
+	playerTraces := authed(t, h, http.MethodGet, "/api/v1/admin/traces", token, nil)
+	if playerTraces.Code != http.StatusForbidden {
+		t.Fatalf("player traces: %d", playerTraces.Code)
+	}
+	adminTok := registerAndVerify(t, h, "admin@tale.role")
+	traces := authed(t, h, http.MethodGet, "/api/v1/admin/traces", adminTok, nil)
+	if traces.Code != http.StatusOK {
+		t.Fatalf("admin traces: %d %s", traces.Code, traces.Body.String())
+	}
+	if bytes.Contains(traces.Body.Bytes(), []byte("player@tale.role")) {
+		t.Fatalf("pii in traces: %s", traces.Body.String())
+	}
+	swap := authed(t, h, http.MethodPut, "/api/v1/admin/runtime", adminTok, map[string]string{
+		"prompt_pack": "v1-terse", "adapter_id": "stub",
+	})
+	if swap.Code != http.StatusOK {
+		t.Fatalf("swap: %d %s", swap.Code, swap.Body.String())
 	}
 }
 
