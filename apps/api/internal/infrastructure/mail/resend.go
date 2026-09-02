@@ -32,7 +32,7 @@ func (r Resend) SendOTP(email, code string) error {
 	if strings.ContainsAny(email, "\r\n") || !strings.Contains(email, "@") {
 		return fmt.Errorf("invalid recipient")
 	}
-	from := strings.TrimSpace(r.From)
+	from := oneLine(r.From)
 	if from == "" {
 		from = "Tale Role <onboarding@resend.dev>"
 	}
@@ -69,4 +69,10 @@ func (r Resend) SendOTP(email, code string) error {
 		return fmt.Errorf("resend status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func oneLine(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return strings.TrimSpace(s)
 }
