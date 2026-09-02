@@ -5,6 +5,7 @@ import {
   isVisibleAtTable,
   mechanicIntentSchema,
   publicTurnEventSchema,
+  sceneCardSchema,
   universeDocumentSchema,
 } from "./index";
 
@@ -55,5 +56,14 @@ describe("tale core contracts", () => {
       },
     });
     assert.equal("mechanicIntent" in event, false);
+  });
+
+  it("keeps scene cards on the six themes and the stub", () => {
+    const card = sceneCardSchema.parse({
+      themeId: "gothic-horror",
+      visualPrompt: "Tale Role stub scene. Theme gothic-horror. No dice.",
+      inference: "stub",
+    });
+    assert.equal(card.inference, "stub");
   });
 });

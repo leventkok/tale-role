@@ -24,6 +24,13 @@ type Room = {
   turn_order: string[];
   presence: { user_id: string; role: string }[];
   characters: Character[];
+  theme_id?: string;
+  scene?: {
+    theme_id: string;
+    visual_prompt?: string;
+    image_svg?: string;
+    inference?: string;
+  };
   turns: {
     actor_id: string;
     kind: string;
@@ -159,7 +166,17 @@ export function TableClient({ roomId }: { roomId: string }) {
             {t("dice")} {room.dice_system}
           </span>
         </div>
-        <div className="portrait">{t("sceneSoon")}</div>
+        {room.scene?.image_svg ? (
+          <div className="portrait has-art">
+            <img
+              alt={room.scene.theme_id}
+              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(room.scene.image_svg)}`}
+            />
+            <p>{t("sceneStub")}</p>
+          </div>
+        ) : (
+          <div className="portrait">{t("sceneSoon")}</div>
+        )}
         <div className="scene">
           <button className="ghost copy" type="button" onClick={() => void copyId()}>
             {copied ? t("copied") : t("copyId")}

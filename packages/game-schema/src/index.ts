@@ -42,3 +42,5 @@ export {
   type ThemeId,
   type UniverseDocument,
 } from "./universe";
+
+export { sceneCardSchema, type SceneCard } from "./scene";

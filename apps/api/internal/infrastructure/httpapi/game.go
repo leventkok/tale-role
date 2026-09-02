@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
+	worker "github.com/leventkok/tale-role/services/image-worker"
 	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
 
@@ -164,7 +165,23 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.table.AttachNarrative(roomID, narr)
 	turn.Narrative = &narr
+	go s.paintScene(roomID, pub.ThemeID, pub.Name, body.Notes, n.Prose)
 	httperr.JSON(w, http.StatusOK, turn)
+}
+
+func (s *Server) paintScene(roomID, themeID, roomName, notes, prose string) {
+	card := s.images.Compose(worker.Request{
+		ThemeID:  themeID,
+		RoomName: roomName,
+		Notes:    notes,
+		Prose:    prose,
+	})
+	_ = s.table.AttachScene(roomID, game.Scene{
+		ThemeID:      card.ThemeID,
+		VisualPrompt: card.VisualPrompt,
+		ImageSVG:     card.ImageSVG,
+		Inference:    card.Inference,
+	})
 }
 
 func (s *Server) adminRuntime(w http.ResponseWriter, _ *http.Request) {
