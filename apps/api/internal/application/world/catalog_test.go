@@ -36,4 +36,8 @@ func TestCreateCompilesPromptPack(t *testing.T) {
 	if _, err := cat.Get(u.ID, "other"); err == nil {
 		t.Fatal("other user must not read the universe")
 	}
+	cat.ForgetOwner("host")
+	if len(cat.List("host")) != 0 {
+		t.Fatal("erasure must drop owned universes")
+	}
 }

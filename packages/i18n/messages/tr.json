@@ -9,7 +9,9 @@
     "universe": "Evren",
     "signIn": "Giriş",
     "signOut": "Çıkış",
-    "register": "Hesap oluştur"
+    "register": "Hesap oluştur",
+    "privacy": "Gizlilik",
+    "account": "Hesap"
   },
   "ui": {
     "theme": "Tema"
@@ -112,5 +114,26 @@
     "pick": "Evren",
     "none": "Evren yok (yalnız zar)",
     "create": "Yeni evren mülakatı"
+  },
+  "privacy": {
+    "title": "Gizlilik",
+    "lead": "Bu örnekte KVKK / GDPR hakları. Prompt politika değildir. Zar Go motorundadır.",
+    "store": "Şu an ne tutulur",
+    "storeBody": "E-posta, parola özeti, isteğe bağlı cihaz lisansı, kurduğun odalar ve karakterler, sahip olduğun evren pack’leri. Kalıcılık henüz bellekte — süreç kapanınca örnek silinir.",
+    "llm": "Modeller",
+    "llmBody": "Ücretli üçüncü taraf LLM veya görsel API yok. Anlatıcı ve mekanik stub (sonra kendi makinelerimizdeki adapter’lar). Ağırlık git’e girmez. Oyuncu logu eğitim verisi değildir.",
+    "rights": "Hakların",
+    "rightsBody": "Kaydının makine okur kopyasını indir. Hesabı sil. Silince oturum çerezi temizlenir; JWT kullanıcıya bağlanmaz.",
+    "not": "Bu nedir, ne değildir",
+    "notBody": "Hukuk bürosu yazısı değil. E-posta teslimi yok. Canlı üretim DPA’sı değil. Sertifika ve üretim sırları git’e konmaz."
+  },
+  "account": {
+    "title": "Hesabın",
+    "lead": "Dışa aktar veya sil. Silme bu örnekte geri alınamaz.",
+    "export": "Verimi indir",
+    "erase": "Hesabımı sil",
+    "confirm": "Onay için DELETE yaz",
+    "needSignIn": "Verini yönetmek için giriş yap.",
+    "erased": "Hesap silindi."
   }
 }

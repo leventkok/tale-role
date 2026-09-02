@@ -426,3 +426,61 @@ func cryptoDie(sides int) int {
 func (t *Table) UseDie(fn func(sides int) int) {
 	t.roll = fn
 }
+
+type ExportedRoom struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type ExportedCharacter struct {
+	RoomID string `json:"room_id"`
+	Name   string `json:"name"`
+	HP     int    `json:"hp"`
+	Stats  Stats  `json:"stats"`
+}
+
+func (t *Table) ExportFor(userID string) (rooms []ExportedRoom, chars []ExportedCharacter) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	rooms = []ExportedRoom{}
+	chars = []ExportedCharacter{}
+	for _, r := range t.rooms {
+		m, ok := r.Members[userID]
+		if !ok {
+			continue
+		}
+		rooms = append(rooms, ExportedRoom{ID: r.ID, Name: r.Name, Role: m.Role})
+		if ch, ok := r.Characters[userID]; ok {
+			chars = append(chars, ExportedCharacter{RoomID: r.ID, Name: ch.Name, HP: ch.HP, Stats: ch.Stats})
+		}
+	}
+	return rooms, chars
+}
+
+func (t *Table) ForgetUser(userID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for id, r := range t.rooms {
+		if r.HostID == userID {
+			delete(t.rooms, id)
+			continue
+		}
+		delete(r.Members, userID)
+		delete(r.Characters, userID)
+		order := make([]string, 0, len(r.TurnOrder))
+		for _, uid := range r.TurnOrder {
+			if uid != userID {
+				order = append(order, uid)
+			}
+		}
+		r.TurnOrder = order
+		for i := range r.Turns {
+			if r.Turns[i].ActorID == userID {
+				r.Turns[i].ActorID = "erased"
+				r.Turns[i].Notes = ""
+				r.Turns[i].Narrative = nil
+			}
+		}
+	}
+}

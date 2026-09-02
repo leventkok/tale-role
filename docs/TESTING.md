@@ -110,7 +110,7 @@ Leave http://127.0.0.1:3001 for later.
 
 ### Do not test yet
 
-Email delivery, Postgres, Mongo, trained models, Electron signing, KVKK export.
+Email delivery, Postgres, Mongo, trained models, signed Electron installers, production DPA.
 
 ## When our models land
 
@@ -125,3 +125,7 @@ Signed in: **Universe** → 3 steps (name/tone/taboos → theme + dice → NPC) 
 ## F5 — scene panel
 
 After a roll, the Storyteller **side panel** (not the chronicle) shows a stub SVG for the room theme. Turn JSON must not contain `image_svg`. No paid image API.
+
+## F6 — privacy
+
+Signed in: **Account** → download JSON (no password hash) → type `DELETE` to erase. After erase, `/api/me` is 401. **Privacy** is public. `/health/ready` reports `persistence: memory` and `llm: stub`.

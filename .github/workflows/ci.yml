@@ -28,6 +28,19 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  eval:
+    name: Eval gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run eval
+
   gitleaks:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -125,19 +138,20 @@ jobs:
   ci-ok:
     name: CI gate
     if: always()
-    needs: [packages, gitleaks, go, gateway, image, web]
+    needs: [packages, eval, gitleaks, go, gateway, image, web]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Require green jobs
         run: |
           echo "packages=${{ needs.packages.result }}"
+          echo "eval=${{ needs.eval.result }}"
           echo "gitleaks=${{ needs.gitleaks.result }}"
           echo "go=${{ needs.go.result }}"
           echo "gateway=${{ needs.gateway.result }}"
           echo "image=${{ needs.image.result }}"
           echo "web=${{ needs.web.result }}"
-          for result in "${{ needs.packages.result }}" "${{ needs.gitleaks.result }}" "${{ needs.go.result }}" "${{ needs.gateway.result }}" "${{ needs.image.result }}" "${{ needs.web.result }}"; do
+          for result in "${{ needs.packages.result }}" "${{ needs.eval.result }}" "${{ needs.gitleaks.result }}" "${{ needs.go.result }}" "${{ needs.gateway.result }}" "${{ needs.image.result }}" "${{ needs.web.result }}"; do
             if [ "$result" != "success" ]; then
               echo "Required job failed: $result"
               exit 1

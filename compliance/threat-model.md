@@ -25,5 +25,7 @@ Browser / Electron (untrusted) → Next.js server → masterfabric-go → Postgr
 | T4 | Admin identity leak | `system_admin` stripped from public presence and Storyteller context |
 | T5 | Prompt injection via player text | Retrieved/player text is data; AuthZ in code |
 | T6 | Cross-lobby bleed | Room-scoped channels + org RBAC |
+| T7 | Subject-access / erasure ignored | `GET /me/export` and `DELETE /me`; hashes never exported |
+| T8 | Signing cert in git | `*.p12` / `*.pem` gitignored; pack is unsigned until a human sets `CSC_LINK` |
 
 Prompt is not a policy. See [cursor-security MANIFEST](https://github.com/gurkanfikretgunak/cursor-security/blob/main/MANIFEST.md).

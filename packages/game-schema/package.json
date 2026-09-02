@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-	"test": "tsx --test src/index.test.ts src/datasets.test.ts"
+    "test": "tsx --test src/index.test.ts src/datasets.test.ts",
+    "eval": "tsx --test src/datasets.test.ts"
   },
   "dependencies": {
     "zod": "^3.24.2"

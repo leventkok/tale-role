@@ -2,4 +2,4 @@
 
 Host bootstrap, seed, and adapter rollout scripts. Agents generate files that match `packages/game-schema` — they do not invent credentials.
 
-Own-model training playbook: `llm/TRAINING.md`. Eval: `npm test -w @tale-role/game-schema`.
+Own-model training playbook: `llm/TRAINING.md`. Eval gate: `npm run eval` (synthetic JSONL, no PII, mechanics never emit dice).

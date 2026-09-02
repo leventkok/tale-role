@@ -170,6 +170,30 @@ func (c *Catalog) GetForHost(id, hostID string) (*Universe, error) {
 	return c.Get(id, hostID)
 }
 
+func (c *Catalog) ExportFor(ownerID string) []Universe {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := []Universe{}
+	for _, u := range c.items {
+		if u.OwnerID != ownerID {
+			continue
+		}
+		cp := *u
+		out = append(out, cp)
+	}
+	return out
+}
+
+func (c *Catalog) ForgetOwner(ownerID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id, u := range c.items {
+		if u.OwnerID == ownerID {
+			delete(c.items, id)
+		}
+	}
+}
+
 func Compile(u Universe) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Tale Core. Theme %s. Dice %s. Rating %s.\n", u.ThemeID, u.DiceSystem, u.ContentRating)
