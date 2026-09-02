@@ -1,0 +1,9 @@
+{
+  "id": "mechanics-v0",
+  "role": "mechanics",
+  "status": "untrained",
+  "base_model": "Qwen2.5-7B-Instruct",
+  "train_file": "llm/datasets/synthetic/mechanics.jsonl",
+  "serve": "services/llm-gateway",
+  "notes": "JSON-only adapter. Must never emit dice, HP, or turn order. No paid API."
+}
