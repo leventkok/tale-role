@@ -44,7 +44,7 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 	r.Use(securityHeaders)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSAllowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: allowCredentials(cfg.CORSAllowedOrigins),
 		MaxAge:           300,
@@ -53,9 +53,7 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 	r.Get("/health/live", func(w http.ResponseWriter, _ *http.Request) {
 		httperr.JSON(w, http.StatusOK, map[string]string{"status": "alive"})
 	})
-	r.Get("/health/ready", func(w http.ResponseWriter, _ *http.Request) {
-		httperr.JSON(w, http.StatusOK, map[string]string{"status": "ready"})
-	})
+	r.Get("/health/ready", s.ready)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/register", s.register)
@@ -64,6 +62,8 @@ func New(svc *app.Service, table *game.Table, llm *gateway.Service, log *slog.Lo
 		r.Group(func(r chi.Router) {
 			r.Use(s.auth)
 			r.Get("/me", s.me)
+			r.Get("/me/export", s.exportMe)
+			r.Delete("/me", s.eraseMe)
 			r.Post("/licenses/register", s.registerLicense)
 			r.Get("/licenses/me", s.myLicenses)
 			r.Post("/rooms", s.createRoom)

@@ -39,6 +39,45 @@ func TestHealth(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("live: %d", rec.Code)
 	}
+	ready := httptest.NewRecorder()
+	h.ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+	if ready.Code != http.StatusOK {
+		t.Fatalf("ready: %d", ready.Code)
+	}
+	if !bytes.Contains(ready.Body.Bytes(), []byte(`"persistence":"memory"`)) || !bytes.Contains(ready.Body.Bytes(), []byte(`"llm":"stub"`)) {
+		t.Fatalf("scale signals: %s", ready.Body.String())
+	}
+}
+
+func TestExportAndEraseAccount(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	authed(t, h, http.MethodPost, "/api/v1/licenses/register", token, map[string]string{
+		"device_id": "desk-1", "platform": "win32",
+	})
+	created := authed(t, h, http.MethodPost, "/api/v1/universes", token, map[string]any{
+		"name_en": "Ashwood", "theme_id": "fairytale",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("universe: %d %s", created.Code, created.Body.String())
+	}
+	dump := authed(t, h, http.MethodGet, "/api/v1/me/export", token, nil)
+	if dump.Code != http.StatusOK {
+		t.Fatalf("export: %d %s", dump.Code, dump.Body.String())
+	}
+	if !bytes.Contains(dump.Body.Bytes(), []byte("host@tale.role")) || !bytes.Contains(dump.Body.Bytes(), []byte("desk-1")) {
+		t.Fatalf("export missing subject: %s", dump.Body.String())
+	}
+	if bytes.Contains(dump.Body.Bytes(), []byte("password")) || bytes.Contains(dump.Body.Bytes(), []byte("$2a$")) {
+		t.Fatal("export leaked password hash")
+	}
+	erased := authed(t, h, http.MethodDelete, "/api/v1/me", token, nil)
+	if erased.Code != http.StatusOK {
+		t.Fatalf("erase: %d %s", erased.Code, erased.Body.String())
+	}
+	if me := authed(t, h, http.MethodGet, "/api/v1/me", token, nil); me.Code != http.StatusUnauthorized {
+		t.Fatalf("token after erase: %d %s", me.Code, me.Body.String())
+	}
 }
 
 func TestRegisterVerifyMeAndLicense(t *testing.T) {

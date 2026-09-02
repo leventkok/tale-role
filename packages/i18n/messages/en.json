@@ -9,7 +9,9 @@
     "universe": "Universe",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "register": "Create account"
+    "register": "Create account",
+    "privacy": "Privacy",
+    "account": "Account"
   },
   "ui": {
     "theme": "Theme"
@@ -112,5 +114,26 @@
     "pick": "Universe",
     "none": "No universe (dice only)",
     "create": "New universe interview"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "lead": "KVKK / GDPR rights on this instance. Prompt is not policy. The Go engine owns dice.",
+    "store": "What we store now",
+    "storeBody": "Email, password hash, optional device license, rooms and characters you create, compiled universe packs you own. Persistence is in-memory until Postgres/Mongo land — a process restart wipes the instance.",
+    "llm": "Models",
+    "llmBody": "No paid third-party LLM or image APIs. Storyteller and mechanics are our stubs (and later our adapters on our machines). Weights never go in git. Player logs are not training data.",
+    "rights": "Your rights",
+    "rightsBody": "Export a machine-readable copy of your record. Erase the account. After erase, the session cookie is cleared and the JWT no longer maps to a user.",
+    "not": "What this is not",
+    "notBody": "Not a law firm letter. Not email delivery. Not a live production DPA. Operators of each instance keep certificates and production secrets out of git."
+  },
+  "account": {
+    "title": "Your account",
+    "lead": "Export or erase. Erase cannot be undone on this instance.",
+    "export": "Download my data",
+    "erase": "Erase my account",
+    "confirm": "Type DELETE to confirm",
+    "needSignIn": "Sign in to manage your data.",
+    "erased": "Account erased."
   }
 }

@@ -14,6 +14,8 @@ F4 universe interview: owner compiles a versioned prompt pack; rooms bind `theme
 
 F5 scene panel: stub SVG beside the Storyteller, keyed by theme. Not in chat. Turn loop does not wait on a real image model.
 
+F6 privacy: export + erase, eval gate in CI, unsigned Electron pack config. Persistence is still memory. Inference is still stub.
+
 ## Invariants
 
 - Public GitHub is the only delivery path (branch → PR → green CI → merge)

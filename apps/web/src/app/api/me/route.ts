@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { apiBase, getSessionToken } from "@/lib/session";
+import { SESSION_COOKIE, apiBase, getSessionToken, sessionCookieOptions } from "@/lib/session";
+import { authedProxy } from "@/lib/proxy";
 
 export async function GET() {
   const token = await getSessionToken();
@@ -12,4 +13,10 @@ export async function GET() {
   });
   const data = await upstream.json().catch(() => ({}));
   return NextResponse.json(data, { status: upstream.status });
+}
+
+export async function DELETE() {
+  const res = await authedProxy("/api/v1/me", { method: "DELETE" });
+  res.cookies.set(SESSION_COOKIE, "", { ...sessionCookieOptions(), maxAge: 0 });
+  return res;
 }

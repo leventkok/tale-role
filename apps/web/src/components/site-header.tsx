@@ -53,6 +53,7 @@ export function SiteHeader({ email }: { email: string | null }) {
             <Link href="/host">{t("nav.host")}</Link>
             <Link href="/universe/new">{t("nav.universe")}</Link>
             <Link href="/play">{t("nav.play")}</Link>
+            <Link href="/account">{t("nav.account")}</Link>
           </>
         ) : (
           <>

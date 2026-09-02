@@ -1,0 +1,12 @@
+appId: role.tale.desktop
+productName: Tale Role
+copyright: AGPL-3.0-or-later
+directories:
+  output: dist
+files:
+  - main.cjs
+  - preload.cjs
+win:
+  signAndEditExecutable: false
+mac:
+  identity: null

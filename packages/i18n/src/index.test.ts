@@ -29,5 +29,6 @@ describe("locale registry", () => {
   it("loads catalogs for both shipped locales", () => {
     assert.equal(messagesFor("en").app.name, "Tale Role");
     assert.equal(messagesFor("tr").nav.play, "Oyna");
+    assert.equal(messagesFor("en").nav.privacy, "Privacy");
   });
 });

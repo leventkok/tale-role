@@ -147,6 +147,27 @@ func (s *Service) Licenses(userID string) []*license.ProductLicense {
 	return s.store.LicensesForUser(userID)
 }
 
+func (s *Service) ExportSubject(userID string) (map[string]any, error) {
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+	return map[string]any{
+		"id":         u.ID,
+		"email":      u.Email,
+		"verified":   u.Verified,
+		"created_at": u.CreatedAt.UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (s *Service) Erase(userID string) error {
+	if _, ok := s.store.GetUserByID(userID); !ok {
+		return ErrUnauthorized
+	}
+	s.store.DeleteUserByID(userID)
+	return nil
+}
+
 func (s *Service) issueOTP(email string) error {
 	issue := s.IssueOTP
 	if issue == nil {

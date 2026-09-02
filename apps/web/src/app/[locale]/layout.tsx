@@ -1,10 +1,11 @@
 import { Cinzel, Outfit, Source_Serif_4 } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { isLocale, locales } from "@tale-role/i18n";
 import { apiBase, getSessionToken } from "@/lib/session";
 import { SiteHeader } from "@/components/site-header";
+import { Link } from "@/i18n/routing";
 import "../globals.css";
 
 const display = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
@@ -28,6 +29,7 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
   const messages = await getMessages();
+  const t = await getTranslations();
   const token = await getSessionToken();
   let email: string | null = null;
   if (token) {
@@ -46,6 +48,9 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <SiteHeader email={email} />
           {children}
+          <footer className="site-foot">
+            <Link href="/privacy">{t("nav.privacy")}</Link>
+          </footer>
         </NextIntlClientProvider>
       </body>
     </html>
