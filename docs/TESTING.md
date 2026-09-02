@@ -1,21 +1,32 @@
 # How to test Tale Role
 
-Work in `C:\Users\leven\Documents\development\project\talerole`. Public PRs stay the delivery path.
+Work in `C:\Users\leven\Documents\development\project\talerole`.
 
-## Now — F1 (do this first)
+There is **no real LLM** yet. Chronicle prose is a stub template. Dice, HP, and turn order come from Go.
 
-PR: https://github.com/leventkok/tale-role/pull/2 (CI is green). Merge it on GitHub when you are happy.
+Restarting the API wipes users and rooms (in-memory).
 
-1. Terminal A:
+## One sitting — F1 + F2 + F3 stubs
+
+Use three terminals. Keep them running.
+
+### 0. Branch
+
+Checkout the stack you want to click through (`feat/f3-llm-gateway` has auth + table + stub narrator).
+
+### 1. API (terminal A)
 
 ```powershell
 cd C:\Users\leven\Documents\development\project\talerole\apps\api
 $env:TALEROLE_DEV_OTP="123456"
 $env:TALEROLE_ADMIN_EMAIL="admin@tale.role"
+$env:CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001"
 go run ./cmd/server
 ```
 
-2. Terminal B (repo root):
+Wait until it logs `listening` on `127.0.0.1:8080`.
+
+### 2. Player web (terminal B)
 
 ```powershell
 cd C:\Users\leven\Documents\development\project\talerole
@@ -23,40 +34,87 @@ $env:API_URL="http://127.0.0.1:8080"
 npm run dev:web
 ```
 
-3. Open http://127.0.0.1:3000
-4. Create account → verify with `123456` → you should land signed in
-5. Sign out, sign in again (no OTP if already verified)
-6. Confirm DevTools → Application → Cookies: `talerole_session` is **HttpOnly** (not in localStorage)
-7. Optional: `npm run dev:admin` → http://127.0.0.1:3001 spectator note
+Open http://127.0.0.1:3000
 
-You are **not** testing email, Postgres, LLMs, or Electron polish yet.
+### 3. Spectator (terminal C)
 
-## Next — F2 table (after the F2 PR is up)
+```powershell
+cd C:\Users\leven\Documents\development\project\talerole
+$env:API_URL="http://127.0.0.1:8080"
+npm run dev:admin
+```
 
-Same two terminals. Then:
+Leave http://127.0.0.1:3001 for later.
 
-1. Sign in as a host → **Host** → create a d20 table → copy room id
-2. Second browser / incognito: register another user → **Play** → join with that id
-3. Both save a character (six stats, total **18**)
-4. Host clicks **Roll initiative**
-5. Try **Roll**, **Pass**, **Wait**
-6. Admin account (`admin@tale.role` if env is set) can join; the player presence list must **not** show `system_admin`
+### 4. Accounts
 
-In-memory store: restarting the API wipes users and rooms.
+| Role | Email | Password | OTP |
+| --- | --- | --- | --- |
+| Host | `host@tale.role` | `longenough` | `123456` |
+| Player | `player@tale.role` | `longenough` | `123456` |
+| Spectator | `admin@tale.role` | `longenough` | `123456` |
 
-## Later — F3 dual LLM (after the F3 PR)
+**Host (normal window)**
 
-Same API + web terminals. Optional: `npm run dev:admin`.
+1. Register `host@tale.role` → verify `123456` → land signed in.
+2. Sign out, sign in again. Second login must **not** ask for OTP.
+3. DevTools → Application → Cookies: `talerole_session` is HttpOnly. JWT is **not** in `localStorage`.
 
-1. Play a turn — the chronicle should show Storyteller prose. Dice still come from the Go engine.
-2. Notes that contain an email must appear as `[redacted]` in admin traces (http://127.0.0.1:3001), never as raw PII.
-3. Spectator signs in with `TALEROLE_ADMIN_EMAIL` on :3001, swaps `v1` → `v1-terse`, plays another turn; voice changes. Players do not see mechanic JSON.
-4. `system_admin` still never appears in presence or Storyteller context.
+**Player (incognito / second browser)**
 
-Fine-tune weights are not in this phase.
+4. Register `player@tale.role` → verify `123456`.
 
-## Later (do not test yet)
+### 5. Table
 
-- F4: universe wizard + themes
-- F5: scene images beside Storyteller
-- F6: KVKK export/delete, signed desktop builds, real model eval
+**Host**
+
+5. **Host** → name `Ashwood`, dice `d20`, access invite/id → **Create table**.
+6. Copy the room id.
+
+**Player**
+
+7. **Play** → paste id → **Join**.
+
+**Both**
+
+8. Character name + six stats, each 1–6, **total 18** → save.
+9. Host clicks **Roll initiative**. Turn order appears.
+10. Player (or host) types an action, picks a skill, **Roll**. Chronicle shows dice **and** Storyteller prose (stub sentence, not a model).
+11. Try **Pass** and **Wait**. Those skip dice.
+
+### 6. PII + spectator
+
+**Host or player**
+
+12. On a roll, put an email in the action notes, e.g. `force the door, cc spy@tale.role`.
+13. Prose must not repeat that email. Notes on the table may still show what you typed.
+
+**Spectator (port 3001)**
+
+14. Sign in as `admin@tale.role` (OTP `123456` if first time).
+15. Pack starts as `v1`. Click **Use v1-terse**.
+16. Back on the table, play another turn. New prose should include `[v1-terse]`.
+17. Traces list must show `[redacted]`, never `spy@tale.role`, and never raw `mechanic_intent` on the **player** chronicle.
+18. Join the same room as this admin from the player app if you want; the roster must **not** list `system_admin`.
+
+### Pass / fail
+
+| Expect | Fail if |
+| --- | --- |
+| Cookie HttpOnly, no JWT in localStorage | Token appears in Application → Local Storage |
+| Stats 18 required | Save works with total ≠ 18 |
+| Dice from engine | Prose invents a different total than the dice line |
+| Stub prose after a roll | Chronicle has only “action 14” with no sentence |
+| Admin traces redact email | `spy@tale.role` in the :3001 trace list |
+| Invisible spectator | `system_admin` in presence or turn order |
+
+### Do not test yet
+
+Email delivery, Postgres, Mongo, real LLM/Ollama, scene images, Electron signing, KVKK export.
+
+## When a real LLM lands
+
+1. **Next code slice (optional, before F4):** OpenAI-compatible adapter behind the existing gateway (`OLLAMA_URL` / `OPENAI_BASE_URL` + stub fallback). No weights in git.
+2. **Own Storyteller + mechanics fine-tunes:** after GPU/host + synthetic datasets + eval gate (F6). Adapters stay in object storage.
+
+F4 (universe wizard) is the first feature that really needs a live narrator rather than a stub.
