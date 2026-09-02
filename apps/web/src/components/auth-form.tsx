@@ -26,11 +26,19 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
           ? "/api/auth/register"
           : "/api/auth/otp/verify";
     const body = mode === "verify" ? { email, code } : { email, password };
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch {
+      setBusy(false);
+      setError(t("timeout"));
+      return;
+    }
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (data.token) {

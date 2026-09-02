@@ -30,3 +30,12 @@ func TestListenAddrExplicitHostWins(t *testing.T) {
 		t.Fatalf("explicit host: got %s:%s", host, port)
 	}
 }
+
+func TestMailPrefersResend(t *testing.T) {
+	t.Setenv("RESEND_API_KEY", "re_test")
+	t.Setenv("SMTP_HOST", "smtp.hostinger.com")
+	cfg := Load()
+	if cfg.Mail() != "resend" {
+		t.Fatalf("mail: %s", cfg.Mail())
+	}
+}

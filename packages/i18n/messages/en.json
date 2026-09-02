@@ -32,7 +32,8 @@
     "verify": "Verify",
     "otpHint": "Enter the code from your email. The code is never shown in the app.",
     "needAccount": "Need an account?",
-    "haveAccount": "Already registered?"
+    "haveAccount": "Already registered?",
+    "timeout": "The server took too long. Try again."
   },
   "home": {
     "signedInAs": "Signed in as {email}",

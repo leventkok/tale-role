@@ -22,6 +22,8 @@ type Config struct {
 	SMTPFrom           string
 	SMTPUser           string
 	SMTPPass           string
+	ResendAPIKey       string
+	ResendFrom         string
 }
 
 func Load() Config {
@@ -42,6 +44,8 @@ func Load() Config {
 		SMTPFrom:           env("SMTP_FROM", "Tale Role <noreply@talerole.local>"),
 		SMTPUser:           env("SMTP_USER", ""),
 		SMTPPass:           env("SMTP_PASS", ""),
+		ResendAPIKey:       env("RESEND_API_KEY", ""),
+		ResendFrom:         env("RESEND_FROM", "Tale Role <onboarding@resend.dev>"),
 	}
 }
 
@@ -53,6 +57,9 @@ func (c Config) Persistence() string {
 }
 
 func (c Config) Mail() string {
+	if c.ResendAPIKey != "" {
+		return "resend"
+	}
 	if c.SMTPHost != "" {
 		return "smtp"
 	}

@@ -59,11 +59,15 @@ func envelopeFrom(from string) string {
 	return from
 }
 
+func otpPlainBody(code string) string {
+	return "Your Tale Role sign-in code:\n\n" +
+		code + "\n\n" +
+		"It expires in 10 minutes. If you did not request this, ignore the email.\n\n" +
+		"Tale Role doğrulama kodunuz yukarıdaki 6 hanedir. 10 dakika geçerlidir.\n"
+}
+
 func otpMessage(from, to, code string) []byte {
-	body := "Your Tale Role sign-in code:\r\n\r\n" +
-		code + "\r\n\r\n" +
-		"It expires in 10 minutes. If you did not request this, ignore the email.\r\n\r\n" +
-		"Tale Role doğrulama kodunuz yukarıdaki 6 hanedir. 10 dakika geçerlidir.\r\n"
+	body := strings.ReplaceAll(otpPlainBody(code), "\n", "\r\n")
 	return []byte("From: " + from + "\r\n" +
 		"To: " + to + "\r\n" +
 		"Subject: Your Tale Role sign-in code\r\n" +
