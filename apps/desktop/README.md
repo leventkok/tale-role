@@ -32,6 +32,8 @@ npm install
 npm run pack
 ```
 
+Icons are generated from `icons/icon.svg` (the Tale Role lantern mark) before each pack.
+
 Outputs in `dist/`:
 
 | OS | File |

@@ -1,19 +1,23 @@
 appId: role.tale.desktop
 productName: Tale Role
 copyright: AGPL-3.0-or-later
+icon: icons/icon.png
 directories:
   output: dist
 files:
   - main.cjs
   - preload.cjs
+  - icons/icon.png
 win:
   target:
     - nsis
+  icon: icons/icon.ico
   signAndEditExecutable: false
   artifactName: Tale-Role-Setup.${ext}
 mac:
   target:
     - dmg
+  icon: icons/icon.png
   identity: null
   category: public.app-category.games
   artifactName: Tale-Role.${ext}
