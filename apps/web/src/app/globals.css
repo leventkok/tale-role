@@ -510,8 +510,10 @@ button.ghost {
 
 .stage-wrap {
   width: min(1400px, calc(100% - 1.5rem));
+  max-width: 100%;
   margin: 0 auto;
   padding: 1rem 0 2rem;
+  overflow-x: clip;
 }
 
 .stage {
@@ -548,7 +550,9 @@ button.ghost {
 
 .sheet {
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  container-type: inline-size;
 }
 
 .story {
@@ -683,8 +687,9 @@ button.ghost {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
+  min-width: 0;
 }
 
 .stat {
@@ -692,6 +697,7 @@ button.ghost {
   border-radius: 12px;
   padding: 0.45rem;
   text-align: center;
+  min-width: 0;
 }
 
 .stat b {
@@ -701,8 +707,10 @@ button.ghost {
 
 .stat input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   text-align: center;
-  padding: 0.35rem;
+  padding: 0.35rem 0.2rem;
 }
 
 button:disabled,
@@ -981,34 +989,24 @@ button:disabled,
 .lobby {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .lobby-browser {
-  --lobby-bg: #4a513d;
-  --lobby-bg-hover: #555d4a;
-  --lobby-bg-active: #5d6652;
-  --lobby-ink: #f2f2f2;
-  --lobby-muted: #c8cfc0;
-  --lobby-line: #3f4639;
+  --lobby-row-hover: color-mix(in srgb, var(--accent) 10%, var(--elev));
+  --lobby-row-active: color-mix(in srgb, var(--accent) 16%, var(--elev));
 
-  background: var(--lobby-bg);
-  color: var(--lobby-ink);
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-  font-size: 11px;
-  line-height: 1.35;
-  min-height: 18rem;
-  padding: 0.35rem 0;
-  border: 1px solid var(--lobby-line);
-  border-radius: 0;
-  box-shadow: none;
-  overflow-x: auto;
+  padding: 0.65rem 0 0.75rem;
+  min-height: 14rem;
+  overflow: hidden;
 }
 
 .lobby-table {
   list-style: none;
   margin: 0;
   padding: 0;
-  min-width: 36rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .lobby-table li {
@@ -1016,25 +1014,27 @@ button:disabled,
 }
 
 .lobby-message {
-  padding: 0.45rem 0.75rem;
-  color: var(--lobby-muted);
+  padding: 0.65rem 1.1rem 0.85rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .lobby-browser button.lobby-row {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) 5.25rem 3.25rem 3.25rem;
-  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.45rem 0.85rem;
   align-items: center;
   width: 100%;
   margin: 0;
-  padding: 0.2rem 0.75rem;
+  padding: 0.42rem 1.1rem;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: inherit;
+  color: var(--ink);
   font: inherit;
-  font-family: inherit;
-  font-size: inherit;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
   letter-spacing: normal;
   text-align: left;
   text-transform: none;
@@ -1043,7 +1043,7 @@ button:disabled,
 }
 
 .lobby-browser button.lobby-row:hover:not(:disabled) {
-  background: var(--lobby-bg-hover);
+  background: var(--lobby-row-hover);
 }
 
 .lobby-browser button.lobby-row:disabled {
@@ -1052,7 +1052,7 @@ button:disabled,
 }
 
 .lobby-table li.expanded .lobby-row {
-  background: var(--lobby-bg-active);
+  background: var(--lobby-row-active);
 }
 
 .lobby-universe {
@@ -1068,10 +1068,21 @@ button:disabled,
   justify-self: end;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.lobby-status {
+  color: var(--muted);
 }
 
 .lobby-duration {
-  color: var(--lobby-muted);
+  color: var(--muted);
+}
+
+.lobby-players {
+  min-width: 2.75rem;
+  text-align: right;
+  color: color-mix(in srgb, var(--ink) 90%, var(--muted));
 }
 
 .lobby-private {
@@ -1079,46 +1090,48 @@ button:disabled,
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: end;
-  padding: 0.45rem 0.75rem 0.55rem;
-  background: color-mix(in srgb, var(--lobby-bg-active) 88%, #000);
-  border-top: 1px solid var(--lobby-line);
+  padding: 0.55rem 1.1rem 0.75rem;
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+  border-top: 1px solid var(--line);
 }
 
 .lobby-private label {
   flex: 1 1 12rem;
   display: grid;
   gap: 0.25rem;
-  font-size: inherit;
-  color: var(--lobby-muted);
+  margin: 0;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .lobby-private input {
-  background: #3a4034;
-  border: 1px solid var(--lobby-line);
-  border-radius: 0;
-  color: var(--lobby-ink);
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 70%, black);
+  border: 1px solid var(--line);
+  color: var(--ink);
   font: inherit;
-  padding: 0.35rem 0.45rem;
-}
-
-.lobby-private input:focus {
-  outline: 1px solid var(--lobby-muted);
-  border-color: var(--lobby-muted);
 }
 
 .lobby-private button.lobby-join-btn {
   appearance: none;
-  border: 1px solid var(--lobby-muted);
-  border-radius: 0;
-  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
   background: transparent;
-  color: var(--lobby-ink);
+  color: var(--ink);
   font: inherit;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 .lobby-private button.lobby-join-btn:hover:not(:disabled) {
-  background: var(--lobby-bg-hover);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .lobby-private button.lobby-join-btn:disabled {
@@ -1127,7 +1140,34 @@ button:disabled,
 }
 
 .lobby-invite {
-  margin-top: 0.25rem;
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .lobby-browser button.lobby-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name players"
+      "status duration";
+    row-gap: 0.2rem;
+  }
+
+  .lobby-universe {
+    grid-area: name;
+  }
+
+  .lobby-players {
+    grid-area: players;
+  }
+
+  .lobby-status {
+    grid-area: status;
+    justify-self: start;
+  }
+
+  .lobby-duration {
+    grid-area: duration;
+  }
 }
 
 .lobby-list {
@@ -1211,6 +1251,31 @@ button:disabled,
 .char-sheet {
   display: grid;
   gap: 0.7rem;
+  min-width: 0;
+}
+
+.char-sheet label,
+.char-sheet fieldset,
+.char-sheet button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.char-sheet input,
+.char-sheet textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.char-sheet .stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 18rem) {
+  .char-sheet .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .char-sheet .hint {
