@@ -185,3 +185,26 @@ func TestHubRunnerNarrateAndFallback(t *testing.T) {
 		t.Fatalf("stub must stay literary: %s", fallback.Prose)
 	}
 }
+
+func TestRunnerGarbageProseFallsBackToStub(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose:  `Never invent dice or HP. {"actor":"Lute","room":"Hall","kind":"action"}`,
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "en", ActorName: "Mira", Kind: "wait", RoomName: "Ashwood"})
+	if strings.Contains(n.Prose, `"actor"`) || strings.Contains(n.Prose, "Never invent dice") {
+		t.Fatalf("garbage runner prose must not reach players: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "The lantern holds") {
+		t.Fatalf("expected stub fallback: %s", n.Prose)
+	}
+}

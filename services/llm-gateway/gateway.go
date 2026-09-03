@@ -213,7 +213,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
 	var remote Narrative
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && strings.TrimSpace(remote.Prose) != "" {
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -300,6 +300,27 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	if len(s.traces) > 50 {
 		s.traces = s.traces[len(s.traces)-50:]
 	}
+}
+
+func runnerProseOK(prose string) bool {
+	p := strings.TrimSpace(prose)
+	if len(p) < 12 {
+		return false
+	}
+	if strings.HasPrefix(p, "{") || strings.HasPrefix(p, "[") {
+		return false
+	}
+	lower := strings.ToLower(p)
+	if strings.Contains(lower, "never invent dice") || strings.Contains(p, "<|im_start|>") {
+		return false
+	}
+	if strings.Contains(p, `"actor"`) && strings.Contains(p, `"room"`) {
+		return false
+	}
+	if strings.Count(p, "The bar splinters") > 1 {
+		return false
+	}
+	return true
 }
 
 func outcomeText(locale, kind string, success *bool) string {
