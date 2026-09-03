@@ -12,7 +12,6 @@ win:
   target:
     - nsis
   icon: icons/icon.ico
-  signAndEditExecutable: false
   artifactName: Tale-Role-Setup.${ext}
 mac:
   target:
@@ -24,6 +23,8 @@ mac:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  installerIcon: icons/icon.ico
+  uninstallerIcon: icons/icon.ico
   artifactName: Tale-Role-Setup.${ext}
 dmg:
   artifactName: Tale-Role.${ext}
