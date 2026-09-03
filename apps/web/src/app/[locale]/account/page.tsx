@@ -19,7 +19,7 @@ export default async function AccountPage({
         <h1>{t("title")}</h1>
         <p className="lede">{t("lead")}</p>
       </section>
-      <div className="panel narrow">
+      <div className="panel account-panel">
         {signedIn ? (
           <AccountPanel />
         ) : (
