@@ -238,14 +238,6 @@ export function TableClient({ roomId }: { roomId: string }) {
 
   return (
     <section className="stage">
-      <div className="stage-fx">
-        <DiceCast cast={cast} onDone={() => setCast(null)} />
-        {myTurn ? (
-          <p className="your-turn" role="status">
-            {t("yourTurn")}
-          </p>
-        ) : null}
-      </div>
       <aside className="story">
         <div className="room-head">
           <div>
@@ -288,6 +280,12 @@ export function TableClient({ roomId }: { roomId: string }) {
       </aside>
 
       <div className="log">
+        <DiceCast cast={cast} onDone={() => setCast(null)} />
+        {myTurn ? (
+          <p className="your-turn" role="status">
+            {t("yourTurn")}
+          </p>
+        ) : null}
         <h2>{t("order")}</h2>
         {room.started && room.turn_order.length > 0 ? (
           <p className="muted" style={{ margin: 0 }}>
