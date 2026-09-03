@@ -57,6 +57,28 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  const ua = mainWindow.webContents.getUserAgent();
+  if (!/\bTaleRoleDesktop\b/.test(ua)) {
+    mainWindow.webContents.setUserAgent(`${ua} TaleRoleDesktop/${app.getVersion()}`);
+  }
+  const hideDownloadCss =
+    ".desktop-download,a[href*='Tale-Role-Setup'],a[href*='Tale-Role.dmg'],a[href*='/downloads/Tale-Role']{display:none!important}";
+  const hideDownloadScript =
+    "document.documentElement.dataset.taleroleShell='desktop';" +
+    "if(document.body)document.body.dataset.taleroleShell='desktop';" +
+    "document.querySelectorAll(\".desktop-download,a[href*='Tale-Role-Setup'],a[href*='Tale-Role.dmg'],a[href*='/downloads/Tale-Role']\")" +
+    ".forEach(function(el){(el.closest&&el.closest('.desktop-download')||el).remove();});";
+  const hideDownloadCta = () => {
+    if (!mainWindow) {
+      return;
+    }
+    void mainWindow.webContents.insertCSS(hideDownloadCss).catch(() => {});
+    void mainWindow.webContents.executeJavaScript(hideDownloadScript).catch(() => {});
+  };
+  mainWindow.webContents.on("dom-ready", hideDownloadCta);
+  mainWindow.webContents.on("did-finish-load", hideDownloadCta);
+  mainWindow.webContents.on("did-navigate", hideDownloadCta);
+  mainWindow.webContents.on("did-navigate-in-page", hideDownloadCta);
   mainWindow.loadURL(`${WEB_URL}/${LOCALE}`);
   mainWindow.setMenuBarVisibility(false);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
