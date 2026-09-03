@@ -7,6 +7,8 @@ type User struct {
 	Email        string
 	PasswordHash []byte
 	Verified     bool
+	TOTPSecret   string
+	TOTPEnabled  bool
 	CreatedAt    time.Time
 }
 

@@ -12,6 +12,7 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [needMfa, setNeedMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,11 +22,18 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
     setBusy(true);
     const path =
       mode === "login"
-        ? "/api/auth/login"
+        ? needMfa
+          ? "/api/auth/totp/verify"
+          : "/api/auth/login"
         : mode === "register"
           ? "/api/auth/register"
           : "/api/auth/otp/verify";
-    const body = mode === "verify" ? { email, code } : { email, password };
+    const body =
+      mode === "verify"
+        ? { email, code }
+        : needMfa
+          ? { email, password, code }
+          : { email, password };
     let res: Response;
     try {
       res = await fetch(path, {
@@ -46,6 +54,11 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
       return;
     }
     if (!res.ok) {
+      if (data.mfa_required) {
+        setNeedMfa(true);
+        setCode("");
+        return;
+      }
       if (data.otp_required || mode === "register") {
         router.push(`/verify?email=${encodeURIComponent(email)}`);
         return;
@@ -100,13 +113,29 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
           />
         </label>
       )}
+      {needMfa ? (
+        <label>
+          {t("totp")}
+          <input
+            className="otp"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            autoComplete="one-time-code"
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </label>
+      ) : null}
+      {needMfa ? <p className="muted">{t("totpHint")}</p> : null}
       {error ? (
         <p className="alert" role="alert">
           {error}
         </p>
       ) : null}
       <button type="submit" disabled={busy}>
-        {mode === "verify" ? t("verify") : t("submit")}
+        {mode === "verify" || needMfa ? t("verify") : t("submit")}
       </button>
     </form>
   );

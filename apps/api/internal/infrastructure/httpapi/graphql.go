@@ -8,8 +8,10 @@ import (
 
 	"github.com/graphql-go/graphql"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
+	"github.com/leventkok/tale-role/apps/api/internal/application/world"
 	"github.com/leventkok/tale-role/apps/api/internal/domain/iam"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
+	gateway "github.com/leventkok/tale-role/services/llm-gateway"
 )
 
 func gqlUser(p graphql.ResolveParams) *iam.User {
@@ -72,9 +74,10 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 	userType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "User",
 		Fields: graphql.Fields{
-			"id":       &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
-			"email":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"verified": &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"id":          &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"email":       &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"verified":    &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"totpEnabled": &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
 		},
 	})
 	healthType := graphql.NewObject(graphql.ObjectConfig{
@@ -93,6 +96,43 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"id":         &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
 			"diceSystem": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"universeId": &graphql.Field{Type: graphql.String},
+		},
+	})
+	licenseType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "License",
+		Fields: graphql.Fields{
+			"id":       &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"deviceId": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"platform": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+		},
+	})
+	turnType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Turn",
+		Fields: graphql.Fields{
+			"kind":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"total":   &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"success": &graphql.Field{Type: graphql.Boolean},
+			"prose":   &graphql.Field{Type: graphql.String},
+		},
+	})
+	statsInput := graphql.NewInputObject(graphql.InputObjectConfig{
+		Name: "StatsInput",
+		Fields: graphql.InputObjectConfigFieldMap{
+			"str": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+			"dex": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+			"con": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+			"int": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+			"wis": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+			"cha": &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.Int)},
+		},
+	})
+	npcInput := graphql.NewInputObject(graphql.InputObjectConfig{
+		Name: "NPCInput",
+		Fields: graphql.InputObjectConfigFieldMap{
+			"nameEn":    &graphql.InputObjectFieldConfig{Type: graphql.NewNonNull(graphql.String)},
+			"nameTr":    &graphql.InputObjectFieldConfig{Type: graphql.String},
+			"alignment": &graphql.InputObjectFieldConfig{Type: graphql.String},
+			"voice":     &graphql.InputObjectFieldConfig{Type: graphql.String},
 		},
 	})
 
@@ -116,7 +156,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, nil
 					}
-					return map[string]any{"id": u.ID, "email": u.Email, "verified": u.Verified}, nil
+					return map[string]any{"id": u.ID, "email": u.Email, "verified": u.Verified, "totpEnabled": u.TOTPEnabled}, nil
 				},
 			},
 			"room": &graphql.Field{
@@ -247,6 +287,155 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					return true, nil
 				},
 			},
+			"startRoom": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					roomID, _ := p.Args["roomId"].(string)
+					if err := s.table.Start(roomID, u.ID); err != nil {
+						return nil, err
+					}
+					return true, nil
+				},
+			},
+			"setCharacter": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+					"name":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"stats":  &graphql.ArgumentConfig{Type: graphql.NewNonNull(statsInput)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					roomID, _ := p.Args["roomId"].(string)
+					name, _ := p.Args["name"].(string)
+					raw, _ := p.Args["stats"].(map[string]any)
+					if err := s.table.SetCharacter(roomID, u.ID, name, statsFromGQL(raw)); err != nil {
+						return nil, err
+					}
+					return true, nil
+				},
+			},
+			"actTurn": &graphql.Field{
+				Type: turnType,
+				Args: graphql.FieldConfigArgument{
+					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+					"kind":   &graphql.ArgumentConfig{Type: graphql.String},
+					"skill":  &graphql.ArgumentConfig{Type: graphql.String},
+					"notes":  &graphql.ArgumentConfig{Type: graphql.String},
+					"dc":     &graphql.ArgumentConfig{Type: graphql.Int},
+					"locale": &graphql.ArgumentConfig{Type: graphql.String},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					roomID, _ := p.Args["roomId"].(string)
+					kind, _ := p.Args["kind"].(string)
+					skill, _ := p.Args["skill"].(string)
+					notes, _ := p.Args["notes"].(string)
+					locale, _ := p.Args["locale"].(string)
+					dc := gqlInt(p.Args["dc"])
+					_ = s.llm.ProposeIntent(gateway.IntentRequest{
+						Locale: locale, RoomID: roomID, Kind: kind, Skill: skill, Notes: notes,
+					})
+					turn, err := s.table.Act(roomID, u.ID, kind, skill, notes, dc)
+					if err != nil {
+						return nil, err
+					}
+					turn = s.narrateTurn(roomID, u.ID, locale, notes, turn)
+					prose := ""
+					if turn.Narrative != nil {
+						prose = turn.Narrative.Prose
+					}
+					return map[string]any{"kind": turn.Kind, "total": turn.Total, "success": turn.Success, "prose": prose}, nil
+				},
+			},
+			"createUniverse": &graphql.Field{
+				Type: universeType,
+				Args: graphql.FieldConfigArgument{
+					"nameEn":        &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"nameTr":        &graphql.ArgumentConfig{Type: graphql.String},
+					"themeId":       &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"diceSystem":    &graphql.ArgumentConfig{Type: graphql.String},
+					"contentRating": &graphql.ArgumentConfig{Type: graphql.String},
+					"era":           &graphql.ArgumentConfig{Type: graphql.String},
+					"tone":          &graphql.ArgumentConfig{Type: graphql.String},
+					"taboos":        &graphql.ArgumentConfig{Type: graphql.String},
+					"npcs":          &graphql.ArgumentConfig{Type: graphql.NewList(npcInput)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					nameEn, _ := p.Args["nameEn"].(string)
+					themeID, _ := p.Args["themeId"].(string)
+					doc, err := s.worlds.Create(u.ID, world.Draft{
+						NameEN:        nameEn,
+						NameTR:        gqlString(p.Args["nameTr"]),
+						ThemeID:       themeID,
+						DiceSystem:    gqlString(p.Args["diceSystem"]),
+						ContentRating: gqlString(p.Args["contentRating"]),
+						Era:           gqlString(p.Args["era"]),
+						Tone:          gqlString(p.Args["tone"]),
+						Taboos:        gqlString(p.Args["taboos"]),
+						NPCs:          npcsFromGQL(p.Args["npcs"]),
+					})
+					if err != nil {
+						return nil, err
+					}
+					return map[string]any{
+						"id": doc.ID, "nameEn": doc.NameEN, "themeId": doc.ThemeID,
+						"diceSystem": doc.DiceSystem, "compiledPrompt": doc.CompiledPrompt,
+					}, nil
+				},
+			},
+			"registerLicense": &graphql.Field{
+				Type: licenseType,
+				Args: graphql.FieldConfigArgument{
+					"deviceId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"platform": &graphql.ArgumentConfig{Type: graphql.String},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					deviceID, _ := p.Args["deviceId"].(string)
+					platform, _ := p.Args["platform"].(string)
+					lic, err := s.svc.RegisterLicense(u.ID, deviceID, platform)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]any{"id": lic.ID, "deviceId": lic.DeviceID, "platform": lic.Platform}, nil
+				},
+			},
+			"eraseMe": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					s.table.ForgetUser(u.ID)
+					s.worlds.ForgetOwner(u.ID)
+					if err := s.svc.Erase(u.ID); err != nil {
+						return nil, err
+					}
+					return true, nil
+				},
+			},
 		},
 	})
 
@@ -268,6 +457,52 @@ func roomMap(pub *game.PublicRoom) map[string]any {
 		"themeId": pub.ThemeID, "promptPackVersion": pub.PromptPackVersion,
 		"presence": presence, "characters": chars,
 	}
+}
+
+func gqlString(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+func gqlInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+func statsFromGQL(raw map[string]any) game.Stats {
+	if raw == nil {
+		return game.Stats{}
+	}
+	return game.Stats{
+		STR: gqlInt(raw["str"]), DEX: gqlInt(raw["dex"]), CON: gqlInt(raw["con"]),
+		INT: gqlInt(raw["int"]), WIS: gqlInt(raw["wis"]), CHA: gqlInt(raw["cha"]),
+	}
+}
+
+func npcsFromGQL(v any) []world.NPC {
+	rows, _ := v.([]any)
+	out := make([]world.NPC, 0, len(rows))
+	for _, row := range rows {
+		m, ok := row.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, world.NPC{
+			NameEN: gqlString(m["nameEn"]), NameTR: gqlString(m["nameTr"]),
+			Alignment: gqlString(m["alignment"]), Voice: gqlString(m["voice"]),
+		})
+	}
+	return out
 }
 
 func (s *Server) optionalAuth(next http.Handler) http.Handler {

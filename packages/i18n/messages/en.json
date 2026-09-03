@@ -33,7 +33,9 @@
     "otpHint": "Enter the code from your email. The code is never shown in the app.",
     "needAccount": "Need an account?",
     "haveAccount": "Already registered?",
-    "timeout": "The server took too long. Try again."
+    "timeout": "The server took too long. Try again.",
+    "totp": "Authenticator code",
+    "totpHint": "Open your authenticator app. Email OTP stays for first verify."
   },
   "home": {
     "signedInAs": "Signed in as {email}",
@@ -72,7 +74,7 @@
     "sceneStub": "Stub scene. No paid image API.",
     "waiting": "The lanterns hold. Speak, pass, or wait.",
     "hp": "HP",
-    "copyId": "Copy id",
+    "copyId": "Copy invite",
     "copied": "Copied",
     "loading": "Lighting the lanterns…",
     "statTotal": "{n} / 18",
@@ -135,6 +137,18 @@
     "erase": "Erase my account",
     "confirm": "Type DELETE to confirm",
     "needSignIn": "Sign in to manage your data.",
-    "erased": "Account erased."
+    "erased": "Account erased.",
+    "totpTitle": "Authenticator (TOTP)",
+    "totpOn": "Two-factor is on. Password login asks for the app code.",
+    "totpOff": "Optional second factor. Scan or paste the secret into an authenticator, then confirm.",
+    "totpBegin": "Set up authenticator",
+    "totpSecretHint": "Add this secret in your authenticator. We never email it.",
+    "totpCode": "6-digit authenticator code",
+    "totpConfirm": "Confirm TOTP",
+    "totpDisable": "Turn off TOTP",
+    "devices": "Licensed devices",
+    "noDevices": "No desktop licenses yet.",
+    "registerDevice": "Register this desktop",
+    "desktopOnly": "Open the Electron app to register this machine."
   }
 }

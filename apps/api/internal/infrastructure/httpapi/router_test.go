@@ -94,7 +94,7 @@ func TestExportAndEraseAccount(t *testing.T) {
 	if !bytes.Contains(dump.Body.Bytes(), []byte("host@tale.role")) || !bytes.Contains(dump.Body.Bytes(), []byte("desk-1")) {
 		t.Fatalf("export missing subject: %s", dump.Body.String())
 	}
-	if bytes.Contains(dump.Body.Bytes(), []byte("password")) || bytes.Contains(dump.Body.Bytes(), []byte("$2a$")) {
+	if bytes.Contains(dump.Body.Bytes(), []byte("password")) || bytes.Contains(dump.Body.Bytes(), []byte("$2a$")) || bytes.Contains(dump.Body.Bytes(), []byte("totp_secret")) {
 		t.Fatal("export leaked password hash")
 	}
 	erased := authed(t, h, http.MethodDelete, "/api/v1/me", token, nil)
@@ -143,6 +143,9 @@ func TestRegisterVerifyMeAndLicense(t *testing.T) {
 	if me.Code != http.StatusOK {
 		t.Fatalf("me: %d %s", me.Code, me.Body.String())
 	}
+	if !bytes.Contains(me.Body.Bytes(), []byte(`"totp_enabled":false`)) {
+		t.Fatalf("me totp: %s", me.Body.String())
+	}
 	if bytes.Contains(me.Body.Bytes(), []byte("system_admin")) {
 		t.Fatal("admin spectator must not appear on player me")
 	}
@@ -170,6 +173,59 @@ func TestLoginRequiresOTPUntilVerified(t *testing.T) {
 	_ = json.Unmarshal(login.Body.Bytes(), &body)
 	if body["otp_required"] != true {
 		t.Fatalf("expected otp_required, got %v", body)
+	}
+}
+
+func TestTOTPLoginHTTP(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "mfa@tale.role")
+	begin := authed(t, h, http.MethodPost, "/api/v1/me/totp/begin", token, map[string]any{})
+	if begin.Code != http.StatusOK {
+		t.Fatalf("begin: %d %s", begin.Code, begin.Body.String())
+	}
+	var enrolled struct {
+		Secret string `json:"secret"`
+		URL    string `json:"otpauth_url"`
+	}
+	_ = json.Unmarshal(begin.Body.Bytes(), &enrolled)
+	if enrolled.Secret == "" || !strings.Contains(enrolled.URL, "otpauth://") {
+		t.Fatalf("enroll payload: %s", begin.Body.String())
+	}
+	code, err := app.CodeNow(enrolled.Secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	confirm := authed(t, h, http.MethodPost, "/api/v1/me/totp/confirm", token, map[string]string{"code": code})
+	if confirm.Code != http.StatusOK {
+		t.Fatalf("confirm: %d %s", confirm.Code, confirm.Body.String())
+	}
+	login := post(t, h, "/api/v1/auth/login", map[string]string{
+		"email": "mfa@tale.role", "password": "longenough",
+	})
+	if login.Code != http.StatusUnauthorized {
+		t.Fatalf("login: %d %s", login.Code, login.Body.String())
+	}
+	var body map[string]any
+	_ = json.Unmarshal(login.Body.Bytes(), &body)
+	if body["mfa_required"] != true {
+		t.Fatalf("expected mfa_required: %v", body)
+	}
+	if bytes.Contains(login.Body.Bytes(), []byte(`"token"`)) {
+		t.Fatal("token on mfa challenge")
+	}
+	ok := post(t, h, "/api/v1/auth/totp/verify", map[string]string{
+		"email": "mfa@tale.role", "password": "longenough", "code": code,
+	})
+	var tok struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(ok.Body.Bytes(), &tok)
+	if ok.Code != http.StatusOK || tok.Token == "" {
+		t.Fatalf("totp verify: %d %s", ok.Code, ok.Body.String())
+	}
+	dump := authed(t, h, http.MethodGet, "/api/v1/me/export", tok.Token, nil)
+	if bytes.Contains(dump.Body.Bytes(), []byte(enrolled.Secret)) {
+		t.Fatal("export leaked totp secret")
 	}
 }
 

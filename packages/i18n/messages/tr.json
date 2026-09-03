@@ -33,7 +33,9 @@
     "otpHint": "E-postadaki kodu gir. Kod uygulamada gösterilmez.",
     "needAccount": "Hesabın yok mu?",
     "haveAccount": "Zaten kayıtlı mısın?",
-    "timeout": "Sunucu yanıt vermedi. Tekrar dene."
+    "timeout": "Sunucu yanıt vermedi. Tekrar dene.",
+    "totp": "Doğrulayıcı kodu",
+    "totpHint": "Authenticator uygulamasındaki kodu gir. E-posta OTP yalnızca ilk doğrulamada."
   },
   "home": {
     "signedInAs": "{email} olarak giriş yaptın",
@@ -72,7 +74,7 @@
     "sceneStub": "Stub sahne. Ücretli görsel API yok.",
     "waiting": "Fenerler bekliyor. Konuş, pas geç veya bekle.",
     "hp": "HP",
-    "copyId": "Id kopyala",
+    "copyId": "Daveti kopyala",
     "copied": "Kopyalandı",
     "loading": "Fenerler yanıyor…",
     "statTotal": "{n} / 18",
@@ -135,6 +137,18 @@
     "erase": "Hesabımı sil",
     "confirm": "Onay için DELETE yaz",
     "needSignIn": "Verini yönetmek için giriş yap.",
-    "erased": "Hesap silindi."
+    "erased": "Hesap silindi.",
+    "totpTitle": "Authenticator (TOTP)",
+    "totpOn": "İki adımlı doğrulama açık. Şifre girişinde uygulama kodu istenir.",
+    "totpOff": "İsteğe bağlı ikinci adım. Secret’ı authenticator’a ekle, sonra onayla.",
+    "totpBegin": "Authenticator kur",
+    "totpSecretHint": "Bu secret’ı authenticator’a ekle. E-postaya hiç gitmez.",
+    "totpCode": "6 haneli authenticator kodu",
+    "totpConfirm": "TOTP’yi onayla",
+    "totpDisable": "TOTP’yi kapat",
+    "devices": "Lisanslı cihazlar",
+    "noDevices": "Masaüstü lisansı yok.",
+    "registerDevice": "Bu masaüstünü kaydet",
+    "desktopOnly": "Bu makineyi kaydetmek için Electron uygulamasını aç."
   }
 }

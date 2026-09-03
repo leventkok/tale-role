@@ -12,11 +12,16 @@ type userDoc struct {
 	Email        string    `bson:"email"`
 	PasswordHash []byte    `bson:"password_hash"`
 	Verified     bool      `bson:"verified"`
+	TOTPSecret   string    `bson:"totp_secret,omitempty"`
+	TOTPEnabled  bool      `bson:"totp_enabled,omitempty"`
 	CreatedAt    time.Time `bson:"created_at"`
 }
 
 func (d userDoc) user() *iam.User {
-	return &iam.User{ID: d.ID, Email: d.Email, PasswordHash: d.PasswordHash, Verified: d.Verified, CreatedAt: d.CreatedAt}
+	return &iam.User{
+		ID: d.ID, Email: d.Email, PasswordHash: d.PasswordHash, Verified: d.Verified,
+		TOTPSecret: d.TOTPSecret, TOTPEnabled: d.TOTPEnabled, CreatedAt: d.CreatedAt,
+	}
 }
 
 type otpDoc struct {
