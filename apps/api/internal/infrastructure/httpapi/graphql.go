@@ -151,11 +151,13 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 	lobbyType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Lobby",
 		Fields: graphql.Fields{
-			"id":       &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
-			"name":     &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"joinMode": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"started":  &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
-			"seats":    &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"id":           &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"name":         &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"universeName": &graphql.Field{Type: graphql.String},
+			"joinMode":     &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"started":      &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"seats":        &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"startedAt":    &graphql.Field{Type: graphql.String},
 		},
 	})
 	licenseType := graphql.NewObject(graphql.ObjectConfig{
@@ -277,18 +279,38 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			},
 			"lobbies": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(lobbyType))),
+				Args: graphql.FieldConfigArgument{
+					"locale": &graphql.ArgumentConfig{Type: graphql.String},
+				},
 				Resolve: func(p graphql.ResolveParams) (any, error) {
 					u := gqlUser(p)
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
 					}
+					locale := gqlString(p.Args["locale"])
+					if locale == "" {
+						locale = "en"
+					}
 					rows := s.table.Lobbies()
 					out := make([]map[string]any, 0, len(rows))
 					for _, row := range rows {
-						out = append(out, map[string]any{
-							"id": row.ID, "name": row.Name, "joinMode": row.JoinMode,
+						if row.Completed {
+							continue
+						}
+						uniName := row.Name
+						if row.UniverseID != "" {
+							if name, ok := s.worlds.PublicName(row.UniverseID, locale); ok {
+								uniName = name
+							}
+						}
+						item := map[string]any{
+							"id": row.ID, "name": row.Name, "universeName": uniName, "joinMode": row.JoinMode,
 							"started": row.Started, "seats": row.Seats,
-						})
+						}
+						if row.StartedAt != nil {
+							item["startedAt"] = row.StartedAt.UTC().Format(time.RFC3339)
+						}
+						out = append(out, item)
 					}
 					return out, nil
 				},

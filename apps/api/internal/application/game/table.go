@@ -149,6 +149,7 @@ type Room struct {
 	Turns      []Turn                `json:"turns"`
 	Started    bool                  `json:"started"`
 	Completed  bool                  `json:"completed"`
+	StartedAt  time.Time             `json:"started_at,omitempty"`
 	UniverseID string                `json:"universe_id,omitempty"`
 	ThemeID    string                `json:"theme_id,omitempty"`
 	PromptPack string                `json:"prompt_pack_version,omitempty"`
@@ -157,12 +158,15 @@ type Room struct {
 }
 
 type Lobby struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	JoinMode  string `json:"join_mode"`
-	Started   bool   `json:"started"`
-	Completed bool   `json:"completed"`
-	Seats     int    `json:"seats"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	UniverseID   string     `json:"universe_id,omitempty"`
+	UniverseName string     `json:"universe_name,omitempty"`
+	JoinMode     string     `json:"join_mode"`
+	Started      bool       `json:"started"`
+	Completed    bool       `json:"completed"`
+	Seats        int        `json:"seats"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
 }
 
 type PublicRoom struct {
@@ -425,6 +429,7 @@ func (t *Table) Start(roomID, userID string) error {
 	}
 	r.TurnOrder = order
 	r.Started = true
+	r.StartedAt = time.Now().UTC()
 	r.Turns = append(r.Turns, Turn{ActorID: "storyteller", Kind: "story", DiceSystem: r.DiceSystem})
 	t.persist(r)
 	return nil
@@ -612,8 +617,14 @@ func (t *Table) Lobbies() []Lobby {
 				seats++
 			}
 		}
+		var startedAt *time.Time
+		if !r.StartedAt.IsZero() {
+			at := r.StartedAt.UTC()
+			startedAt = &at
+		}
 		out = append(out, Lobby{
-			ID: r.ID, Name: r.Name, JoinMode: r.JoinMode, Started: r.Started, Completed: r.Completed, Seats: seats,
+			ID: r.ID, Name: r.Name, UniverseID: r.UniverseID, JoinMode: r.JoinMode,
+			Started: r.Started, Completed: r.Completed, Seats: seats, StartedAt: startedAt,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })

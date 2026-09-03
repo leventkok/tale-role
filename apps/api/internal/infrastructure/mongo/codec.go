@@ -56,6 +56,7 @@ type roomDoc struct {
 	Turns      []game.Turn      `bson:"turns"`
 	Started    bool             `bson:"started"`
 	Completed  bool             `bson:"completed,omitempty"`
+	StartedAt  time.Time        `bson:"started_at,omitempty"`
 	UniverseID string           `bson:"universe_id,omitempty"`
 	ThemeID    string           `bson:"theme_id,omitempty"`
 	PromptPack string           `bson:"prompt_pack_version,omitempty"`
@@ -77,7 +78,8 @@ func encodeRoom(r *game.Room) roomDoc {
 	return roomDoc{
 		ID: r.ID, Name: r.Name, HostID: r.HostID, DiceSystem: r.DiceSystem, JoinMode: r.JoinMode,
 		Password: r.Password, Members: members, Characters: chars, TurnOrder: r.TurnOrder,
-		Turns: r.Turns, Started: r.Started, Completed: r.Completed, UniverseID: r.UniverseID, ThemeID: r.ThemeID,
+		Turns: r.Turns, Started: r.Started, Completed: r.Completed, StartedAt: r.StartedAt,
+		UniverseID: r.UniverseID, ThemeID: r.ThemeID,
 		PromptPack: r.PromptPack, Scene: r.Scene, CreatedAt: r.CreatedAt,
 	}
 }
@@ -86,7 +88,8 @@ func decodeRoom(d roomDoc) *game.Room {
 	r := &game.Room{
 		ID: d.ID, Name: d.Name, HostID: d.HostID, DiceSystem: d.DiceSystem, JoinMode: d.JoinMode,
 		Password: d.Password, Members: map[string]game.Member{}, Characters: map[string]*game.Character{},
-		TurnOrder: d.TurnOrder, Turns: d.Turns, Started: d.Started, Completed: d.Completed, UniverseID: d.UniverseID,
+		TurnOrder: d.TurnOrder, Turns: d.Turns, Started: d.Started, Completed: d.Completed, StartedAt: d.StartedAt,
+		UniverseID: d.UniverseID,
 		ThemeID: d.ThemeID, PromptPack: d.PromptPack, Scene: d.Scene, CreatedAt: d.CreatedAt,
 	}
 	for _, m := range d.Members {

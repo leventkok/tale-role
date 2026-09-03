@@ -110,7 +110,9 @@ type RoomCreated {
 type Lobby {
   id: ID!
   name: String!
+  universeName: String
   joinMode: String!
   started: Boolean!
   seats: Int!
+  startedAt: String
 }

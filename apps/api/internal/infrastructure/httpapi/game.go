@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
@@ -272,11 +273,19 @@ func (s *Server) adminLobbies(w http.ResponseWriter, _ *http.Request) {
 	out := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, map[string]any{
-			"id": row.ID, "name": row.Name, "join_mode": row.JoinMode,
+			"id": row.ID, "name": row.Name, "universe_id": row.UniverseID, "join_mode": row.JoinMode,
 			"started": row.Started, "completed": row.Completed, "seats": row.Seats,
+			"started_at": lobbyStartedAt(row.StartedAt),
 		})
 	}
 	httperr.JSON(w, http.StatusOK, map[string]any{"lobbies": out})
+}
+
+func lobbyStartedAt(at *time.Time) any {
+	if at == nil {
+		return nil
+	}
+	return at.UTC().Format(time.RFC3339)
 }
 
 func (s *Server) adminCloseRoom(w http.ResponseWriter, r *http.Request) {

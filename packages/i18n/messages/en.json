@@ -167,7 +167,12 @@
     "lead": "Open tables wait below. Pick one, or join with an invite.",
     "empty": "No tables yet. Host one, or wait for a friend.",
     "invite": "Have an invite?",
-    "inviteHint": "Paste a room code from a friend."
+    "inviteHint": "Paste a room code from a friend.",
+    "colUniverse": "Universe",
+    "colStatus": "Status",
+    "colPlayers": "Players",
+    "colDuration": "Active",
+    "noDuration": "—"
   },
   "universe": {
     "title": "Your world",
