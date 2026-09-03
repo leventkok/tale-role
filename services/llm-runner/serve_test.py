@@ -94,6 +94,27 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("[hub]", out["prose"])
         self.assertNotIn("tries to", out["prose"])
 
+    def test_fallback_action_does_not_name_warcraft(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Luther",
+                "room_name": "World Of Warcraft",
+                "notes": "Examine the humming carvings",
+                "rolls": [8],
+                "total": 10,
+                "success": False,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("Luther", out["prose"])
+        self.assertIn("10", out["prose"])
+        self.assertNotIn("direnir", out["prose"])
+        self.assertNotIn("Alet kayar", out["prose"])
+        self.assertNotIn("World Of Warcraft", out["prose"])
+        self.assertIn("Examine the humming carvings", out["prose"])
+
     def test_story_opening_stays_in_locale(self):
         locale, payload = storyteller_input(
             {

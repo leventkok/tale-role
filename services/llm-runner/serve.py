@@ -42,6 +42,9 @@ STOCK = (
     "çandan önce",
     "gelene dek bekle",
     "zar ",
+    "alet kayar",
+    "zaman biter",
+    "direnir",
 )
 
 EN_OK = (
@@ -284,20 +287,58 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
 
 def fallback_opening(locale: str, payload: dict[str, Any]) -> str:
-    room = str(payload.get("room") or "").strip()
     notes = str(payload.get("notes") or "").strip()
     if notes:
         return notes
     if locale == "tr":
-        if room:
-            return (
-                f"{room} taş gibi soğuk. Bir fener titrer, uzak bir metal sesi sürter. "
-                "Kimse henüz konuşmaz. Anlatıcı sahneyi açar; hava durur."
-            )
         return "Fener yanar. Eşikte bir duraklama var. Uzak bir ses gelir. Anlatıcı sözü alır."
-    if room:
-        return pick_line(EN_OPEN, seed).format(room=room, cast="the company")
     return "A hush. Lanternlight. The storyteller takes the floor."
+
+
+def scene_place(room: str, locale: str) -> str:
+    name = (room or "").strip()
+    low = name.casefold()
+    if not name or "warcraft" in low or "talerole" in low:
+        return "salon" if locale == "tr" else "the hall"
+    return name
+
+
+def beat_locale(locale: str, notes: str) -> str:
+    text = (notes or "").strip()
+    if locale != "tr" or not text:
+        return "en" if locale != "tr" else "tr"
+    if any(ch in TR_LETTERS for ch in text):
+        return "tr"
+    if locale_matches(text, "en"):
+        return "en"
+    return "tr"
+
+
+def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, success: bool | None, total: int) -> str:
+    loc = beat_locale(locale, notes)
+    place = scene_place(room, loc)
+    deed = (notes or "").strip()
+    if kind == "say":
+        if loc == "tr":
+            return f"{actor} sözü salona bırakır: {deed} Fener sönmez." if deed else f"{actor} sessizliği kırar. Fener sönmez."
+        return f'{actor} speaks. "{deed}" The lantern holds.' if deed else f"{actor} breaks the hush. The lantern holds."
+    if kind == "pass":
+        if loc == "tr":
+            return f"{actor} bu eli bırakır. Salon bekler. Fener sönmez."
+        return f"{actor} lets the beat pass. The lantern holds."
+    if kind == "wait":
+        if loc == "tr":
+            return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
+        return f"{actor} holds still. Breath only. The lantern holds."
+    if deed and deed[-1] not in ".!?":
+        deed = deed + "."
+    if loc == "tr":
+        if success is True:
+            return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
+        return f"{actor} hamleyi dener: {deed} Taş susar. Sayı {total}; koridor aynı kalır."
+    if success is True:
+        return f"{actor} follows through: {deed} The stone answers in {place}. The count is {total}; the way opens."
+    return f"{actor} follows through: {deed} The stone stays mute. The count is {total}; nothing shifts yet."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:
@@ -307,43 +348,12 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
     kind = payload["kind"]
     total = int(payload.get("total") or 0)
     success = payload.get("success")
-    seed = f"{actor}:{room}:{total}:{notes}"
 
     if kind == "story":
         return {"locale": locale, "prose": redact(fallback_opening(locale, payload)), "npc_lines": []}
 
-    if say:
-        if locale == "tr":
-            prose = f"{actor}, {room} içinde söz alır: {notes}" if notes else f"{actor}, {room} içinde sessizliği kırar."
-        elif notes:
-            prose = f'{actor} speaks in {room}. "{notes}"'
-        else:
-            prose = f"{actor} takes the floor in {room}."
-        return {"locale": locale, "prose": redact(prose), "npc_lines": []}
-
-    if kind == "pass":
-        if locale == "tr":
-            prose = f"{actor} {room}'da bu eli bırakır. {notes} Zar yok; masa dinler."
-        else:
-            prose = f"{actor} yields the beat in {room}. {notes} No roll. The hall listens."
-    elif kind == "wait":
-        if locale == "tr":
-            prose = f"{actor} {room}'da bekler. {notes} Nefes tutulur; henüz zar yok."
-        else:
-            prose = f"{actor} holds still in {room}. {notes} Breath only. No roll yet."
-    elif success is True:
-        tag = pick_tag(locale, True, seed)
-        if locale == "tr":
-            prose = f"{actor} {notes}. {room} yol verir. Sayı {total} — motor zaten yazdı. {tag}"
-        else:
-            prose = f"{actor} {notes}. {room} gives way. The count is {total}, already written. {tag}"
-    else:
-        tag = pick_tag(locale, False, seed)
-        if locale == "tr":
-            prose = f"{actor} {notes}. {room} direnir. Sayı {total}. {tag}"
-        else:
-            prose = f"{actor} {notes}. {room} holds. The count is {total}. {tag}"
-
+    use_kind = "say" if say else kind
+    prose = literary_action(locale, use_kind, actor, room, notes, success if use_kind == "action" else None, total)
     return {"locale": locale, "prose": redact(prose), "npc_lines": []}
 
 

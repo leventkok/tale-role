@@ -300,6 +300,21 @@ func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
 	}
 }
 
+func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "World Of Warcraft",
+		Notes: "Examine the humming carvings", Total: 10, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "direnir") || strings.Contains(n.Prose, "World Of Warcraft") || strings.Contains(n.Prose, "Alet kayar") {
+		t.Fatalf("mixed stub: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "carvings") || !strings.Contains(n.Prose, "10") {
+		t.Fatalf("expected english literary beat: %s", n.Prose)
+	}
+}
+
 func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
 	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
 	mux := http.NewServeMux()

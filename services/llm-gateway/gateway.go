@@ -349,6 +349,7 @@ func trainingSalad(lower string) bool {
 		"nöbet dönmez", "nöbet dönüyor", "rün karanlık", "kilit durur", "pim kopar",
 		"kahkaha bitince", "kahkaha kopar", "menteşe", "zar ", " der.",
 		"çandan önce", "gelene dek", "bir sonraki çan",
+		"alet kayar", "zaman biter", " direnir.",
 		"motorun", "içinde,", "hold the line", "the watch is unblinded",
 		"the bar splinters", "the die reads", "the engine's", "the rune stays dark",
 		"the latch yields", "a pin snaps", "what will you do",
@@ -419,20 +420,46 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 			return deed
 		}
 		if locale == "tr" {
-			if place != "" {
-				return fmt.Sprintf("%s taş gibi soğuk. Bir fener titrer. Uzak bir metal sesi sürter. Anlatıcı sahneyi açar.", place)
-			}
 			return "Fener yanar. Eşikte bir duraklama var. Uzak bir ses gelir. Anlatıcı sözü alır."
-		}
-		if place != "" {
-			return fmt.Sprintf("Night holds %s. The storyteller takes the floor.", place)
 		}
 		return "A hush. Lanternlight. The storyteller takes the floor."
 	}
-	if locale == "tr" {
+	loc := beatLocale(locale, deed)
+	place = scenePlace(place, loc)
+	if loc == "tr" {
 		return literaryTR(kind, actor, place, deed, outcome, total)
 	}
 	return literaryEN(kind, actor, place, deed, outcome, total)
+}
+
+func beatLocale(locale, notes string) string {
+	if locale != "tr" {
+		return "en"
+	}
+	n := strings.TrimSpace(notes)
+	if n == "" {
+		return "tr"
+	}
+	if strings.ContainsAny(n, "çğıöşüÇĞİÖŞÜ") {
+		return "tr"
+	}
+	low := " " + strings.ToLower(n) + " "
+	if strings.Contains(low, " the ") || strings.Contains(low, " and ") || strings.Contains(low, " examine ") {
+		return "en"
+	}
+	return "tr"
+}
+
+func scenePlace(room, locale string) string {
+	r := strings.TrimSpace(room)
+	low := strings.ToLower(r)
+	if r == "" || strings.Contains(low, "warcraft") || strings.Contains(low, "talerole") {
+		if locale == "tr" {
+			return "salon"
+		}
+		return "the hall"
+	}
+	return r
 }
 
 func literaryTR(kind, actor, place, deed, outcome string, total int) string {
@@ -453,10 +480,13 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	if deed == "" {
 		deed = outcome
 	}
-	if strings.Contains(outcome, "yolu açar") {
-		return fmt.Sprintf("%s %s. %s cevap verir. Sayı %d; yol açılır.", actor, deed, place, total)
+	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+		deed = deed + "."
 	}
-	return fmt.Sprintf("%s %s. %s direnir. Sayı %d. Bir şey yerinden oynamaz.", actor, deed, place, total)
+	if strings.Contains(outcome, "yolu açar") {
+		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
+	}
+	return fmt.Sprintf("%s hamleyi dener: %s Taş susar. Sayı %d; koridor aynı kalır.", actor, deed, total)
 }
 
 func literaryEN(kind, actor, place, deed, outcome string, total int) string {
@@ -477,10 +507,13 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	if deed == "" {
 		deed = outcome
 	}
-	if strings.Contains(outcome, "finds the way") {
-		return fmt.Sprintf("%s %s. %s answers. The count is %d; the way opens.", actor, deed, place, total)
+	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+		deed = deed + "."
 	}
-	return fmt.Sprintf("%s %s. %s holds. The count is %d. Nothing yields yet.", actor, deed, place, total)
+	if strings.Contains(outcome, "finds the way") {
+		return fmt.Sprintf("%s follows through: %s The stone answers in %s. The count is %d; the way opens.", actor, deed, place, total)
+	}
+	return fmt.Sprintf("%s follows through: %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
 }
 
 func excerpt(s string) string {
