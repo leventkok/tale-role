@@ -208,3 +208,26 @@ func TestRunnerGarbageProseFallsBackToStub(t *testing.T) {
 		t.Fatalf("expected stub fallback: %s", n.Prose)
 	}
 }
+
+func TestRunnerMixedLocaleFallsBack(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "The watch is unblinded. Hold the line. The engine's die reads 0.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "tr", ActorName: "Bram", Kind: "story", RoomName: "Kalekarga"})
+	if strings.Contains(n.Prose, "Hold the line") || strings.Contains(n.Prose, "die reads") {
+		t.Fatalf("mixed locale runner prose must not reach players: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Anlatıcı sözü alır") && !strings.Contains(n.Prose, "anlatıcı") {
+		t.Fatalf("expected turkish opening stub: %s", n.Prose)
+	}
+}
