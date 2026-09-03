@@ -425,10 +425,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if locale == "" {
 						locale = "en"
 					}
-					if pub, err := s.table.View(roomID, u.ID); err == nil && len(pub.Turns) > 0 {
-						last := pub.Turns[len(pub.Turns)-1]
-						_ = s.narrateTurn(roomID, u.ID, locale, last.Notes, last)
-					}
+					s.openTale(roomID, u.ID, locale)
 					return true, nil
 				},
 			},

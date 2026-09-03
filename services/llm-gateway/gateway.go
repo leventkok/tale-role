@@ -43,6 +43,8 @@ type NarrateRequest struct {
 	Total         int      `json:"total"`
 	Success       *bool    `json:"success"`
 	PresenceNames []string `json:"presence_names"`
+	Prior         []string `json:"prior,omitempty"`
+	Opening       string   `json:"opening,omitempty"`
 	ThemeID       string   `json:"theme_id,omitempty"`
 }
 
@@ -213,7 +215,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
 	var remote Narrative
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose) {
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -302,7 +304,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose string) bool {
+func runnerProseOK(prose, locale string) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -320,10 +322,31 @@ func runnerProseOK(prose string) bool {
 	if strings.Count(p, "The bar splinters") > 1 {
 		return false
 	}
+	if strings.Contains(lower, "the engine's die reads 0") || strings.Contains(lower, "what will you do") {
+		return false
+	}
+	if locale == "tr" {
+		if strings.Contains(lower, "hold the line") || strings.Contains(lower, "the watch is unblinded") {
+			return false
+		}
+		enHits := strings.Count(lower, " the ") + strings.Count(lower, " and ") + strings.Count(lower, " with ")
+		if enHits >= 4 && !strings.ContainsAny(p, "çğıöşüÇĞİÖŞÜ") {
+			return false
+		}
+	}
+	if locale == "en" && strings.ContainsAny(p, "çğıöşüÇĞİÖŞÜ") {
+		return false
+	}
 	return true
 }
 
 func outcomeText(locale, kind string, success *bool) string {
+	if kind == "story" {
+		if locale == "tr" {
+			return "anlatıcı sözü alır"
+		}
+		return "the storyteller takes the floor"
+	}
 	if kind == "pass" {
 		if locale == "tr" {
 			return "sessizce beklemeyi seçer"
@@ -375,6 +398,20 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
 	deed := strings.TrimSpace(notes)
+	if strings.Contains(strings.ToLower(outcome), "storyteller takes the floor") || strings.Contains(outcome, "anlatıcı sözü alır") {
+		if locale == "tr" {
+			body := fmt.Sprintf("%s sessiz. %s eşiğe durur. Anlatıcı sözü alır.", place, actor)
+			if deed != "" {
+				body = deed + " " + body
+			}
+			return body
+		}
+		body := fmt.Sprintf("Night holds %s. %s stand at the threshold. The storyteller takes the floor.", place, actor)
+		if deed != "" {
+			body = deed + " " + body
+		}
+		return body
+	}
 	if locale == "tr" {
 		body := fmt.Sprintf("%s salonunda %s %s.", place, actor, outcome)
 		if deed != "" {

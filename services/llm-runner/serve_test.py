@@ -85,6 +85,37 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("Mira", out["prose"])
         self.assertIn("17", out["prose"])
         self.assertNotIn("[hub]", out["prose"])
+        self.assertNotIn("tries to", out["prose"])
+
+    def test_story_opening_stays_in_locale(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "story",
+                "room_name": "Kalekarga",
+                "opening": "Sis kapı eşiğinde bekler.",
+                "presence_names": ["Bram", "Lute"],
+                "rolls": [1],
+                "total": 1,
+                "success": False,
+            }
+        )
+        self.assertEqual(payload["kind"], "story")
+        self.assertEqual(payload["total"], 0)
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("Sis kapı eşiğinde bekler", out["prose"])
+        self.assertIn("Kalekarga", out["prose"])
+        self.assertNotIn("die reads", out["prose"].casefold())
+        self.assertTrue(prose_looks_valid(out["prose"], "tr"))
+
+    def test_reject_english_when_locale_is_tr(self):
+        raw = '{"prose":"The watch is unblinded. Hold the line. The bar splinters and yields.","npc_lines":[]}'
+        self.assertIsNone(parse_storyteller_response(raw, "tr"))
+
+    def test_reject_prior_repeat(self):
+        raw = '{"prose":"Night holds Kalekarga. Bram stands at the threshold. The tale begins before anyone moves.","npc_lines":[]}'
+        prior = ["Night holds Kalekarga. Bram stands at the threshold. The tale begins before anyone moves."]
+        self.assertIsNone(parse_storyteller_response(raw, "en", prior))
 
     def test_fallback_say_tr(self):
         locale, payload = storyteller_input(

@@ -120,10 +120,16 @@ func (s *Server) rollInitiative(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) startRoom(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
-	if err := s.table.Start(chi.URLParam(r, "roomID"), u.ID); err != nil {
+	roomID := chi.URLParam(r, "roomID")
+	if err := s.table.Start(roomID, u.ID); err != nil {
 		s.writeAppError(w, err)
 		return
 	}
+	locale := r.URL.Query().Get("locale")
+	if locale == "" {
+		locale = "en"
+	}
+	s.openTale(roomID, u.ID, locale)
 	httperr.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -171,6 +177,18 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 	httperr.JSON(w, http.StatusOK, turn)
 }
 
+func (s *Server) openTale(roomID, userID, locale string) {
+	pub, err := s.table.View(roomID, userID)
+	if err != nil || len(pub.Turns) == 0 {
+		return
+	}
+	last := pub.Turns[len(pub.Turns)-1]
+	if last.Kind != "story" {
+		return
+	}
+	_ = s.narrateTurn(roomID, userID, locale, last.Notes, last)
+}
+
 func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Turn) game.Turn {
 	pub, err := s.table.View(roomID, userID)
 	if err != nil {
@@ -183,6 +201,39 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 		if ch.UserID == userID {
 			actorName = ch.Name
 		}
+	}
+	opening := ""
+	if pub.UniverseID != "" {
+		seedOpening, seedDesc, _, _, ok := s.worlds.SceneSeed(pub.UniverseID)
+		if ok {
+			opening = strings.TrimSpace(seedOpening)
+			if opening == "" {
+				opening = strings.TrimSpace(seedDesc)
+			}
+		}
+	}
+	if turn.Kind == "story" {
+		if locale == "tr" {
+			actorName = "Anlatıcı"
+		} else {
+			actorName = "Storyteller"
+		}
+		if strings.TrimSpace(notes) == "" {
+			notes = opening
+		}
+	}
+	prior := make([]string, 0, 3)
+	for _, prev := range pub.Turns {
+		if prev.Narrative == nil {
+			continue
+		}
+		p := strings.TrimSpace(prev.Narrative.Prose)
+		if p != "" {
+			prior = append(prior, p)
+		}
+	}
+	if len(prior) > 3 {
+		prior = prior[len(prior)-3:]
 	}
 	n := s.llm.Narrate(gateway.NarrateRequest{
 		Locale:        locale,
@@ -197,6 +248,8 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 		Success:       turn.Success,
 		PresenceNames: names,
 		ThemeID:       pub.ThemeID,
+		Opening:       opening,
+		Prior:         prior,
 	})
 	narr := game.Narrative{Locale: n.Locale, Prose: n.Prose, NPCLines: []game.NPCLine{}}
 	for _, line := range n.NPCLines {
