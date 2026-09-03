@@ -140,7 +140,7 @@ def locale_matches(prose: str, locale: str) -> bool:
     return en_n >= tr_n
 
 
-def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = None) -> bool:
+def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = None, *, opening: bool = False) -> bool:
     text = (prose or "").strip()
     if len(text) < 12:
         return False
@@ -155,9 +155,11 @@ def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = 
         return False
     if text.count(".") + text.count("!") + text.count("?") > 12:
         return False
-    if not locale_matches(text, locale):
-        return False
     if too_similar(text, prior or []):
+        return False
+    if opening:
+        return True
+    if not locale_matches(text, locale):
         return False
     return True
 
@@ -257,21 +259,18 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
 
 def fallback_opening(locale: str, payload: dict[str, Any]) -> str:
-    room = payload["room"]
+    room = str(payload.get("room") or "").strip()
     notes = str(payload.get("notes") or "").strip()
-    cast = ", ".join(payload.get("presence") or []) or (
-        "kahramanlar" if locale == "tr" else "the company"
-    )
-    seed = f"{room}:{notes}:{cast}"
-    if locale == "tr":
-        base = pick_line(TR_OPEN, seed).format(room=room, cast=cast)
-        if notes:
-            return f"{notes.rstrip('.')} {base}"
-        return base
-    base = pick_line(EN_OPEN, seed).format(room=room, cast=cast)
     if notes:
-        return f"{notes.rstrip('.')} {base}"
-    return base
+        return notes
+    seed = f"{room}:{locale}"
+    if locale == "tr":
+        if room:
+            return pick_line(TR_OPEN, seed).format(room=room, cast="kahramanlar")
+        return "Fener yanar. Eşikte bir duraklama var. Anlatıcı sözü alır."
+    if room:
+        return pick_line(EN_OPEN, seed).format(room=room, cast="the company")
+    return "A hush. Lanternlight. The storyteller takes the floor."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:
@@ -322,7 +321,7 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
 
 
 def parse_storyteller_response(
-    raw: str, locale: str = "en", prior: list[str] | None = None
+    raw: str, locale: str = "en", prior: list[str] | None = None, *, opening: bool = False
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
     prose = ""
@@ -332,7 +331,7 @@ def parse_storyteller_response(
         npc_raw = parsed.get("npc_lines")
     elif raw and not raw.lstrip().startswith("{"):
         prose = redact(raw.strip().split("\n\n")[0][:800])
-    if not prose_looks_valid(prose, locale, prior):
+    if not prose_looks_valid(prose, locale, prior, opening=opening):
         return None
     npc_lines: list[dict[str, str]] = []
     if isinstance(npc_raw, list):
@@ -343,7 +342,7 @@ def parse_storyteller_response(
             text = redact(str(line.get("text") or "").strip())
             if not npc_id or not text or npc_id == "system_admin":
                 continue
-            if not locale_matches(text, locale):
+            if not opening and not locale_matches(text, locale):
                 continue
             npc_lines.append({"npc_id": npc_id, "text": text})
     return {"prose": prose, "npc_lines": npc_lines}
@@ -540,7 +539,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
             prompt = chat_prompt(tokenizer, system, user)
             raw = self.generate(prompt, max_new_tokens=280 if opening else 240)
-            parsed = parse_storyteller_response(raw, locale, prior)
+            parsed = parse_storyteller_response(raw, locale, prior, opening=opening)
 
         if parsed:
             return {"locale": locale, "prose": parsed["prose"], "npc_lines": parsed["npc_lines"]}
