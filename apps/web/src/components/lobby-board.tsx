@@ -1,36 +1,69 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { gql, gqlData } from "@/lib/gql";
+
+const TABLE_MAX_SEATS = 8;
 
 type Lobby = {
   id: string;
   name: string;
+  universeName?: string | null;
   joinMode: string;
   started: boolean;
   seats: number;
+  startedAt?: string | null;
 };
+
+function formatDuration(startedAt: string | null | undefined, nowMs: number) {
+  if (!startedAt) {
+    return null;
+  }
+  const start = Date.parse(startedAt);
+  if (Number.isNaN(start)) {
+    return null;
+  }
+  const secs = Math.max(0, Math.floor((nowMs - start) / 1000));
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) {
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 export function LobbyBoard() {
   const t = useTranslations("lobby");
   const table = useTranslations("table");
+  const locale = useLocale();
   const router = useRouter();
   const [rows, setRows] = useState<Lobby[] | null>(null);
   const [invite, setInvite] = useState("");
   const [passwords, setPasswords] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   async function refresh() {
-    const result = await gql<{ lobbies: Lobby[] }>(`{ lobbies { id name joinMode started seats } }`);
+    const result = await gql<{ lobbies: Lobby[] }>(
+      `query ($locale: String) { lobbies(locale: $locale) { id name universeName joinMode started seats startedAt } }`,
+      { locale },
+    );
     setRows(gqlData(result)?.lobbies ?? []);
   }
 
   useEffect(() => {
     void refresh();
     const id = setInterval(() => void refresh(), 4000);
+    return () => clearInterval(id);
+  }, [locale]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -49,7 +82,13 @@ export function LobbyBoard() {
     router.push(`/table/${id}`);
   }
 
-  const privateRoom = (mode: string) => mode === "password";
+  function openRow(row: Lobby) {
+    if (row.joinMode === "password") {
+      setExpanded((cur) => (cur === row.id ? null : row.id));
+      return;
+    }
+    void sit(row.id);
+  }
 
   return (
     <div className="lobby">
@@ -58,42 +97,63 @@ export function LobbyBoard() {
       ) : rows.length === 0 ? (
         <p className="muted">{t("empty")}</p>
       ) : (
-        <ul className="lobby-list">
-          {rows.map((row) => (
-            <li className="card lobby-card" key={row.id}>
-              <div>
-                <h2>{row.name}</h2>
-                <p className="muted">
-                  <span className="pill">{privateRoom(row.joinMode) ? table("private") : table("public")}</span>{" "}
-                  {row.started ? table("inPlay") : table("gathering")} · {table("seats", { n: row.seats })}
-                </p>
-              </div>
-              {privateRoom(row.joinMode) ? (
-                <div className="lobby-join">
-                  <label>
-                    {table("needPassword")}
-                    <input
-                      type="password"
-                      value={passwords[row.id] ?? ""}
-                      onChange={(e) => setPasswords((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                    />
-                  </label>
+        <div className="panel lobby-browser">
+          <div className="lobby-table-head" aria-hidden="true">
+            <span>{t("colUniverse")}</span>
+            <span>{t("colStatus")}</span>
+            <span>{t("colPlayers")}</span>
+            <span>{t("colDuration")}</span>
+          </div>
+          <ul className="lobby-table">
+            {rows.map((row) => {
+              const duration = row.started ? formatDuration(row.startedAt, now) : null;
+              const isPrivate = row.joinMode === "password";
+              return (
+                <li key={row.id} className={expanded === row.id ? "expanded" : undefined}>
                   <button
                     type="button"
-                    disabled={busy === row.id || !(passwords[row.id] ?? "").trim()}
-                    onClick={() => void sit(row.id, passwords[row.id])}
+                    className="lobby-row"
+                    disabled={busy === row.id}
+                    onClick={() => openRow(row)}
                   >
-                    {table("join")}
+                    <span className="lobby-universe">
+                      <strong>{row.universeName || row.name}</strong>
+                      {row.universeName && row.universeName !== row.name ? (
+                        <span className="muted lobby-room-name">{row.name}</span>
+                      ) : null}
+                    </span>
+                    <span className={`lobby-status ${row.started ? "live" : "waiting"}`}>
+                      {row.started ? table("inPlay") : table("gathering")}
+                    </span>
+                    <span className="lobby-players">
+                      {row.seats} / {TABLE_MAX_SEATS}
+                    </span>
+                    <span className="lobby-duration">{duration ?? t("noDuration")}</span>
                   </button>
-                </div>
-              ) : (
-                <button type="button" disabled={busy === row.id} onClick={() => void sit(row.id)}>
-                  {table("join")}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+                  {isPrivate && expanded === row.id ? (
+                    <div className="lobby-private">
+                      <label>
+                        {table("needPassword")}
+                        <input
+                          type="password"
+                          value={passwords[row.id] ?? ""}
+                          onChange={(e) => setPasswords((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={busy === row.id || !(passwords[row.id] ?? "").trim()}
+                        onClick={() => void sit(row.id, passwords[row.id])}
+                      >
+                        {table("join")}
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       <form

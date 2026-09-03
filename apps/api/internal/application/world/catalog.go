@@ -280,6 +280,19 @@ func (c *Catalog) Get(id, userID string) (*Universe, error) {
 	return &cp, nil
 }
 
+func (c *Catalog) PublicName(id, locale string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, ok := c.items[id]
+	if !ok {
+		return "", false
+	}
+	if locale == "tr" && u.NameTR != "" {
+		return u.NameTR, true
+	}
+	return u.NameEN, true
+}
+
 func (c *Catalog) GetForHost(id, hostID string) (*Universe, error) {
 	return c.Get(id, hostID)
 }

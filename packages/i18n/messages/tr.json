@@ -167,7 +167,12 @@
     "lead": "Açık masalar aşağıda. Birini seç veya davet koduyla gel.",
     "empty": "Henüz masa yok. Sen kur veya bir arkadaşını bekle.",
     "invite": "Davetin var mı?",
-    "inviteHint": "Arkadaşının oda kodunu yapıştır."
+    "inviteHint": "Arkadaşının oda kodunu yapıştır.",
+    "colUniverse": "Evren",
+    "colStatus": "Durum",
+    "colPlayers": "Oyuncu",
+    "colDuration": "Süre",
+    "noDuration": "—"
   },
   "universe": {
     "title": "Dünyan",
