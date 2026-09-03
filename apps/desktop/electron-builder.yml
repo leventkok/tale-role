@@ -7,6 +7,19 @@ files:
   - main.cjs
   - preload.cjs
 win:
+  target:
+    - nsis
   signAndEditExecutable: false
+  artifactName: Tale-Role-Setup.${ext}
 mac:
+  target:
+    - dmg
   identity: null
+  category: public.app-category.games
+  artifactName: Tale-Role.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: Tale-Role-Setup.${ext}
+dmg:
+  artifactName: Tale-Role.${ext}

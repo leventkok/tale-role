@@ -4,6 +4,7 @@ import { Link } from "@/i18n/routing";
 import { locales } from "@tale-role/i18n";
 import { HeroTable } from "@/components/art/hero-table";
 import { HostMark, PlayMark, UniverseMark } from "@/components/art/beat-marks";
+import { DesktopDownload } from "@/components/desktop-download";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -42,6 +43,7 @@ export default async function HomePage({
               </Link>
             </div>
           )}
+          <DesktopDownload />
         </div>
         <div className="hero-art">
           <HeroTable />

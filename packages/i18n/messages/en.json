@@ -45,7 +45,13 @@
     "pitch": "The Storyteller speaks the tale. You choose what to do. The table keeps the score.",
     "hostLead": "Pick one of your worlds and open a room.",
     "playLead": "Browse open tables. Public rooms let you sit down at once. Private rooms ask for a password.",
-    "universeLead": "Name the world, set the age and mood, then invite the people who live there."
+    "universeLead": "Name the world, set the age and mood, then invite the people who live there.",
+    "downloadLead": "Prefer the desktop app? Pick your platform and download Tale Role for Windows or Mac.",
+    "downloadPlatform": "Platform",
+    "downloadWindows": "Windows",
+    "downloadMac": "macOS",
+    "downloadCtaWin": "Download for Windows",
+    "downloadCtaMac": "Download for Mac"
   },
   "admin": {
     "title": "Spectator console",

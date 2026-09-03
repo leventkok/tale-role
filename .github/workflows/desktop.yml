@@ -1,0 +1,76 @@
+name: Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Pack Windows installer
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run pack:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win-installer
+          path: apps/desktop/dist/Tale-Role-Setup.exe
+          if-no-files-found: error
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Pack macOS installer
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run pack:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-installer
+          path: apps/desktop/dist/Tale-Role.dmg
+          if-no-files-found: error
+
+  release:
+    needs: [build-win, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Stage release files
+        run: |
+          cp installers/win-installer/Tale-Role-Setup.exe .
+          cp installers/mac-installer/Tale-Role.dmg .
+          ls -lh Tale-Role-Setup.exe Tale-Role.dmg
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-build-${{ github.run_number }}
+          name: Tale Role Desktop (build ${{ github.run_number }})
+          files: |
+            Tale-Role-Setup.exe
+            Tale-Role.dmg
+          make_latest: true
+          generate_release_notes: true
