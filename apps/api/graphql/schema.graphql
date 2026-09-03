@@ -19,6 +19,8 @@ type Mutation {
     universeId: ID
   ): RoomCreated
   joinRoom(roomId: ID!, password: String): Boolean!
+  startRoom(roomId: ID!, locale: String): Boolean!
+  completeRoom(roomId: ID!): Boolean!
   createUniverse(
     nameEn: String!
     nameTr: String
@@ -53,6 +55,8 @@ type User {
   id: ID!
   email: String!
   verified: Boolean!
+  lanternXp: Int!
+  lanternLevel: Int!
 }
 
 type Room {
@@ -62,6 +66,7 @@ type Room {
   diceSystem: String!
   joinMode: String!
   started: Boolean!
+  completed: Boolean!
   universeId: String
   themeId: String
   promptPackVersion: String

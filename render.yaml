@@ -23,6 +23,8 @@ services:
         value: "587"
       - key: MONGO_URI
         sync: false
+      - key: TALEROLE_ADMIN_EMAIL
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_USER

@@ -81,28 +81,20 @@ export function SiteHeader({
         <strong>{t("app.name")}</strong>
         <span>{t("app.tagline")}</span>
       </Link>
-      <nav>
-        {email ? (
-          <>
-            <Link href="/host">{t("nav.host")}</Link>
-            <Link href="/universe/new">{t("nav.universe")}</Link>
-            <Link href="/play">{t("nav.play")}</Link>
-          </>
-        ) : (
-          <>
-            <Link href="/login">{t("nav.signIn")}</Link>
-            <Link href="/register">{t("nav.register")}</Link>
-          </>
-        )}
-      </nav>
+      {email ? null : (
+        <nav>
+          <Link href="/login">{t("nav.signIn")}</Link>
+          <Link href="/register">{t("nav.register")}</Link>
+        </nav>
+      )}
       <div className="topbar-tools">
         {email ? (
           <Link href="/account" className="nav-profile" aria-label={t("nav.openAccount", { name })}>
             <ProfilePortrait id={portrait} className="nav-portrait" />
             <span className="nav-profile-copy">
               <strong>{name}</strong>
+              <span className="muted">{t("table.level", { n: level })}</span>
               <span className="nav-profile-xp">
-                <span className="muted">{t("account.lanternXp", { n: xp, need })}</span>
                 <span className="hp-bar xp">
                   <span style={{ ["--hp"]: `${pct}%` } as CSSProperties} />
                 </span>

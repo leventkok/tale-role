@@ -102,4 +102,36 @@ func TestHiddenAdminAndDice(t *testing.T) {
 	if len(pub.TurnOrder) == 0 {
 		t.Fatal("expected initiative order")
 	}
+	earned, err := tab.Complete(room.ID, "host")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(earned) != 2 {
+		t.Fatalf("expected two players who acted, got %v", earned)
+	}
+	if _, err := tab.Act(room.ID, first, "pass", "", "", 0); err == nil {
+		t.Fatal("ended tale must refuse turns")
+	}
+	again, err := tab.Complete(room.ID, "host")
+	if err != game.ErrAlreadyEnded || again != nil {
+		t.Fatalf("complete twice: %v %v", err, again)
+	}
+}
+
+func TestAdminCloseEndsLobbyWithoutHost(t *testing.T) {
+	tab := game.NewTable()
+	room, err := tab.Create("host", "Ashwood", "public", "", "d20")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tab.AdminClose(room.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := tab.AdminClose(room.ID); err != game.ErrAlreadyEnded {
+		t.Fatalf("admin close twice: %v", err)
+	}
+	pub, err := tab.View(room.ID, "host")
+	if err != nil || !pub.Completed {
+		t.Fatalf("lobby not closed: %v completed=%v", err, pub.Completed)
+	}
 }

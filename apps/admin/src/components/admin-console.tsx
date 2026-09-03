@@ -13,6 +13,24 @@ type Trace = {
   narrative_excerpt?: string;
 };
 type Pack = { id: string; en: string; tr: string };
+type Lobby = {
+  id: string;
+  name: string;
+  join_mode: string;
+  started: boolean;
+  completed: boolean;
+  seats: number;
+};
+
+function lobbyStatus(lobby: Lobby) {
+  if (lobby.completed) {
+    return { label: "Ended", className: "status ended" };
+  }
+  if (lobby.started) {
+    return { label: "Live", className: "status live" };
+  }
+  return { label: "Waiting", className: "status waiting" };
+}
 
 export function AdminConsole() {
   const [email, setEmail] = useState("");
@@ -24,7 +42,9 @@ export function AdminConsole() {
   const [runtime, setRuntime] = useState<Runtime | null>(null);
   const [traces, setTraces] = useState<Trace[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [edit, setEdit] = useState<Pack | null>(null);
+  const [busyRoom, setBusyRoom] = useState<string | null>(null);
 
   async function load() {
     const rt = await fetch("/api/admin/runtime", { cache: "no-store" });
@@ -39,9 +59,10 @@ export function AdminConsole() {
     }
     if (rt.ok) {
       setRuntime((await rt.json()) as Runtime);
-      const [tr, pk] = await Promise.all([
+      const [tr, pk, lb] = await Promise.all([
         fetch("/api/admin/traces", { cache: "no-store" }),
         fetch("/api/admin/packs", { cache: "no-store" }),
+        fetch("/api/admin/lobbies", { cache: "no-store" }),
       ]);
       if (tr.ok) {
         const data = (await tr.json()) as { traces?: Trace[] };
@@ -50,6 +71,10 @@ export function AdminConsole() {
       if (pk.ok) {
         const data = (await pk.json()) as { packs?: Pack[] };
         setPacks(data.packs ?? []);
+      }
+      if (lb.ok) {
+        const data = (await lb.json()) as { lobbies?: Lobby[] };
+        setLobbies(data.lobbies ?? []);
       }
     }
   }
@@ -129,6 +154,25 @@ export function AdminConsole() {
     await load();
   }
 
+  async function closeLobby(lobby: Lobby) {
+    if (
+      !window.confirm(
+        `End "${lobby.name}"? Players will see the tale as closed. Lantern XP is not granted from spectator closure.`,
+      )
+    ) {
+      return;
+    }
+    setBusyRoom(lobby.id);
+    const res = await fetch(`/api/admin/rooms/${encodeURIComponent(lobby.id)}/close`, { method: "POST" });
+    setBusyRoom(null);
+    if (!res.ok) {
+      setError("could not close lobby");
+      return;
+    }
+    setError(null);
+    await load();
+  }
+
   if (!runtime) {
     return (
       <form onSubmit={login}>
@@ -162,73 +206,161 @@ export function AdminConsole() {
 
   const pack = runtime.prompt_pack || "v1";
   const adapter = runtime.adapter_id === "hub" ? "hub" : "stub";
+  const openLobbies = lobbies.filter((lobby) => !lobby.completed);
+  const endedLobbies = lobbies.filter((lobby) => lobby.completed);
 
   return (
     <div>
-      <p>
-        Adapter <code>{runtime.adapter_id}</code> · pack <code>{runtime.prompt_pack}</code> · inference{" "}
-        <code>{runtime.inference}</code>
-      </p>
-      <div className="row">
-        <button type="button" onClick={() => void swap("v1", adapter)}>
-          Use v1
-        </button>
-        <button type="button" onClick={() => void swap("v1-terse", adapter)}>
-          Use v1-terse
-        </button>
-        <button type="button" onClick={() => void swap(pack, "hub")}>
-          Adapter hub
-        </button>
-        <button type="button" onClick={() => void swap(pack, "stub")}>
-          Adapter stub
-        </button>
-      </div>
-      <p>Live traces refresh every 4s. Mechanic JSON stays off the player table. Next turn uses the pack text below.</p>
-      <ul className="traces">
-        {traces.length === 0 ? <li>No turns yet.</li> : null}
-        {traces
-          .slice()
-          .reverse()
-          .map((tr, idx) => (
-            <li key={`${tr.at}-${idx}`}>
-              <strong>
-                {tr.prompt_pack} / {tr.adapter_id}
-              </strong>
-              <div>{tr.narrative_excerpt || tr.redacted_prompt}</div>
-              {tr.mechanic_intent ? <pre>{JSON.stringify(tr.mechanic_intent)}</pre> : null}
+      <section className="panel">
+        <h2>Runtime</h2>
+        <div className="runtime-bar">
+          <span>
+            Adapter <code>{runtime.adapter_id}</code>
+          </span>
+          <span>
+            Pack <code>{runtime.prompt_pack}</code>
+          </span>
+          <span>
+            Inference <code>{runtime.inference}</code>
+          </span>
+        </div>
+        <div className="row">
+          <button type="button" onClick={() => void swap("v1", adapter)}>
+            Use v1
+          </button>
+          <button type="button" onClick={() => void swap("v1-terse", adapter)}>
+            Use v1-terse
+          </button>
+          <button type="button" onClick={() => void swap(pack, "hub")}>
+            Adapter hub
+          </button>
+          <button type="button" onClick={() => void swap(pack, "stub")}>
+            Adapter stub
+          </button>
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2>Live lobbies</h2>
+        <p className="hint">Open tables refresh every 4s. Ending a lobby closes it for players without granting lantern XP.</p>
+        {openLobbies.length === 0 ? <p className="empty">No open lobbies.</p> : null}
+        <ul className="lobby-list">
+          {openLobbies.map((lobby) => {
+            const status = lobbyStatus(lobby);
+            return (
+              <li key={lobby.id}>
+                <div className="lobby-head">
+                  <div>
+                    <strong>{lobby.name}</strong>
+                    <div className="lobby-meta">
+                      <span className={status.className}>{status.label}</span>
+                      <span>{lobby.seats} seated</span>
+                      <span>{lobby.join_mode}</span>
+                      <span>
+                        <code>{lobby.id}</code>
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={busyRoom === lobby.id}
+                    onClick={() => void closeLobby(lobby)}
+                  >
+                    End lobby
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {endedLobbies.length > 0 ? (
+          <>
+            <h2 style={{ marginTop: "1rem", fontSize: "0.92rem" }}>Recently ended</h2>
+            <ul className="lobby-list">
+              {endedLobbies.map((lobby) => (
+                <li key={lobby.id}>
+                  <strong>{lobby.name}</strong>
+                  <div className="lobby-meta">
+                    <span className="status ended">Ended</span>
+                    <span>{lobby.seats} seated</span>
+                    <span>
+                      <code>{lobby.id}</code>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </section>
+
+      <section className="panel">
+        <h2>Traces</h2>
+        <p className="hint">Mechanic JSON stays off the player table. Next turn uses the pack text below.</p>
+        <ul className="traces">
+          {traces.length === 0 ? <li className="empty">No turns yet.</li> : null}
+          {traces
+            .slice()
+            .reverse()
+            .map((tr, idx) => (
+              <li key={`${tr.at}-${idx}`}>
+                <strong>
+                  {tr.prompt_pack} / {tr.adapter_id}
+                </strong>
+                <div>{tr.narrative_excerpt || tr.redacted_prompt}</div>
+                {tr.mechanic_intent ? <pre>{JSON.stringify(tr.mechanic_intent, null, 2)}</pre> : null}
+              </li>
+            ))}
+        </ul>
+      </section>
+
+      <section className="panel">
+        <h2>Pack context</h2>
+        <ul className="pack-list">
+          {packs.map((p) => (
+            <li key={p.id}>
+              <div className="pack-actions">
+                <button type="button" className="ghost" onClick={() => setEdit({ ...p })}>
+                  Edit {p.id}
+                </button>
+              </div>
+              <pre>{p.en}</pre>
             </li>
           ))}
-      </ul>
-      <h2>Pack context</h2>
-      <ul>
-        {packs.map((p) => (
-          <li key={p.id}>
-            <button type="button" className="ghost" onClick={() => setEdit({ ...p })}>
-              Edit {p.id}
-            </button>
-            <pre>{p.en}</pre>
-          </li>
-        ))}
-      </ul>
-      {edit ? (
-        <form onSubmit={savePack}>
-          <p>
-            Editing <code>{edit.id}</code>
-          </p>
-          <label>
-            English
-            <textarea rows={4} value={edit.en} onChange={(e) => setEdit({ ...edit, en: e.target.value })} />
-          </label>
-          <label>
-            Turkish
-            <textarea rows={4} value={edit.tr} onChange={(e) => setEdit({ ...edit, tr: e.target.value })} />
-          </label>
-          <button type="submit">Save pack</button>
+        </ul>
+        {edit ? (
+          <form onSubmit={savePack}>
+            <p>
+              Editing <code>{edit.id}</code>
+            </p>
+            <label>
+              English
+              <textarea rows={4} value={edit.en} onChange={(e) => setEdit({ ...edit, en: e.target.value })} />
+            </label>
+            <label>
+              Turkish
+              <textarea rows={4} value={edit.tr} onChange={(e) => setEdit({ ...edit, tr: e.target.value })} />
+            </label>
+            <div className="row">
+              <button type="submit">Save pack</button>
+              <button type="button" className="ghost" onClick={() => setEdit(null)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </section>
+
+      {error ? <p className="alert">{error}</p> : null}
+
+      <footer className="console-footer">
+        <form action="/api/auth/logout" method="post">
+          <button type="submit" className="ghost">
+            Sign out
+          </button>
         </form>
-      ) : null}
-      <form action="/api/auth/logout" method="post">
-        <button type="submit">Sign out</button>
-      </form>
+      </footer>
     </div>
   );
 }

@@ -59,7 +59,7 @@ export function AuthForm({ mode, email: initialEmail }: { mode: Mode; email?: st
         setCode("");
         return;
       }
-      if (data.otp_required || mode === "register") {
+      if (data.otp_required) {
         router.push(`/verify?email=${encodeURIComponent(email)}`);
         return;
       }

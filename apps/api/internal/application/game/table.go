@@ -18,6 +18,7 @@ const (
 	StatMin         = 1
 	StatMax         = 6
 	DefaultActionDC = 12
+	TaleCompleteXP  = 20
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	ErrNotYourTurn  = errors.New("not your turn")
 	ErrInitiative   = errors.New("initiative required")
 	ErrHasInit      = errors.New("already rolled")
+	ErrAlreadyEnded = errors.New("tale already ended")
 )
 
 type Stats struct {
@@ -146,6 +148,7 @@ type Room struct {
 	TurnOrder  []string              `json:"turn_order"`
 	Turns      []Turn                `json:"turns"`
 	Started    bool                  `json:"started"`
+	Completed  bool                  `json:"completed"`
 	UniverseID string                `json:"universe_id,omitempty"`
 	ThemeID    string                `json:"theme_id,omitempty"`
 	PromptPack string                `json:"prompt_pack_version,omitempty"`
@@ -154,11 +157,12 @@ type Room struct {
 }
 
 type Lobby struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	JoinMode string `json:"join_mode"`
-	Started  bool   `json:"started"`
-	Seats    int    `json:"seats"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	JoinMode  string `json:"join_mode"`
+	Started   bool   `json:"started"`
+	Completed bool   `json:"completed"`
+	Seats     int    `json:"seats"`
 }
 
 type PublicRoom struct {
@@ -168,6 +172,7 @@ type PublicRoom struct {
 	DiceSystem        string      `json:"dice_system"`
 	JoinMode          string      `json:"join_mode"`
 	Started           bool        `json:"started"`
+	Completed         bool        `json:"completed"`
 	TurnOrder         []string    `json:"turn_order"`
 	Presence          []Member    `json:"presence"`
 	Characters        []Character `json:"characters"`
@@ -283,6 +288,9 @@ func (t *Table) SetSheet(roomID, userID string, sheet Sheet) error {
 	if !ok || m.Role == "system_admin" {
 		return ErrForbidden
 	}
+	if r.Completed {
+		return ErrAlreadyEnded
+	}
 	if _, exists := r.Characters[userID]; exists {
 		return ErrHasCharacter
 	}
@@ -343,7 +351,7 @@ func (t *Table) RollInitiative(roomID, userID string) (int, error) {
 	if !ok {
 		return 0, ErrNotFound
 	}
-	if r.Started {
+	if r.Started || r.Completed {
 		return 0, ErrForbidden
 	}
 	m, ok := r.Members[userID]
@@ -388,6 +396,9 @@ func (t *Table) Start(roomID, userID string) error {
 	if r.HostID != userID {
 		return ErrForbidden
 	}
+	if r.Completed {
+		return ErrAlreadyEnded
+	}
 	if len(r.Characters) == 0 {
 		return ErrNoCharacter
 	}
@@ -419,6 +430,57 @@ func (t *Table) Start(roomID, userID string) error {
 	return nil
 }
 
+func (t *Table) Complete(roomID, userID string) ([]string, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	if r.HostID != userID {
+		return nil, ErrForbidden
+	}
+	if !r.Started {
+		return nil, ErrForbidden
+	}
+	if r.Completed {
+		return nil, ErrAlreadyEnded
+	}
+	played := map[string]struct{}{}
+	for _, turn := range r.Turns {
+		if turn.Kind != "say" && turn.Kind != "action" {
+			continue
+		}
+		if _, ok := r.Characters[turn.ActorID]; !ok {
+			continue
+		}
+		played[turn.ActorID] = struct{}{}
+	}
+	ids := make([]string, 0, len(played))
+	for id := range played {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	r.Completed = true
+	t.persist(r)
+	return ids, nil
+}
+
+func (t *Table) AdminClose(roomID string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return ErrNotFound
+	}
+	if r.Completed {
+		return ErrAlreadyEnded
+	}
+	r.Completed = true
+	t.persist(r)
+	return nil
+}
+
 func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -433,6 +495,9 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	ch, ok := r.Characters[userID]
 	if !ok {
 		return Turn{}, ErrNoCharacter
+	}
+	if r.Completed {
+		return Turn{}, ErrAlreadyEnded
 	}
 	if !r.Started {
 		return Turn{}, ErrForbidden
@@ -548,7 +613,7 @@ func (t *Table) Lobbies() []Lobby {
 			}
 		}
 		out = append(out, Lobby{
-			ID: r.ID, Name: r.Name, JoinMode: r.JoinMode, Started: r.Started, Seats: seats,
+			ID: r.ID, Name: r.Name, JoinMode: r.JoinMode, Started: r.Started, Completed: r.Completed, Seats: seats,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
@@ -556,7 +621,7 @@ func (t *Table) Lobbies() []Lobby {
 }
 
 func currentActor(r *Room) string {
-	if !r.Started || len(r.TurnOrder) == 0 {
+	if r.Completed || !r.Started || len(r.TurnOrder) == 0 {
 		return ""
 	}
 	n := 0
@@ -577,6 +642,7 @@ func snapshot(r *Room) *PublicRoom {
 		DiceSystem:        r.DiceSystem,
 		JoinMode:          r.JoinMode,
 		Started:           r.Started,
+		Completed:         r.Completed,
 		TurnOrder:         append([]string{}, r.TurnOrder...),
 		Presence:          []Member{},
 		Characters:        []Character{},

@@ -4,7 +4,7 @@ export type GqlResult<T> = { data?: T; errors?: GqlError[] };
 export const ROOM_QUERY = `
 query Room($id: ID!) {
   room(id: $id) {
-    id name hostId diceSystem joinMode started universeId themeId
+    id name hostId diceSystem joinMode started completed universeId themeId
     turnOrder currentActorId
     presence { userId role }
     characters { userId name species path backstory skills hp xp level initiative hasInitiative stats { str dex con int wis cha } }
@@ -21,6 +21,7 @@ export type GqlRoom = {
   diceSystem: string;
   joinMode: string;
   started: boolean;
+  completed?: boolean | null;
   universeId?: string | null;
   themeId?: string | null;
   turnOrder: string[];
@@ -63,6 +64,7 @@ export type TableRoom = {
   host_id: string;
   dice_system: string;
   started: boolean;
+  completed?: boolean;
   turn_order: string[];
   current_actor_id?: string;
   presence: { user_id: string; role: string }[];
@@ -105,6 +107,7 @@ export function mapRoom(row: GqlRoom): TableRoom {
     host_id: row.hostId,
     dice_system: row.diceSystem,
     started: row.started,
+    completed: Boolean(row.completed),
     turn_order: row.turnOrder ?? [],
     current_actor_id: row.currentActorId ?? undefined,
     presence: (row.presence ?? []).map((p) => ({ user_id: p.userId, role: p.role })),
