@@ -28,3 +28,7 @@ nsis:
   artifactName: Tale-Role-Setup.${ext}
 dmg:
   artifactName: Tale-Role.${ext}
+publish:
+  provider: github
+  owner: leventkok
+  repo: tale-role

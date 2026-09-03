@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Menu, nativeImage, protocol, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, nativeImage, protocol, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
@@ -69,6 +70,52 @@ function createWindow() {
   });
 }
 
+function updateCopy() {
+  if (LOCALE === "tr") {
+    return {
+      readyTitle: "Güncelleme hazır",
+      readyBody: "Yeni sürüm indirildi. Tale Role'ü yeniden başlatın.",
+      restart: "Yeniden başlat",
+      later: "Sonra",
+    };
+  }
+  return {
+    readyTitle: "Update ready",
+    readyBody: "A new version was downloaded. Restart Tale Role to apply it.",
+    restart: "Restart now",
+    later: "Later",
+  };
+}
+
+function initAutoUpdate() {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-downloaded", () => {
+    const copy = updateCopy();
+    void dialog
+      .showMessageBox({
+        type: "info",
+        title: copy.readyTitle,
+        message: copy.readyBody,
+        buttons: [copy.restart, copy.later],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+
+  void autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+}
+
 const locked = app.requestSingleInstanceLock();
 if (!locked) {
   app.quit();
@@ -106,6 +153,7 @@ if (!locked) {
       app.dock.setIcon(APP_ICON);
     }
     protocol.handle("talerole", (request) => Response.redirect(joinDest(request.url), 302));
+    initAutoUpdate();
     createWindow();
     const fromArg = process.argv.find((a) => typeof a === "string" && a.startsWith("talerole:"));
     if (fromArg) {

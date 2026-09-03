@@ -34,6 +34,10 @@ npm run pack
 
 Icons are generated from `icons/icon.svg` (the Tale Role lantern mark) before each pack.
 
+## Auto-update
+
+Packaged builds check GitHub Releases on startup. When a newer `v0.1.*` build is published, Windows downloads it in the background and prompts to restart. macOS auto-update requires a signed and notarized build — until then, Mac users reinstall from the site.
+
 Outputs in `dist/`:
 
 | OS | File |
