@@ -14,13 +14,17 @@ type userDoc struct {
 	Verified     bool      `bson:"verified"`
 	TOTPSecret   string    `bson:"totp_secret,omitempty"`
 	TOTPEnabled  bool      `bson:"totp_enabled,omitempty"`
+	LanternXP    int       `bson:"lantern_xp,omitempty"`
+	LanternLevel int       `bson:"lantern_level,omitempty"`
+	PortraitID   string    `bson:"portrait_id,omitempty"`
 	CreatedAt    time.Time `bson:"created_at"`
 }
 
 func (d userDoc) user() *iam.User {
 	return &iam.User{
 		ID: d.ID, Email: d.Email, PasswordHash: d.PasswordHash, Verified: d.Verified,
-		TOTPSecret: d.TOTPSecret, TOTPEnabled: d.TOTPEnabled, CreatedAt: d.CreatedAt,
+		TOTPSecret: d.TOTPSecret, TOTPEnabled: d.TOTPEnabled,
+		LanternXP: d.LanternXP, LanternLevel: d.LanternLevel, PortraitID: d.PortraitID, CreatedAt: d.CreatedAt,
 	}
 }
 

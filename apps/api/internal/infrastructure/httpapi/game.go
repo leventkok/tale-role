@@ -43,6 +43,8 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = s.table.BindUniverse(room.ID, uni.ID, uni.ThemeID, uni.PromptPackVersion)
+		s.seatSavedHero(room.ID, u.ID)
+		s.svc.GrantLantern(u.ID, 10)
 		httperr.JSON(w, http.StatusCreated, map[string]any{"id": room.ID, "dice_system": room.DiceSystem, "universe_id": uni.ID})
 		return
 	}
@@ -51,6 +53,7 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 		s.writeAppError(w, err)
 		return
 	}
+	s.svc.GrantLantern(u.ID, 10)
 	httperr.JSON(w, http.StatusCreated, map[string]any{"id": room.ID, "dice_system": room.DiceSystem})
 }
 
@@ -68,6 +71,7 @@ func (s *Server) joinRoom(w http.ResponseWriter, r *http.Request) {
 		s.writeAppError(w, err)
 		return
 	}
+	s.seatSavedHero(chi.URLParam(r, "roomID"), u.ID)
 	httperr.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -82,19 +86,38 @@ func (s *Server) getRoom(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setCharacter(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name  string     `json:"name"`
-		Stats game.Stats `json:"stats"`
+		Name      string     `json:"name"`
+		Species   string     `json:"species"`
+		Path      string     `json:"path"`
+		Backstory string     `json:"backstory"`
+		Skills    []string   `json:"skills"`
+		Stats     game.Stats `json:"stats"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 	u := userFrom(r)
-	if err := s.table.SetCharacter(chi.URLParam(r, "roomID"), u.ID, body.Name, body.Stats); err != nil {
+	if err := s.table.SetSheet(chi.URLParam(r, "roomID"), u.ID, game.Sheet{
+		Name: body.Name, Species: body.Species, Path: body.Path, Backstory: body.Backstory,
+		Stats: body.Stats, Skills: body.Skills,
+	}); err != nil {
 		s.writeAppError(w, err)
 		return
 	}
+	s.rememberHero(chi.URLParam(r, "roomID"), u.ID)
+	s.svc.GrantLantern(u.ID, 8)
 	httperr.JSON(w, http.StatusCreated, map[string]any{"ok": true})
+}
+
+func (s *Server) rollInitiative(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	n, err := s.table.RollInitiative(chi.URLParam(r, "roomID"), u.ID)
+	if err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"initiative": n})
 }
 
 func (s *Server) startRoom(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +156,10 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	turn = s.narrateTurn(roomID, u.ID, body.Locale, body.Notes, turn)
+	s.rememberHero(roomID, u.ID)
+	if body.Kind == "say" || body.Kind == "action" {
+		s.svc.GrantLantern(u.ID, 2)
+	}
 	httperr.JSON(w, http.StatusOK, turn)
 }
 

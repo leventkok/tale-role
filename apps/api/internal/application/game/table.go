@@ -29,6 +29,9 @@ var (
 	ErrBadPassword  = errors.New("unauthorized")
 	ErrUnknownDice  = errors.New("unknown dice system")
 	ErrUnknownSkill = errors.New("unknown skill")
+	ErrNotYourTurn  = errors.New("not your turn")
+	ErrInitiative   = errors.New("initiative required")
+	ErrHasInit      = errors.New("already rolled")
 )
 
 type Stats struct {
@@ -74,10 +77,27 @@ func (s Stats) Skill(name string) (int, error) {
 }
 
 type Character struct {
-	UserID string `json:"user_id" bson:"user_id"`
-	Name   string `json:"name" bson:"name"`
-	Stats  Stats  `json:"stats" bson:"stats"`
-	HP     int    `json:"hp" bson:"hp"`
+	UserID        string   `json:"user_id" bson:"user_id"`
+	Name          string   `json:"name" bson:"name"`
+	Species       string   `json:"species,omitempty" bson:"species,omitempty"`
+	Path          string   `json:"path,omitempty" bson:"path,omitempty"`
+	Backstory     string   `json:"backstory,omitempty" bson:"backstory,omitempty"`
+	Skills        []string `json:"skills,omitempty" bson:"skills,omitempty"`
+	Stats         Stats    `json:"stats" bson:"stats"`
+	HP            int      `json:"hp" bson:"hp"`
+	XP            int      `json:"xp" bson:"xp"`
+	Level         int      `json:"level" bson:"level"`
+	Initiative    int      `json:"initiative" bson:"initiative"`
+	HasInitiative bool     `json:"has_initiative" bson:"has_initiative"`
+}
+
+type Sheet struct {
+	Name      string
+	Species   string
+	Path      string
+	Backstory string
+	Stats     Stats
+	Skills    []string
 }
 
 type Member struct {
@@ -119,7 +139,7 @@ type Room struct {
 	Name       string                `json:"name"`
 	HostID     string                `json:"host_id"`
 	DiceSystem string                `json:"dice_system"`
-	JoinMode   string                `json:"join_mode"` // link | password
+	JoinMode   string                `json:"join_mode"` // public | password (legacy: link)
 	Password   string                `json:"-"`
 	Members    map[string]Member     `json:"-"`
 	Characters map[string]*Character `json:"-"`
@@ -131,6 +151,14 @@ type Room struct {
 	PromptPack string                `json:"prompt_pack_version,omitempty"`
 	Scene      *Scene                `json:"-"`
 	CreatedAt  time.Time             `json:"created_at"`
+}
+
+type Lobby struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	JoinMode string `json:"join_mode"`
+	Started  bool   `json:"started"`
+	Seats    int    `json:"seats"`
 }
 
 type PublicRoom struct {
@@ -147,6 +175,7 @@ type PublicRoom struct {
 	UniverseID        string      `json:"universe_id,omitempty"`
 	ThemeID           string      `json:"theme_id,omitempty"`
 	PromptPackVersion string      `json:"prompt_pack_version,omitempty"`
+	CurrentActorID    string      `json:"current_actor_id,omitempty"`
 	Scene             *Scene      `json:"scene,omitempty"`
 }
 
@@ -174,10 +203,10 @@ func (t *Table) Create(hostID, name, joinMode, password, dice string) (*Room, er
 	if dice != "d20" && dice != "2d6" {
 		return nil, ErrUnknownDice
 	}
-	if joinMode == "" {
-		joinMode = "link"
+	if joinMode == "" || joinMode == "link" {
+		joinMode = "public"
 	}
-	if joinMode != "link" && joinMode != "password" {
+	if joinMode != "public" && joinMode != "password" {
 		return nil, ErrForbidden
 	}
 	if joinMode == "password" && password == "" {
@@ -237,7 +266,11 @@ func (t *Table) Join(roomID, userID, password, role string) error {
 }
 
 func (t *Table) SetCharacter(roomID, userID, name string, stats Stats) error {
-	if !stats.Valid() || strings.TrimSpace(name) == "" {
+	return t.SetSheet(roomID, userID, Sheet{Name: name, Stats: stats})
+}
+
+func (t *Table) SetSheet(roomID, userID string, sheet Sheet) error {
+	if !sheet.Stats.Valid() || strings.TrimSpace(sheet.Name) == "" || !ValidSkills(sheet.Skills) {
 		return ErrBadStats
 	}
 	t.mu.Lock()
@@ -253,14 +286,96 @@ func (t *Table) SetCharacter(roomID, userID, name string, stats Stats) error {
 	if _, exists := r.Characters[userID]; exists {
 		return ErrHasCharacter
 	}
+	skills := make([]string, 0, len(sheet.Skills))
+	for _, id := range sheet.Skills {
+		skills = append(skills, strings.ToLower(strings.TrimSpace(id)))
+	}
+	level := 1
 	r.Characters[userID] = &Character{
-		UserID: userID,
-		Name:   name,
-		Stats:  stats,
-		HP:     8 + stats.CON,
+		UserID:    userID,
+		Name:      strings.TrimSpace(sheet.Name),
+		Species:   strings.TrimSpace(sheet.Species),
+		Path:      strings.TrimSpace(sheet.Path),
+		Backstory: strings.TrimSpace(sheet.Backstory),
+		Skills:    skills,
+		Stats:     sheet.Stats,
+		HP:        MaxHP(sheet.Stats, level),
+		XP:        0,
+		Level:     level,
 	}
 	t.persist(r)
 	return nil
+}
+
+func (t *Table) SeatHero(roomID, userID string, hero Character) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return ErrNotFound
+	}
+	if _, exists := r.Characters[userID]; exists {
+		return nil
+	}
+	m, ok := r.Members[userID]
+	if !ok || m.Role == "system_admin" {
+		return ErrForbidden
+	}
+	cp := hero
+	cp.UserID = userID
+	cp.HasInitiative = false
+	cp.Initiative = 0
+	if cp.Level < 1 {
+		cp.Level = 1
+	}
+	if cp.HP <= 0 {
+		cp.HP = MaxHP(cp.Stats, cp.Level)
+	}
+	r.Characters[userID] = &cp
+	t.persist(r)
+	return nil
+}
+
+func (t *Table) RollInitiative(roomID, userID string) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok {
+		return 0, ErrNotFound
+	}
+	if r.Started {
+		return 0, ErrForbidden
+	}
+	m, ok := r.Members[userID]
+	if !ok || m.Role == "system_admin" {
+		return 0, ErrForbidden
+	}
+	ch, ok := r.Characters[userID]
+	if !ok {
+		return 0, ErrNoCharacter
+	}
+	if ch.HasInitiative {
+		return 0, ErrHasInit
+	}
+	sides := 20
+	if r.DiceSystem == "2d6" {
+		sides = 6
+	}
+	n := t.roll(sides)
+	if r.DiceSystem == "2d6" {
+		n += t.roll(6)
+	}
+	ch.Initiative = n
+	ch.HasInitiative = true
+	r.Turns = append(r.Turns, Turn{
+		ActorID:    userID,
+		Kind:       "init",
+		DiceSystem: r.DiceSystem,
+		Rolls:      []int{n},
+		Total:      n,
+	})
+	t.persist(r)
+	return n, nil
 }
 
 func (t *Table) Start(roomID, userID string) error {
@@ -273,22 +388,33 @@ func (t *Table) Start(roomID, userID string) error {
 	if r.HostID != userID {
 		return ErrForbidden
 	}
+	if len(r.Characters) == 0 {
+		return ErrNoCharacter
+	}
 	type scored struct {
 		id    string
 		total int
 	}
 	var rows []scored
 	for id, ch := range r.Characters {
-		roll := t.roll(20)
-		rows = append(rows, scored{id: id, total: roll + ch.Stats.DEX})
+		if !ch.HasInitiative {
+			return ErrInitiative
+		}
+		rows = append(rows, scored{id: id, total: ch.Initiative})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].total > rows[j].total })
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].total == rows[j].total {
+			return rows[i].id < rows[j].id
+		}
+		return rows[i].total > rows[j].total
+	})
 	order := make([]string, 0, len(rows))
 	for _, row := range rows {
 		order = append(order, row.id)
 	}
 	r.TurnOrder = order
 	r.Started = true
+	r.Turns = append(r.Turns, Turn{ActorID: "storyteller", Kind: "story", DiceSystem: r.DiceSystem})
 	t.persist(r)
 	return nil
 }
@@ -308,8 +434,14 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	if !ok {
 		return Turn{}, ErrNoCharacter
 	}
+	if !r.Started {
+		return Turn{}, ErrForbidden
+	}
+	if cur := currentActor(r); cur != "" && cur != userID {
+		return Turn{}, ErrNotYourTurn
+	}
 	if kind == "" {
-		kind = "action"
+		kind = "say"
 	}
 	turn := Turn{ActorID: userID, Kind: kind, DiceSystem: r.DiceSystem, Notes: notes}
 	if kind == "pass" || kind == "wait" {
@@ -317,10 +449,16 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 		t.persist(r)
 		return turn, nil
 	}
+	if kind == "say" {
+		ch.GrantXP(8)
+		r.Turns = append(r.Turns, turn)
+		t.persist(r)
+		return turn, nil
+	}
 	if dc <= 0 {
 		dc = DefaultActionDC
 	}
-	bonus, err := ch.Stats.Skill(skill)
+	bonus, err := ch.CheckBonus(skill)
 	if err != nil {
 		return Turn{}, err
 	}
@@ -339,6 +477,11 @@ func (t *Table) Act(roomID, userID, kind, skill, notes string, dc int) (Turn, er
 	turn.Rolls = rolls
 	turn.Total = total
 	turn.Success = &okHit
+	if okHit {
+		ch.GrantXP(15)
+	} else {
+		ch.GrantXP(5)
+	}
 	r.Turns = append(r.Turns, turn)
 	t.persist(r)
 	return turn, nil
@@ -393,6 +536,39 @@ func (t *Table) Public(roomID string) (*PublicRoom, error) {
 	return snapshot(r), nil
 }
 
+func (t *Table) Lobbies() []Lobby {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]Lobby, 0, len(t.rooms))
+	for _, r := range t.rooms {
+		seats := 0
+		for _, m := range r.Members {
+			if m.Role != "system_admin" {
+				seats++
+			}
+		}
+		out = append(out, Lobby{
+			ID: r.ID, Name: r.Name, JoinMode: r.JoinMode, Started: r.Started, Seats: seats,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func currentActor(r *Room) string {
+	if !r.Started || len(r.TurnOrder) == 0 {
+		return ""
+	}
+	n := 0
+	for _, turn := range r.Turns {
+		if turn.Kind == "story" || turn.Kind == "init" || turn.ActorID == "storyteller" {
+			continue
+		}
+		n++
+	}
+	return r.TurnOrder[n%len(r.TurnOrder)]
+}
+
 func snapshot(r *Room) *PublicRoom {
 	out := &PublicRoom{
 		ID:                r.ID,
@@ -408,6 +584,7 @@ func snapshot(r *Room) *PublicRoom {
 		UniverseID:        r.UniverseID,
 		ThemeID:           r.ThemeID,
 		PromptPackVersion: r.PromptPack,
+		CurrentActorID:    currentActor(r),
 	}
 	if r.Scene != nil {
 		cp := *r.Scene
@@ -444,10 +621,16 @@ type ExportedRoom struct {
 }
 
 type ExportedCharacter struct {
-	RoomID string `json:"room_id"`
-	Name   string `json:"name"`
-	HP     int    `json:"hp"`
-	Stats  Stats  `json:"stats"`
+	RoomID    string   `json:"room_id"`
+	Name      string   `json:"name"`
+	Species   string   `json:"species,omitempty"`
+	Path      string   `json:"path,omitempty"`
+	Backstory string   `json:"backstory,omitempty"`
+	Skills    []string `json:"skills,omitempty"`
+	HP        int      `json:"hp"`
+	XP        int      `json:"xp"`
+	Level     int      `json:"level"`
+	Stats     Stats    `json:"stats"`
 }
 
 func (t *Table) ExportFor(userID string) (rooms []ExportedRoom, chars []ExportedCharacter) {
@@ -462,7 +645,10 @@ func (t *Table) ExportFor(userID string) (rooms []ExportedRoom, chars []Exported
 		}
 		rooms = append(rooms, ExportedRoom{ID: r.ID, Name: r.Name, Role: m.Role})
 		if ch, ok := r.Characters[userID]; ok {
-			chars = append(chars, ExportedCharacter{RoomID: r.ID, Name: ch.Name, HP: ch.HP, Stats: ch.Stats})
+			chars = append(chars, ExportedCharacter{
+				RoomID: r.ID, Name: ch.Name, Species: ch.Species, Path: ch.Path, Backstory: ch.Backstory,
+				Skills: ch.Skills, HP: ch.HP, XP: ch.XP, Level: ch.Level, Stats: ch.Stats,
+			})
 		}
 	}
 	return rooms, chars

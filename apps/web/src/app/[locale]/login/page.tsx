@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AuthForm } from "@/components/auth-form";
+import { AuthLantern } from "@/components/art/auth-lantern";
 import { Link } from "@/i18n/routing";
 
 export default async function LoginPage({
@@ -12,6 +13,9 @@ export default async function LoginPage({
   const t = await getTranslations();
   return (
     <main className="auth-wrap">
+      <div className="auth-art">
+        <AuthLantern />
+      </div>
       <div className="panel auth-card">
         <h1>{t("nav.signIn")}</h1>
         <AuthForm mode="login" />

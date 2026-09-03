@@ -50,17 +50,39 @@ func TestHiddenAdminAndDice(t *testing.T) {
 	if err := tab.SetCharacter(room.ID, "admin", "Ghost", stats); err == nil {
 		t.Fatal("admin must not create a table character")
 	}
+	if _, err := tab.RollInitiative(room.ID, "p1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tab.RollInitiative(room.ID, "host"); err != nil {
+		t.Fatal(err)
+	}
 	if err := tab.Start(room.ID, "host"); err != nil {
 		t.Fatal(err)
 	}
-	turn, err := tab.Act(room.ID, "p1", "action", "str", "force the door", 12)
+	if _, err := tab.Act(room.ID, "p1", "action", "str", "force the door", 12); err == nil {
+		t.Fatal("p1 must wait until their seat")
+	}
+	first := ""
+	pubOrder, err := tab.Public(room.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pubOrder.TurnOrder) == 0 {
+		t.Fatal("expected seating order")
+	}
+	first = pubOrder.TurnOrder[0]
+	if _, err := tab.Act(room.ID, first, "say", "", "look around", 0); err != nil {
+		t.Fatal(err)
+	}
+	second := pubOrder.TurnOrder[1]
+	turn, err := tab.Act(room.ID, second, "action", "str", "force the door", 12)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if turn.Success == nil {
 		t.Fatal("action needs a success flag")
 	}
-	pass, err := tab.Act(room.ID, "p1", "pass", "", "", 0)
+	pass, err := tab.Act(room.ID, first, "pass", "", "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}

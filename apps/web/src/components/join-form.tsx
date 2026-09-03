@@ -19,7 +19,7 @@ export function JoinForm({ initialRoomId = "" }: { initialRoomId?: string }) {
       { roomId, password: password || null },
     );
     if (!gqlData(result)?.joinRoom) {
-      setError("forbidden");
+      setError(t("joinForbidden"));
       return;
     }
     router.push(`/table/${roomId}`);

@@ -5,9 +5,9 @@ export const ROOM_QUERY = `
 query Room($id: ID!) {
   room(id: $id) {
     id name hostId diceSystem joinMode started universeId themeId
-    turnOrder
+    turnOrder currentActorId
     presence { userId role }
-    characters { userId name hp stats { str dex con int wis cha } }
+    characters { userId name species path backstory skills hp xp level initiative hasInitiative stats { str dex con int wis cha } }
     turns { actorId kind notes rolls total success prose }
     scene { themeId visualPrompt imageSvg inference }
   }
@@ -24,11 +24,20 @@ export type GqlRoom = {
   universeId?: string | null;
   themeId?: string | null;
   turnOrder: string[];
+  currentActorId?: string | null;
   presence: { userId: string; role: string }[];
   characters: {
     userId: string;
     name: string;
+    species?: string | null;
+    path?: string | null;
+    backstory?: string | null;
+    skills?: string[] | null;
     hp: number;
+    xp?: number | null;
+    level?: number | null;
+    initiative?: number | null;
+    hasInitiative?: boolean | null;
     stats?: { str: number; dex: number; con: number; int: number; wis: number; cha: number } | null;
   }[];
   turns: {
@@ -55,11 +64,20 @@ export type TableRoom = {
   dice_system: string;
   started: boolean;
   turn_order: string[];
+  current_actor_id?: string;
   presence: { user_id: string; role: string }[];
   characters: {
     user_id: string;
     name: string;
+    species?: string;
+    path?: string;
+    backstory?: string;
+    skills?: string[];
     hp: number;
+    xp?: number;
+    level?: number;
+    initiative?: number;
+    has_initiative?: boolean;
     stats?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
   }[];
   theme_id?: string;
@@ -88,11 +106,20 @@ export function mapRoom(row: GqlRoom): TableRoom {
     dice_system: row.diceSystem,
     started: row.started,
     turn_order: row.turnOrder ?? [],
+    current_actor_id: row.currentActorId ?? undefined,
     presence: (row.presence ?? []).map((p) => ({ user_id: p.userId, role: p.role })),
     characters: (row.characters ?? []).map((ch) => ({
       user_id: ch.userId,
       name: ch.name,
+      species: ch.species ?? undefined,
+      path: ch.path ?? undefined,
+      backstory: ch.backstory ?? undefined,
+      skills: ch.skills ?? [],
       hp: ch.hp,
+      xp: ch.xp ?? 0,
+      level: ch.level ?? 1,
+      initiative: ch.initiative ?? 0,
+      has_initiative: Boolean(ch.hasInitiative),
       stats: ch.stats ?? undefined,
     })),
     theme_id: row.themeId ?? undefined,

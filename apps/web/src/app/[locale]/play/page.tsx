@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { JoinForm } from "@/components/join-form";
+import { LobbyBoard } from "@/components/lobby-board";
 
 export default async function PlayPage({
   params,
@@ -11,13 +11,13 @@ export default async function PlayPage({
   const t = await getTranslations();
   return (
     <main className="page">
-      <section className="hero">
-        <h1>{t("nav.play")}</h1>
-        <p className="lede">{t("home.playLead")}</p>
+      <section className="hero hero-plain">
+        <div className="hero-copy">
+          <h1>{t("lobby.title")}</h1>
+          <p className="lede">{t("lobby.lead")}</p>
+        </div>
       </section>
-      <div className="panel narrow">
-        <JoinForm />
-      </div>
+      <LobbyBoard />
     </main>
   );
 }

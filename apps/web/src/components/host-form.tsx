@@ -13,7 +13,7 @@ export function HostForm({ universeId }: { universeId?: string }) {
   const u = useTranslations("universe");
   const router = useRouter();
   const [name, setName] = useState("");
-  const [joinMode, setJoinMode] = useState("link");
+  const [joinMode, setJoinMode] = useState("public");
   const [password, setPassword] = useState("");
   const [dice, setDice] = useState("d20");
   const [universe, setUniverse] = useState(universeId ?? "");
@@ -75,7 +75,7 @@ export function HostForm({ universeId }: { universeId?: string }) {
           <option value="">{u("none")}</option>
           {catalog.map((row) => (
             <option key={row.id} value={row.id}>
-              {row.name_en} · {row.theme_id}
+            {row.name_en}
             </option>
           ))}
         </select>
@@ -97,8 +97,8 @@ export function HostForm({ universeId }: { universeId?: string }) {
       <label>
         {t("joinMode")}
         <select value={joinMode} onChange={(e) => setJoinMode(e.target.value)}>
-          <option value="link">{t("joinLink")}</option>
-          <option value="password">{t("joinPassword")}</option>
+          <option value="public">{t("joinPublic")}</option>
+          <option value="password">{t("joinPrivate")}</option>
         </select>
       </label>
       {joinMode === "password" ? (

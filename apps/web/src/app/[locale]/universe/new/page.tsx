@@ -15,7 +15,7 @@ export default async function UniverseNewPage({
         <h1>{t("title")}</h1>
         <p className="lede">{t("lead")}</p>
       </section>
-      <div className="panel narrow">
+      <div className="panel world-panel">
         <UniverseWizard />
       </div>
     </main>

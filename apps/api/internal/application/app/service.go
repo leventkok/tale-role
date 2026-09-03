@@ -24,6 +24,7 @@ var (
 	ErrTOTPPending        = errors.New("totp not started")
 	ErrEmailTaken         = errors.New("email taken")
 	ErrUnauthorized       = errors.New("unauthorized")
+	ErrInvalid            = errors.New("invalid request")
 	ErrMailFailed         = errors.New("mail delivery failed")
 )
 
@@ -64,6 +65,7 @@ func (s *Service) Register(email, password string) error {
 		Email:        email,
 		PasswordHash: hash,
 		Verified:     false,
+		LanternLevel: 1,
 		CreatedAt:    time.Now().UTC(),
 	})
 	return s.issueOTP(email)
@@ -228,12 +230,44 @@ func (s *Service) ExportSubject(userID string) (map[string]any, error) {
 		return nil, ErrUnauthorized
 	}
 	return map[string]any{
-		"id":           u.ID,
-		"email":        u.Email,
-		"verified":     u.Verified,
-		"totp_enabled": u.TOTPEnabled,
-		"created_at":   u.CreatedAt.UTC().Format(time.RFC3339),
+		"id":            u.ID,
+		"email":         u.Email,
+		"verified":      u.Verified,
+		"totp_enabled":  u.TOTPEnabled,
+		"lantern_xp":    u.LanternXP,
+		"lantern_level": lanternLevel(u),
+		"portrait_id":   iam.NormalizePortrait(u.PortraitID),
+		"created_at":    u.CreatedAt.UTC().Format(time.RFC3339),
 	}, nil
+}
+
+func lanternLevel(u *iam.User) int {
+	if u.LanternLevel < 1 {
+		return 1
+	}
+	return u.LanternLevel
+}
+
+func (s *Service) SetPortrait(userID, id string) error {
+	if !iam.KnownPortrait(id) {
+		return ErrInvalid
+	}
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return ErrUnauthorized
+	}
+	u.PortraitID = iam.NormalizePortrait(id)
+	s.store.PutUser(u)
+	return nil
+}
+
+func (s *Service) GrantLantern(userID string, n int) {
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return
+	}
+	u.GrantLantern(n)
+	s.store.PutUser(u)
 }
 
 func (s *Service) Erase(userID string) error {

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const config = {
   poweredByHeader: false,
+  transpilePackages: ["@tale-role/i18n"],
   async headers() {
     return [
       {

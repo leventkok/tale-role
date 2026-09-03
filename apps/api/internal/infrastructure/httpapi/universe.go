@@ -33,6 +33,8 @@ func (s *Server) createUniverse(w http.ResponseWriter, r *http.Request) {
 		ContentRating string      `json:"content_rating"`
 		Era           string      `json:"era"`
 		Tone          string      `json:"tone"`
+		Description   string      `json:"description"`
+		Opening       string      `json:"opening"`
 		Taboos        string      `json:"taboos"`
 		NPCs          []world.NPC `json:"npcs"`
 	}
@@ -49,6 +51,8 @@ func (s *Server) createUniverse(w http.ResponseWriter, r *http.Request) {
 		ContentRating: body.ContentRating,
 		Era:           body.Era,
 		Tone:          body.Tone,
+		Description:   body.Description,
+		Opening:       body.Opening,
 		Taboos:        body.Taboos,
 		NPCs:          body.NPCs,
 	})
@@ -56,5 +60,6 @@ func (s *Server) createUniverse(w http.ResponseWriter, r *http.Request) {
 		s.writeAppError(w, err)
 		return
 	}
+	s.svc.GrantLantern(u.ID, 25)
 	httperr.JSON(w, http.StatusCreated, doc)
 }
