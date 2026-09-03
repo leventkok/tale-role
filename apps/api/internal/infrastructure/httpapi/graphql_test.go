@@ -100,3 +100,89 @@ func TestGraphQLHealthMeAndRoom(t *testing.T) {
 		t.Fatalf("expected forbidden universe: %s", stolen.Body.String())
 	}
 }
+
+func TestGraphQLTableAndAccountMutations(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	uni := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { createUniverse(nameEn: "Ashwood", themeId: "fairytale") { id nameEn compiledPrompt } }`,
+	})
+	var uniBody struct {
+		Data struct {
+			CreateUniverse struct {
+				ID             string `json:"id"`
+				CompiledPrompt string `json:"compiledPrompt"`
+			} `json:"createUniverse"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	_ = json.Unmarshal(uni.Body.Bytes(), &uniBody)
+	if len(uniBody.Errors) > 0 || uniBody.Data.CreateUniverse.ID == "" || uniBody.Data.CreateUniverse.CompiledPrompt == "" {
+		t.Fatalf("createUniverse: %s", uni.Body.String())
+	}
+	created := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { createRoom(name: "Table", joinMode: "link", universeId: $id) { id } }`,
+		"variables": map[string]string{"id": uniBody.Data.CreateUniverse.ID},
+	})
+	var roomBody struct {
+		Data struct {
+			CreateRoom struct {
+				ID string `json:"id"`
+			} `json:"createRoom"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	_ = json.Unmarshal(created.Body.Bytes(), &roomBody)
+	if len(roomBody.Errors) > 0 || roomBody.Data.CreateRoom.ID == "" {
+		t.Fatalf("createRoom: %s", created.Body.String())
+	}
+	sheet := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { setCharacter(roomId: $id, name: "Wren", stats: {str: 3, dex: 3, con: 3, int: 3, wis: 3, cha: 3}) }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(sheet.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("setCharacter: %s", sheet.Body.String())
+	}
+	start := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { startRoom(roomId: $id) }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(start.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("startRoom: %s", start.Body.String())
+	}
+	act := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { actTurn(roomId: $id, kind: "action", skill: "str", notes: "knock") { kind total prose } }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(act.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(act.Body.Bytes(), []byte(`"kind"`)) {
+		t.Fatalf("actTurn: %s", act.Body.String())
+	}
+	lic := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { registerLicense(deviceId: "desk-gql", platform: "win32") { id deviceId } }`,
+	})
+	if bytes.Contains(lic.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("registerLicense: %s", lic.Body.String())
+	}
+	erased := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ me { totpEnabled } }`,
+	})
+	if !bytes.Contains(erased.Body.Bytes(), []byte(`"totpEnabled":false`)) {
+		t.Fatalf("me totp: %s", erased.Body.String())
+	}
+	gone := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { eraseMe }`,
+	})
+	if bytes.Contains(gone.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("eraseMe: %s", gone.Body.String())
+	}
+	after := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ me { email } }`,
+	})
+	if after.Code != http.StatusUnauthorized && !bytes.Contains(after.Body.Bytes(), []byte(`"me":null`)) {
+		t.Fatalf("me after erase: %d %s", after.Code, after.Body.String())
+	}
+}

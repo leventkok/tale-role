@@ -19,6 +19,7 @@ export function AdminConsole() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [needOtp, setNeedOtp] = useState(false);
+  const [needMfa, setNeedMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<Runtime | null>(null);
   const [traces, setTraces] = useState<Trace[]>([]);
@@ -70,20 +71,32 @@ export function AdminConsole() {
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const path = needOtp ? "/api/auth/otp/verify" : "/api/auth/login";
-    const body = needOtp ? { email, code } : { email, password };
+    const path = needMfa ? "/api/auth/totp/verify" : needOtp ? "/api/auth/otp/verify" : "/api/auth/login";
+    const body = needMfa ? { email, password, code } : needOtp ? { email, code } : { email, password };
     const res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = (await res.json().catch(() => ({}))) as { token?: string; otp_required?: boolean; error?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      token?: string;
+      otp_required?: boolean;
+      mfa_required?: boolean;
+      error?: string;
+    };
     if (data.token) {
       setError("session leaked");
       return;
     }
     if (data.otp_required) {
       setNeedOtp(true);
+      setNeedMfa(false);
+      return;
+    }
+    if (data.mfa_required) {
+      setNeedMfa(true);
+      setNeedOtp(false);
+      setCode("");
       return;
     }
     if (!res.ok) {
@@ -135,6 +148,12 @@ export function AdminConsole() {
             <input type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
           </label>
         )}
+        {needMfa ? (
+          <label>
+            Authenticator
+            <input inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value)} required />
+          </label>
+        ) : null}
         {error ? <p className="alert">{error}</p> : null}
         <button type="submit">Continue</button>
       </form>

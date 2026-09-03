@@ -20,6 +20,8 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrOTPRequired        = errors.New("otp required")
 	ErrOTPInvalid         = errors.New("invalid otp")
+	ErrMFARequired        = errors.New("mfa required")
+	ErrTOTPPending        = errors.New("totp not started")
 	ErrEmailTaken         = errors.New("email taken")
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrMailFailed         = errors.New("mail delivery failed")
@@ -82,6 +84,9 @@ func (s *Service) Login(email, password string) (token string, err error) {
 		}
 		return "", ErrOTPRequired
 	}
+	if u.TOTPEnabled {
+		return "", ErrMFARequired
+	}
 	return s.sign(u)
 }
 
@@ -107,7 +112,73 @@ func (s *Service) VerifyOTP(email, code string) (token string, err error) {
 	u.Verified = true
 	s.store.PutUser(u)
 	s.store.DeleteOTP(email)
+	if u.TOTPEnabled {
+		return "", ErrMFARequired
+	}
 	return s.sign(u)
+}
+
+func (s *Service) LoginTOTP(email, password, code string) (string, error) {
+	email = normalizeEmail(email)
+	u, ok := s.store.GetUser(email)
+	if !ok {
+		return "", ErrInvalidCredentials
+	}
+	if bcrypt.CompareHashAndPassword(u.PasswordHash, []byte(password)) != nil {
+		return "", ErrInvalidCredentials
+	}
+	if !u.Verified || !u.TOTPEnabled || !totpValid(u.TOTPSecret, code, time.Now()) {
+		return "", ErrInvalidCredentials
+	}
+	return s.sign(u)
+}
+
+func (s *Service) BeginTOTP(userID string) (secret, uri string, err error) {
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return "", "", ErrUnauthorized
+	}
+	if u.TOTPEnabled {
+		return "", "", ErrInvalidCredentials
+	}
+	secret, err = newTOTPSecret()
+	if err != nil {
+		return "", "", err
+	}
+	u.TOTPSecret = secret
+	u.TOTPEnabled = false
+	s.store.PutUser(u)
+	return secret, otpauthURL(u.Email, secret), nil
+}
+
+func (s *Service) ConfirmTOTP(userID, code string) error {
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return ErrUnauthorized
+	}
+	if u.TOTPSecret == "" || u.TOTPEnabled {
+		return ErrTOTPPending
+	}
+	if !totpValid(u.TOTPSecret, code, time.Now()) {
+		return ErrInvalidCredentials
+	}
+	u.TOTPEnabled = true
+	s.store.PutUser(u)
+	return nil
+}
+
+func (s *Service) DisableTOTP(userID, code string) error {
+	u, ok := s.store.GetUserByID(userID)
+	if !ok {
+		return ErrUnauthorized
+	}
+	if !u.TOTPEnabled || !totpValid(u.TOTPSecret, code, time.Now()) {
+		return ErrInvalidCredentials
+	}
+	u.TOTPSecret = ""
+	u.TOTPEnabled = false
+	s.store.PutUser(u)
+	return nil
 }
 
 func (s *Service) UserFromToken(token string) (*iam.User, error) {
@@ -157,10 +228,11 @@ func (s *Service) ExportSubject(userID string) (map[string]any, error) {
 		return nil, ErrUnauthorized
 	}
 	return map[string]any{
-		"id":         u.ID,
-		"email":      u.Email,
-		"verified":   u.Verified,
-		"created_at": u.CreatedAt.UTC().Format(time.RFC3339),
+		"id":           u.ID,
+		"email":        u.Email,
+		"verified":     u.Verified,
+		"totp_enabled": u.TOTPEnabled,
+		"created_at":   u.CreatedAt.UTC().Format(time.RFC3339),
 	}, nil
 }
 

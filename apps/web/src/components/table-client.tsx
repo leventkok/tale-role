@@ -139,7 +139,9 @@ export function TableClient({ roomId }: { roomId: string }) {
   }
 
   async function copyId() {
-    await navigator.clipboard.writeText(roomId);
+    const web = `${window.location.origin}/${locale}/join/${roomId}`;
+    const app = `talerole://join/${roomId}`;
+    await navigator.clipboard.writeText(`${web}\n${app}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   }

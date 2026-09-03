@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
+
+type License = { id: string; device_id: string; platform: string; created_at?: string };
+
+function desktopBridge(): { platform: string; deviceId: string } | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return (window as Window & { taleRoleDesktop?: { platform: string; deviceId: string } }).taleRoleDesktop;
+}
 
 export function AccountPanel() {
   const t = useTranslations("account");
@@ -10,6 +19,31 @@ export function AccountPanel() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [otpauth, setOtpauth] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [licenses, setLicenses] = useState<License[]>([]);
+  const desktop = desktopBridge();
+
+  async function refresh() {
+    const [meRes, licRes] = await Promise.all([
+      fetch("/api/me", { cache: "no-store" }),
+      fetch("/api/licenses/me", { cache: "no-store" }),
+    ]);
+    if (meRes.ok) {
+      const me = (await meRes.json()) as { totp_enabled?: boolean };
+      setTotpEnabled(Boolean(me.totp_enabled));
+    }
+    if (licRes.ok) {
+      const data = (await licRes.json()) as { licenses?: License[] };
+      setLicenses(data.licenses ?? []);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
 
   async function onExport() {
     setBusy(true);
@@ -27,6 +61,77 @@ export function AccountPanel() {
     a.download = "talerole-export.json";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function onBeginTotp() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/me/totp/begin", { method: "POST" });
+    const data = (await res.json().catch(() => ({}))) as { secret?: string; otpauth_url?: string };
+    setBusy(false);
+    if (!res.ok || !data.secret) {
+      setError("error");
+      return;
+    }
+    setSecret(data.secret);
+    setOtpauth(data.otpauth_url ?? null);
+  }
+
+  async function onConfirmTotp(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/me/totp/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: totpCode }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError("error");
+      return;
+    }
+    setSecret(null);
+    setOtpauth(null);
+    setTotpCode("");
+    setTotpEnabled(true);
+  }
+
+  async function onDisableTotp(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/me/totp/disable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: totpCode }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError("error");
+      return;
+    }
+    setTotpCode("");
+    setTotpEnabled(false);
+  }
+
+  async function onRegisterDevice() {
+    if (!desktop) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/licenses/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: desktop.deviceId, platform: desktop.platform }),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError("error");
+      return;
+    }
+    await refresh();
   }
 
   async function onErase(e: React.FormEvent) {
@@ -49,6 +154,86 @@ export function AccountPanel() {
 
   return (
     <div>
+      <section>
+        <h2>{t("totpTitle")}</h2>
+        <p className="muted">{totpEnabled ? t("totpOn") : t("totpOff")}</p>
+        {!totpEnabled && !secret ? (
+          <p>
+            <button type="button" disabled={busy} onClick={() => void onBeginTotp()}>
+              {t("totpBegin")}
+            </button>
+          </p>
+        ) : null}
+        {secret ? (
+          <form onSubmit={(e) => void onConfirmTotp(e)}>
+            <p className="muted">{t("totpSecretHint")}</p>
+            <p>
+              <code>{secret}</code>
+            </p>
+            {otpauth ? (
+              <p>
+                <a href={otpauth}>{otpauth}</a>
+              </p>
+            ) : null}
+            <label>
+              {t("totpCode")}
+              <input
+                className="otp"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                autoComplete="one-time-code"
+                required
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+            </label>
+            <button type="submit" disabled={busy}>
+              {t("totpConfirm")}
+            </button>
+          </form>
+        ) : null}
+        {totpEnabled ? (
+          <form onSubmit={(e) => void onDisableTotp(e)}>
+            <label>
+              {t("totpCode")}
+              <input
+                className="otp"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                autoComplete="one-time-code"
+                required
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+            </label>
+            <button className="ghost" type="submit" disabled={busy}>
+              {t("totpDisable")}
+            </button>
+          </form>
+        ) : null}
+      </section>
+      <section>
+        <h2>{t("devices")}</h2>
+        {licenses.length === 0 ? <p className="muted">{t("noDevices")}</p> : null}
+        <ul>
+          {licenses.map((row) => (
+            <li key={row.id}>
+              {row.platform} · {row.device_id}
+            </li>
+          ))}
+        </ul>
+        {desktop ? (
+          <p>
+            <button type="button" disabled={busy} onClick={() => void onRegisterDevice()}>
+              {t("registerDevice")}
+            </button>
+          </p>
+        ) : (
+          <p className="muted">{t("desktopOnly")}</p>
+        )}
+      </section>
       <p>
         <button type="button" disabled={busy} onClick={() => void onExport()}>
           {t("export")}

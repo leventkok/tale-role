@@ -29,7 +29,15 @@ function createWindow() {
 app.whenReady().then(() => {
   protocol.handle("talerole", (request) => {
     const url = new URL(request.url);
-    const dest = `${WEB_URL}/join${url.pathname}${url.search}`;
+    let roomId = "";
+    if (url.hostname === "join") {
+      roomId = url.pathname.replace(/^\//, "");
+    } else {
+      const parts = url.pathname.split("/").filter(Boolean);
+      const i = parts.indexOf("join");
+      roomId = i >= 0 ? parts.slice(i + 1).join("/") : parts[parts.length - 1] || "";
+    }
+    const dest = `${WEB_URL}/en/join/${encodeURIComponent(roomId)}${url.search}`;
     return Response.redirect(dest, 302);
   });
   createWindow();

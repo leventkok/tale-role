@@ -132,26 +132,30 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 		s.writeAppError(w, err)
 		return
 	}
-	pub, err := s.table.View(roomID, u.ID)
+	turn = s.narrateTurn(roomID, u.ID, body.Locale, body.Notes, turn)
+	httperr.JSON(w, http.StatusOK, turn)
+}
+
+func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Turn) game.Turn {
+	pub, err := s.table.View(roomID, userID)
 	if err != nil {
-		s.writeAppError(w, err)
-		return
+		return turn
 	}
 	actorName := ""
 	names := make([]string, 0, len(pub.Characters))
 	for _, ch := range pub.Characters {
 		names = append(names, ch.Name)
-		if ch.UserID == u.ID {
+		if ch.UserID == userID {
 			actorName = ch.Name
 		}
 	}
 	n := s.llm.Narrate(gateway.NarrateRequest{
-		Locale:        body.Locale,
+		Locale:        locale,
 		RoomID:        roomID,
 		RoomName:      pub.Name,
 		ActorName:     actorName,
 		Kind:          turn.Kind,
-		Notes:         body.Notes,
+		Notes:         notes,
 		DiceSystem:    turn.DiceSystem,
 		Rolls:         turn.Rolls,
 		Total:         turn.Total,
@@ -165,8 +169,8 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.table.AttachNarrative(roomID, narr)
 	turn.Narrative = &narr
-	go s.paintScene(roomID, pub.ThemeID, pub.Name, body.Notes, n.Prose)
-	httperr.JSON(w, http.StatusOK, turn)
+	go s.paintScene(roomID, pub.ThemeID, pub.Name, notes, n.Prose)
+	return turn
 }
 
 func (s *Server) paintScene(roomID, themeID, roomName, notes, prose string) {

@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 
-export function JoinForm() {
+export function JoinForm({ initialRoomId = "" }: { initialRoomId?: string }) {
   const t = useTranslations("table");
   const router = useRouter();
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] = useState(initialRoomId);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 

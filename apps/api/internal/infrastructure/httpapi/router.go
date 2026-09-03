@@ -70,11 +70,15 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 		r.Post("/auth/register", s.register)
 		r.Post("/auth/login", s.login)
 		r.Post("/auth/otp/verify", s.verifyOTP)
+		r.Post("/auth/totp/verify", s.verifyTOTP)
 		r.Group(func(r chi.Router) {
 			r.Use(s.auth)
 			r.Get("/me", s.me)
 			r.Get("/me/export", s.exportMe)
 			r.Delete("/me", s.eraseMe)
+			r.Post("/me/totp/begin", s.beginTOTP)
+			r.Post("/me/totp/confirm", s.confirmTOTP)
+			r.Post("/me/totp/disable", s.disableTOTP)
 			r.Post("/licenses/register", s.registerLicense)
 			r.Get("/licenses/me", s.myLicenses)
 			r.Post("/rooms", s.createRoom)
@@ -129,6 +133,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		httperr.JSON(w, http.StatusUnauthorized, map[string]any{"otp_required": true, "error": "otp required"})
 		return
 	}
+	if errors.Is(err, app.ErrMFARequired) {
+		httperr.JSON(w, http.StatusUnauthorized, map[string]any{"mfa_required": true, "error": "mfa required"})
+		return
+	}
 	if err != nil {
 		s.writeAppError(w, err)
 		return
@@ -146,6 +154,10 @@ func (s *Server) verifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token, err := s.svc.VerifyOTP(body.Email, body.Code)
+	if errors.Is(err, app.ErrMFARequired) {
+		httperr.JSON(w, http.StatusUnauthorized, map[string]any{"mfa_required": true, "error": "mfa required"})
+		return
+	}
 	if err != nil {
 		s.writeAppError(w, err)
 		return
@@ -153,12 +165,71 @@ func (s *Server) verifyOTP(w http.ResponseWriter, r *http.Request) {
 	httperr.JSON(w, http.StatusOK, map[string]any{"token": token})
 }
 
+func (s *Server) verifyTOTP(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	token, err := s.svc.LoginTOTP(body.Email, body.Password, body.Code)
+	if err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"token": token})
+}
+
+func (s *Server) beginTOTP(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	secret, uri, err := s.svc.BeginTOTP(u.ID)
+	if err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"secret": secret, "otpauth_url": uri})
+}
+
+func (s *Server) confirmTOTP(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	if err := s.svc.ConfirmTOTP(userFrom(r).ID, body.Code); err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"totp_enabled": true})
+}
+
+func (s *Server) disableTOTP(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	if err := s.svc.DisableTOTP(userFrom(r).ID, body.Code); err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"totp_enabled": false})
+}
+
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
 	httperr.JSON(w, http.StatusOK, map[string]any{
-		"id":       u.ID,
-		"email":    u.Email,
-		"verified": u.Verified,
+		"id":           u.ID,
+		"email":        u.Email,
+		"verified":     u.Verified,
+		"totp_enabled": u.TOTPEnabled,
 	})
 }
 
@@ -231,8 +302,10 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, app.ErrEmailTaken):
 		httperr.Write(w, s.log, http.StatusConflict, "email taken", err)
-	case errors.Is(err, app.ErrOTPInvalid), errors.Is(err, app.ErrInvalidCredentials):
+	case errors.Is(err, app.ErrOTPInvalid), errors.Is(err, app.ErrInvalidCredentials), errors.Is(err, app.ErrMFARequired):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
+	case errors.Is(err, app.ErrTOTPPending):
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	case errors.Is(err, app.ErrMailFailed):
 		httperr.Write(w, s.log, http.StatusServiceUnavailable, "mail delivery failed", err)
 	case errors.Is(err, app.ErrUnauthorized):
