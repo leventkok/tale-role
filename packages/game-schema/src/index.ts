@@ -44,3 +44,18 @@ export {
 } from "./universe";
 
 export { sceneCardSchema, type SceneCard } from "./scene";
+
+export {
+  defaultPortraitId,
+  portraitIdSchema,
+  portraitIds,
+  type PortraitId,
+} from "./portrait";
+
+export {
+  characterSheetSchema,
+  taleSkillIds,
+  taleSkills,
+  type CharacterSheet,
+  type TaleSkillId,
+} from "./character";

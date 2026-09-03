@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 )
 
 var (
@@ -29,6 +30,19 @@ type NPC struct {
 	Voice     string `json:"voice,omitempty" bson:"voice,omitempty"`
 }
 
+type Hero struct {
+	UserID    string     `json:"user_id" bson:"user_id"`
+	Name      string     `json:"name" bson:"name"`
+	Species   string     `json:"species,omitempty" bson:"species,omitempty"`
+	Path      string     `json:"path,omitempty" bson:"path,omitempty"`
+	Backstory string     `json:"backstory,omitempty" bson:"backstory,omitempty"`
+	Skills    []string   `json:"skills,omitempty" bson:"skills,omitempty"`
+	Stats     game.Stats `json:"stats" bson:"stats"`
+	HP        int        `json:"hp" bson:"hp"`
+	XP        int        `json:"xp" bson:"xp"`
+	Level     int        `json:"level" bson:"level"`
+}
+
 type Universe struct {
 	ID                string    `json:"id" bson:"_id"`
 	OwnerID           string    `json:"owner_id" bson:"owner_id"`
@@ -41,8 +55,11 @@ type Universe struct {
 	ContentRating     string    `json:"content_rating" bson:"content_rating"`
 	Era               string    `json:"era,omitempty" bson:"era,omitempty"`
 	Tone              string    `json:"tone,omitempty" bson:"tone,omitempty"`
+	Description       string    `json:"description,omitempty" bson:"description,omitempty"`
+	Opening           string    `json:"opening,omitempty" bson:"opening,omitempty"`
 	Taboos            string    `json:"taboos,omitempty" bson:"taboos,omitempty"`
 	NPCs              []NPC     `json:"npcs" bson:"npcs"`
+	Heroes            []Hero    `json:"heroes,omitempty" bson:"heroes,omitempty"`
 	CompiledPrompt    string    `json:"compiled_prompt,omitempty" bson:"compiled_prompt,omitempty"`
 	CreatedAt         time.Time `json:"created_at" bson:"created_at"`
 }
@@ -63,6 +80,8 @@ type Draft struct {
 	ContentRating string
 	Era           string
 	Tone          string
+	Description   string
+	Opening       string
 	Taboos        string
 	NPCs          []NPC
 }
@@ -160,6 +179,8 @@ func (c *Catalog) Create(ownerID string, d Draft) (*Universe, error) {
 		ContentRating:     rating,
 		Era:               strings.TrimSpace(d.Era),
 		Tone:              strings.TrimSpace(d.Tone),
+		Description:       strings.TrimSpace(d.Description),
+		Opening:           strings.TrimSpace(d.Opening),
 		Taboos:            strings.TrimSpace(d.Taboos),
 		NPCs:              npcs,
 		CreatedAt:         time.Now().UTC(),
@@ -170,6 +191,66 @@ func (c *Catalog) Create(ownerID string, d Draft) (*Universe, error) {
 	c.mu.Unlock()
 	c.persist(u)
 	return u, nil
+}
+
+func (c *Catalog) UpsertHero(universeID string, h Hero) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, ok := c.items[universeID]
+	if !ok {
+		return ErrNotFound
+	}
+	out := make([]Hero, 0, len(u.Heroes)+1)
+	replaced := false
+	for _, row := range u.Heroes {
+		if row.UserID == h.UserID {
+			out = append(out, h)
+			replaced = true
+			continue
+		}
+		out = append(out, row)
+	}
+	if !replaced {
+		out = append(out, h)
+	}
+	u.Heroes = out
+	c.persist(u)
+	return nil
+}
+
+func (c *Catalog) Hero(universeID, userID string) (Hero, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, ok := c.items[universeID]
+	if !ok {
+		return Hero{}, false
+	}
+	for _, row := range u.Heroes {
+		if row.UserID == userID {
+			return row, true
+		}
+	}
+	return Hero{}, false
+}
+
+func (c *Catalog) ForgetPlayer(userID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, u := range c.items {
+		kept := u.Heroes[:0]
+		changed := false
+		for _, h := range u.Heroes {
+			if h.UserID == userID {
+				changed = true
+				continue
+			}
+			kept = append(kept, h)
+		}
+		if changed {
+			u.Heroes = kept
+			c.persist(u)
+		}
+	}
 }
 
 func (c *Catalog) List(ownerID string) []Summary {
@@ -232,22 +313,30 @@ func (c *Catalog) ForgetOwner(ownerID string) {
 
 func Compile(u Universe) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Tale Core. Theme %s. Dice %s. Rating %s.\n", u.ThemeID, u.DiceSystem, u.ContentRating)
+	fmt.Fprintf(&b, "World %s. Mood %s.\n", u.NameEN, u.ThemeID)
 	if u.Era != "" {
-		fmt.Fprintf(&b, "Era: %s.\n", u.Era)
+		fmt.Fprintf(&b, "Age: %s.\n", u.Era)
 	}
 	if u.Tone != "" {
-		fmt.Fprintf(&b, "Tone: %s.\n", u.Tone)
+		fmt.Fprintf(&b, "Feeling: %s.\n", u.Tone)
+	}
+	if u.Description != "" {
+		fmt.Fprintf(&b, "The tale of this place:\n%s\n", u.Description)
+	}
+	if u.Opening != "" {
+		fmt.Fprintf(&b, "Opening scene:\n%s\n", u.Opening)
 	}
 	if u.Taboos != "" {
-		fmt.Fprintf(&b, "Taboos: %s.\n", u.Taboos)
+		fmt.Fprintf(&b, "Do not depict: %s.\n", u.Taboos)
 	}
 	if len(u.NPCs) > 0 {
-		b.WriteString("NPCs:\n")
+		b.WriteString("People of this place:\n")
 		for _, n := range u.NPCs {
 			fmt.Fprintf(&b, "- %s (%s)", n.NameEN, n.Alignment)
 			if n.Voice != "" {
 				fmt.Fprintf(&b, ": %s", n.Voice)
+			} else {
+				b.WriteString(": no notes — adapt to the tale")
 			}
 			b.WriteByte('\n')
 		}

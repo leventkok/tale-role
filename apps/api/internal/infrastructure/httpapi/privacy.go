@@ -39,6 +39,7 @@ func (s *Server) eraseMe(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r)
 	s.table.ForgetUser(u.ID)
 	s.worlds.ForgetOwner(u.ID)
+	s.worlds.ForgetPlayer(u.ID)
 	if err := s.svc.Erase(u.ID); err != nil {
 		s.writeAppError(w, err)
 		return

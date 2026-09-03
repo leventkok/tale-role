@@ -54,7 +54,8 @@ func (s *Store) PutUser(u *iam.User) {
 	defer cancel()
 	_, _ = s.users.ReplaceOne(ctx, bson.M{"_id": u.ID}, userDoc{
 		ID: u.ID, Email: strings.ToLower(u.Email), PasswordHash: u.PasswordHash,
-		Verified: u.Verified, TOTPSecret: u.TOTPSecret, TOTPEnabled: u.TOTPEnabled, CreatedAt: u.CreatedAt,
+		Verified: u.Verified, TOTPSecret: u.TOTPSecret, TOTPEnabled: u.TOTPEnabled,
+		LanternXP: u.LanternXP, LanternLevel: u.LanternLevel, PortraitID: u.PortraitID, CreatedAt: u.CreatedAt,
 	}, options.Replace().SetUpsert(true))
 }
 

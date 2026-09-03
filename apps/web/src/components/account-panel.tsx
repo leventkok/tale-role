@@ -5,6 +5,9 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { gql, gqlData } from "@/lib/gql";
 import { TotpQr } from "@/components/totp-qr";
+import { AppearanceControls } from "@/components/appearance-controls";
+import { ProfilePortrait } from "@/components/art/profile-portrait";
+import { defaultPortraitId, portraitIds, normalizePortraitId, readStoredPortrait, writeStoredPortrait, type PortraitId } from "@/lib/portraits";
 
 type License = { id: string; device_id: string; platform: string; created_at?: string };
 
@@ -27,16 +30,29 @@ export function AccountPanel() {
   const [totpCode, setTotpCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [licenses, setLicenses] = useState<License[]>([]);
+  const [lanternXp, setLanternXp] = useState(0);
+  const [lanternLevel, setLanternLevel] = useState(1);
+  const [portrait, setPortrait] = useState<PortraitId>(defaultPortraitId);
   const desktop = desktopBridge();
+  const lanternNeed = 100 * lanternLevel;
+  const lanternPct = Math.max(4, Math.min(100, Math.round((lanternXp / lanternNeed) * 100)));
 
   async function refresh() {
+    setPortrait(readStoredPortrait());
     const result = await gql<{
-      me: { totpEnabled: boolean } | null;
+      me: { totpEnabled: boolean; lanternXp?: number; lanternLevel?: number; portraitId?: string } | null;
       licenses: { id: string; deviceId: string; platform: string; createdAt?: string }[];
-    }>(`{ me { totpEnabled } licenses { id deviceId platform createdAt } }`);
+    }>(`{ me { totpEnabled lanternXp lanternLevel portraitId } licenses { id deviceId platform createdAt } }`);
     const data = gqlData(result);
     if (data?.me) {
       setTotpEnabled(Boolean(data.me.totpEnabled));
+      setLanternXp(data.me.lanternXp ?? 0);
+      setLanternLevel(data.me.lanternLevel && data.me.lanternLevel > 0 ? data.me.lanternLevel : 1);
+      if (data.me.portraitId) {
+        const id = normalizePortraitId(data.me.portraitId);
+        setPortrait(id);
+        writeStoredPortrait(id);
+      }
     }
     setLicenses(
       (data?.licenses ?? []).map((row) => ({
@@ -160,6 +176,12 @@ export function AccountPanel() {
     router.refresh();
   }
 
+  async function pickPortrait(id: PortraitId) {
+    setPortrait(id);
+    writeStoredPortrait(id);
+    await gql(`mutation ($id: String!) { setPortrait(id: $id) }`, { id });
+  }
+
   async function copySecret() {
     if (!secret) {
       return;
@@ -171,6 +193,40 @@ export function AccountPanel() {
 
   return (
     <div className="account-stack">
+      <section>
+        <h2>{t("prefs")}</h2>
+        <p className="muted">{t("prefsHint")}</p>
+        <AppearanceControls signOut />
+      </section>
+      <section>
+        <h2>{t("portrait")}</h2>
+        <p className="muted">{t("portraitHint")}</p>
+        <div className="portrait-picker">
+          {portraitIds.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={portrait === id ? "portrait-pick on" : "portrait-pick"}
+              aria-pressed={portrait === id}
+              onClick={() => void pickPortrait(id)}
+            >
+              <ProfilePortrait id={id} />
+              <span>{t(`portraits.${id}`)}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2>{t("lantern")}</h2>
+        <p className="muted">{t("lanternHint")}</p>
+        <p className="muted">{t("lanternLevel", { n: lanternLevel })}</p>
+        <div className="hp">
+          <span className="muted">{t("lanternXp", { n: lanternXp, need: lanternNeed })}</span>
+          <div className="hp-bar xp">
+            <span style={{ ["--hp"]: `${lanternPct}%` } as React.CSSProperties} />
+          </div>
+        </div>
+      </section>
       <section>
         <h2>{t("totpTitle")}</h2>
         <p className="muted">{totpEnabled ? t("totpOn") : t("totpOff")}</p>

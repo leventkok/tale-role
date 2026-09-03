@@ -15,6 +15,7 @@ import (
 	"github.com/leventkok/tale-role/apps/api/internal/application/app"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
 	"github.com/leventkok/tale-role/apps/api/internal/application/world"
+	"github.com/leventkok/tale-role/apps/api/internal/domain/iam"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/config"
 	"github.com/leventkok/tale-role/apps/api/internal/shared/httperr"
 	worker "github.com/leventkok/tale-role/services/image-worker"
@@ -88,6 +89,7 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 			r.Get("/rooms/{roomID}", s.getRoom)
 			r.Post("/rooms/{roomID}/join", s.joinRoom)
 			r.Post("/rooms/{roomID}/characters", s.setCharacter)
+			r.Post("/rooms/{roomID}/initiative", s.rollInitiative)
 			r.Post("/rooms/{roomID}/start", s.startRoom)
 			r.Post("/rooms/{roomID}/turns", s.actRoom)
 			r.Group(func(r chi.Router) {
@@ -230,6 +232,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		"email":        u.Email,
 		"verified":     u.Verified,
 		"totp_enabled": u.TOTPEnabled,
+		"portrait_id":  iam.NormalizePortrait(u.PortraitID),
 	})
 }
 
@@ -304,7 +307,7 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusConflict, "email taken", err)
 	case errors.Is(err, app.ErrOTPInvalid), errors.Is(err, app.ErrInvalidCredentials), errors.Is(err, app.ErrMFARequired):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
-	case errors.Is(err, app.ErrTOTPPending):
+	case errors.Is(err, app.ErrTOTPPending), errors.Is(err, app.ErrInvalid):
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	case errors.Is(err, app.ErrMailFailed):
 		httperr.Write(w, s.log, http.StatusServiceUnavailable, "mail delivery failed", err)
@@ -314,7 +317,7 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusNotFound, "not found", err)
 	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden), errors.Is(err, world.ErrForbidden):
 		httperr.Write(w, s.log, http.StatusForbidden, "forbidden", err)
-	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter), errors.Is(err, world.ErrInvalid):
+	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter), errors.Is(err, game.ErrInitiative), errors.Is(err, game.ErrHasInit), errors.Is(err, game.ErrNotYourTurn), errors.Is(err, world.ErrInvalid):
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	default:
 		httperr.Write(w, s.log, http.StatusInternalServerError, "an internal error occurred", err)

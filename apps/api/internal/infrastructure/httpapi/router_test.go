@@ -284,6 +284,9 @@ func TestStorytellerAfterEngineAndAdminTrace(t *testing.T) {
 	if sheet.Code != http.StatusCreated {
 		t.Fatalf("character: %d %s", sheet.Code, sheet.Body.String())
 	}
+	if init := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/initiative", token, map[string]string{}); init.Code != http.StatusOK {
+		t.Fatalf("initiative: %d %s", init.Code, init.Body.String())
+	}
 	if start := authed(t, h, http.MethodPost, "/api/v1/rooms/"+room.ID+"/start", token, map[string]string{}); start.Code != http.StatusOK {
 		t.Fatalf("start: %d %s", start.Code, start.Body.String())
 	}
@@ -378,6 +381,9 @@ func TestUniverseWizardBindsThemeToRoom(t *testing.T) {
 		"name": "Iri", "stats": stats,
 	}); sheet.Code != http.StatusCreated {
 		t.Fatalf("character: %d %s", sheet.Code, sheet.Body.String())
+	}
+	if init := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/initiative", token, map[string]string{}); init.Code != http.StatusOK {
+		t.Fatalf("initiative: %d %s", init.Code, init.Body.String())
 	}
 	if start := authed(t, h, http.MethodPost, "/api/v1/rooms/"+createdRoom.ID+"/start", token, map[string]string{}); start.Code != http.StatusOK {
 		t.Fatalf("start: %d %s", start.Code, start.Body.String())

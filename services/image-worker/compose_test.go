@@ -18,8 +18,8 @@ func TestComposeStubsThemeAndRedactsPII(t *testing.T) {
 	if card.Inference != "stub" || card.ThemeID != "gothic-horror" {
 		t.Fatalf("card: %+v", card)
 	}
-	if !strings.Contains(card.ImageSVG, `data-theme="gothic-horror"`) {
-		t.Fatalf("svg missing theme: %s", card.ImageSVG)
+	if !strings.Contains(card.ImageSVG, `data-theme="gothic-horror"`) || !strings.Contains(card.ImageSVG, `data-art="tableau"`) {
+		t.Fatalf("svg missing painted tableau: %s", card.ImageSVG)
 	}
 	if strings.Contains(card.VisualPrompt, "spy@tale.role") || strings.Contains(card.ImageSVG, "spy@tale.role") {
 		t.Fatal("email leaked into scene")

@@ -7,6 +7,7 @@ type Query {
   room(id: ID!): Room
   universes: [UniverseSummary!]!
   universe(id: ID!): Universe
+  lobbies: [Lobby!]!
 }
 
 type Mutation {
@@ -79,4 +80,12 @@ type RoomCreated {
   id: ID!
   diceSystem: String!
   universeId: String
+}
+
+type Lobby {
+  id: ID!
+  name: String!
+  joinMode: String!
+  started: Boolean!
+  seats: Int!
 }

@@ -6,10 +6,26 @@ import {
   mechanicIntentSchema,
   publicTurnEventSchema,
   sceneCardSchema,
+  taleSkills,
+  characterSheetSchema,
   universeDocumentSchema,
+  portraitIds,
 } from "./index";
 
 describe("tale core contracts", () => {
+  it("ships twelve tale core skills", () => {
+    assert.equal(taleSkills.length, 12);
+    assert.equal(characterSheetSchema.parse({ name: "Iri" }).skills.length, 0);
+    assert.deepEqual(
+      characterSheetSchema.parse({ name: "Iri", skills: ["athletics", "stealth", "persuasion"] }).skills,
+      ["athletics", "stealth", "persuasion"],
+    );
+  });
+
+  it("ships five painted portraits", () => {
+    assert.equal(portraitIds.length, 5);
+  });
+
   it("defaults dice to d20 while allowing 2d6", () => {
     assert.equal(defaultDiceSystem, "d20");
     const parsed = universeDocumentSchema.parse({

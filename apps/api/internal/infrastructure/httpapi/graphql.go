@@ -42,10 +42,18 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 	characterType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Character",
 		Fields: graphql.Fields{
-			"userId": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"name":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"hp":     &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-			"stats":  &graphql.Field{Type: statsType},
+			"userId":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"name":          &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"species":       &graphql.Field{Type: graphql.String},
+			"path":          &graphql.Field{Type: graphql.String},
+			"backstory":     &graphql.Field{Type: graphql.String},
+			"skills":        &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.String)))},
+			"hp":            &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"xp":            &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"level":         &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"initiative":    &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"hasInitiative": &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"stats":         &graphql.Field{Type: statsType},
 		},
 	})
 	sceneType := graphql.NewObject(graphql.ObjectConfig{
@@ -82,6 +90,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"themeId":           &graphql.Field{Type: graphql.String},
 			"promptPackVersion": &graphql.Field{Type: graphql.String},
 			"turnOrder":         &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.String)))},
+			"currentActorId":    &graphql.Field{Type: graphql.String},
 			"presence":          &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(memberType)))},
 			"characters":        &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(characterType)))},
 			"turns":             &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(turnType)))},
@@ -111,10 +120,13 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 	userType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "User",
 		Fields: graphql.Fields{
-			"id":          &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
-			"email":       &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"verified":    &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
-			"totpEnabled": &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"id":           &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"email":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"verified":     &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"totpEnabled":  &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"lanternXp":    &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"lanternLevel": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"portraitId":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 		},
 	})
 	healthType := graphql.NewObject(graphql.ObjectConfig{
@@ -133,6 +145,16 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"id":         &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
 			"diceSystem": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"universeId": &graphql.Field{Type: graphql.String},
+		},
+	})
+	lobbyType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Lobby",
+		Fields: graphql.Fields{
+			"id":       &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"name":     &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"joinMode": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"started":  &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"seats":    &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
 		},
 	})
 	licenseType := graphql.NewObject(graphql.ObjectConfig{
@@ -185,7 +207,14 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, nil
 					}
-					return map[string]any{"id": u.ID, "email": u.Email, "verified": u.Verified, "totpEnabled": u.TOTPEnabled}, nil
+					lvl := u.LanternLevel
+					if lvl < 1 {
+						lvl = 1
+					}
+					return map[string]any{
+						"id": u.ID, "email": u.Email, "verified": u.Verified, "totpEnabled": u.TOTPEnabled,
+						"lanternXp": u.LanternXP, "lanternLevel": lvl, "portraitId": iam.NormalizePortrait(u.PortraitID),
+					}, nil
 				},
 			},
 			"room": &graphql.Field{
@@ -245,6 +274,24 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					}, nil
 				},
 			},
+			"lobbies": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(lobbyType))),
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					rows := s.table.Lobbies()
+					out := make([]map[string]any, 0, len(rows))
+					for _, row := range rows {
+						out = append(out, map[string]any{
+							"id": row.ID, "name": row.Name, "joinMode": row.JoinMode,
+							"started": row.Started, "seats": row.Seats,
+						})
+					}
+					return out, nil
+				},
+			},
 			"licenses": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(licenseType))),
 				Resolve: func(p graphql.ResolveParams) (any, error) {
@@ -302,12 +349,15 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 							return nil, err
 						}
 						_ = s.table.BindUniverse(room.ID, uni.ID, uni.ThemeID, uni.PromptPackVersion)
+						s.seatSavedHero(room.ID, u.ID)
+						s.svc.GrantLantern(u.ID, 10)
 						return map[string]any{"id": room.ID, "diceSystem": room.DiceSystem, "universeId": uni.ID}, nil
 					}
 					room, err := s.table.Create(u.ID, name, join, pass, dice)
 					if err != nil {
 						return nil, err
 					}
+					s.svc.GrantLantern(u.ID, 10)
 					return map[string]any{"id": room.ID, "diceSystem": room.DiceSystem}, nil
 				},
 			},
@@ -331,6 +381,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if err := s.table.Join(roomID, u.ID, pass, role); err != nil {
 						return nil, err
 					}
+					s.seatSavedHero(roomID, u.ID)
 					return true, nil
 				},
 			},
@@ -338,6 +389,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 				Type: graphql.NewNonNull(graphql.Boolean),
 				Args: graphql.FieldConfigArgument{
 					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+					"locale": &graphql.ArgumentConfig{Type: graphql.String},
 				},
 				Resolve: func(p graphql.ResolveParams) (any, error) {
 					u := gqlUser(p)
@@ -348,15 +400,21 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if err := s.table.Start(roomID, u.ID); err != nil {
 						return nil, err
 					}
+					locale := gqlString(p.Args["locale"])
+					if locale == "" {
+						locale = "en"
+					}
+					if pub, err := s.table.View(roomID, u.ID); err == nil && len(pub.Turns) > 0 {
+						last := pub.Turns[len(pub.Turns)-1]
+						_ = s.narrateTurn(roomID, u.ID, locale, last.Notes, last)
+					}
 					return true, nil
 				},
 			},
-			"setCharacter": &graphql.Field{
-				Type: graphql.NewNonNull(graphql.Boolean),
+			"rollInitiative": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Int),
 				Args: graphql.FieldConfigArgument{
 					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
-					"name":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
-					"stats":  &graphql.ArgumentConfig{Type: graphql.NewNonNull(statsInput)},
 				},
 				Resolve: func(p graphql.ResolveParams) (any, error) {
 					u := gqlUser(p)
@@ -364,11 +422,42 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						return nil, fmt.Errorf("unauthorized")
 					}
 					roomID, _ := p.Args["roomId"].(string)
-					name, _ := p.Args["name"].(string)
-					raw, _ := p.Args["stats"].(map[string]any)
-					if err := s.table.SetCharacter(roomID, u.ID, name, statsFromGQL(raw)); err != nil {
+					n, err := s.table.RollInitiative(roomID, u.ID)
+					if err != nil {
 						return nil, err
 					}
+					return n, nil
+				},
+			},
+			"setCharacter": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"roomId":    &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+					"name":      &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+					"stats":     &graphql.ArgumentConfig{Type: graphql.NewNonNull(statsInput)},
+					"species":   &graphql.ArgumentConfig{Type: graphql.String},
+					"path":      &graphql.ArgumentConfig{Type: graphql.String},
+					"backstory": &graphql.ArgumentConfig{Type: graphql.String},
+					"skills":    &graphql.ArgumentConfig{Type: graphql.NewList(graphql.NewNonNull(graphql.String))},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					roomID, _ := p.Args["roomId"].(string)
+					if err := s.table.SetSheet(roomID, u.ID, game.Sheet{
+						Name:      gqlString(p.Args["name"]),
+						Species:   gqlString(p.Args["species"]),
+						Path:      gqlString(p.Args["path"]),
+						Backstory: gqlString(p.Args["backstory"]),
+						Stats:     statsFromGQL(gqlMap(p.Args["stats"])),
+						Skills:    stringList(p.Args["skills"]),
+					}); err != nil {
+						return nil, err
+					}
+					s.rememberHero(roomID, u.ID)
+					s.svc.GrantLantern(u.ID, 8)
 					return true, nil
 				},
 			},
@@ -401,6 +490,10 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						return nil, err
 					}
 					turn = s.narrateTurn(roomID, u.ID, locale, notes, turn)
+					s.rememberHero(roomID, u.ID)
+					if kind == "say" || kind == "action" {
+						s.svc.GrantLantern(u.ID, 2)
+					}
 					prose := ""
 					if turn.Narrative != nil {
 						prose = turn.Narrative.Prose
@@ -421,6 +514,8 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					"contentRating": &graphql.ArgumentConfig{Type: graphql.String},
 					"era":           &graphql.ArgumentConfig{Type: graphql.String},
 					"tone":          &graphql.ArgumentConfig{Type: graphql.String},
+					"description":   &graphql.ArgumentConfig{Type: graphql.String},
+					"opening":       &graphql.ArgumentConfig{Type: graphql.String},
 					"taboos":        &graphql.ArgumentConfig{Type: graphql.String},
 					"npcs":          &graphql.ArgumentConfig{Type: graphql.NewList(npcInput)},
 				},
@@ -439,12 +534,15 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						ContentRating: gqlString(p.Args["contentRating"]),
 						Era:           gqlString(p.Args["era"]),
 						Tone:          gqlString(p.Args["tone"]),
+						Description:   gqlString(p.Args["description"]),
+						Opening:       gqlString(p.Args["opening"]),
 						Taboos:        gqlString(p.Args["taboos"]),
 						NPCs:          npcsFromGQL(p.Args["npcs"]),
 					})
 					if err != nil {
 						return nil, err
 					}
+					s.svc.GrantLantern(u.ID, 25)
 					return map[string]any{
 						"id": doc.ID, "nameEn": doc.NameEN, "themeId": doc.ThemeID,
 						"diceSystem": doc.DiceSystem, "compiledPrompt": doc.CompiledPrompt,
@@ -474,6 +572,23 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					}, nil
 				},
 			},
+			"setPortrait": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					id, _ := p.Args["id"].(string)
+					if err := s.svc.SetPortrait(u.ID, id); err != nil {
+						return nil, err
+					}
+					return true, nil
+				},
+			},
 			"eraseMe": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.Boolean),
 				Resolve: func(p graphql.ResolveParams) (any, error) {
@@ -483,6 +598,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					}
 					s.table.ForgetUser(u.ID)
 					s.worlds.ForgetOwner(u.ID)
+					s.worlds.ForgetPlayer(u.ID)
 					if err := s.svc.Erase(u.ID); err != nil {
 						return nil, err
 					}
@@ -502,8 +618,14 @@ func roomMap(pub *game.PublicRoom) map[string]any {
 	}
 	chars := make([]map[string]any, 0, len(pub.Characters))
 	for _, ch := range pub.Characters {
+		skills := ch.Skills
+		if skills == nil {
+			skills = []string{}
+		}
 		chars = append(chars, map[string]any{
-			"userId": ch.UserID, "name": ch.Name, "hp": ch.HP,
+			"userId": ch.UserID, "name": ch.Name, "species": ch.Species, "path": ch.Path, "backstory": ch.Backstory,
+			"skills": skills, "hp": ch.HP,
+			"xp": ch.XP, "level": ch.Level, "initiative": ch.Initiative, "hasInitiative": ch.HasInitiative,
 			"stats": map[string]any{
 				"str": ch.Stats.STR, "dex": ch.Stats.DEX, "con": ch.Stats.CON,
 				"int": ch.Stats.INT, "wis": ch.Stats.WIS, "cha": ch.Stats.CHA,
@@ -529,7 +651,8 @@ func roomMap(pub *game.PublicRoom) map[string]any {
 		"id": pub.ID, "name": pub.Name, "hostId": pub.HostID, "diceSystem": pub.DiceSystem,
 		"joinMode": pub.JoinMode, "started": pub.Started, "universeId": pub.UniverseID,
 		"themeId": pub.ThemeID, "promptPackVersion": pub.PromptPackVersion,
-		"turnOrder": order, "presence": presence, "characters": chars, "turns": turns,
+		"turnOrder": order, "currentActorId": pub.CurrentActorID,
+		"presence": presence, "characters": chars, "turns": turns,
 	}
 	if pub.Scene != nil {
 		out["scene"] = map[string]any{
@@ -550,6 +673,23 @@ func turnRolls(rolls []int) []int {
 func gqlString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+func gqlMap(v any) map[string]any {
+	m, _ := v.(map[string]any)
+	return m
+}
+
+func stringList(v any) []string {
+	rows, _ := v.([]any)
+	out := make([]string, 0, len(rows))
+	for _, row := range rows {
+		s, _ := row.(string)
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func gqlInt(v any) int {

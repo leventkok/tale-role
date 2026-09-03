@@ -32,13 +32,15 @@ export const universeDocumentSchema = z.object({
       id: z.string().min(1),
       name: localizedTextSchema,
       alignment: z.enum(alignments),
-      voice: z.string().max(500).optional(),
+      voice: z.string().max(2000).optional(),
     }),
   ),
   promptPackVersion: z.string().min(1),
   contentRating: z.enum(["everyone", "teen", "mature"]).default("teen"),
   era: z.string().max(120).optional(),
   tone: z.string().max(120).optional(),
+  description: z.string().max(8000).optional(),
+  opening: z.string().max(4000).optional(),
   taboos: z.string().max(1000).optional(),
 });
 

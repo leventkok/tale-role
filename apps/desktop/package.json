@@ -4,6 +4,7 @@
   "private": true,
   "main": "main.cjs",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack:unsigned": "electron-builder --publish never"
   }
 }

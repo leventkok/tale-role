@@ -147,6 +147,44 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	if bytes.Contains(sheet.Body.Bytes(), []byte(`"errors"`)) {
 		t.Fatalf("setCharacter: %s", sheet.Body.String())
 	}
+	meLantern := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ me { lanternXp lanternLevel } }`,
+	})
+	if !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternXp":43`)) || !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternLevel":1`)) {
+		t.Fatalf("lantern after first sheet: %s", meLantern.Body.String())
+	}
+	second := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { createRoom(name: "Ashwood II", joinMode: "link", universeId: $id) { id } }`,
+		"variables": map[string]string{"id": uniBody.Data.CreateUniverse.ID},
+	})
+	var secondBody struct {
+		Data struct {
+			CreateRoom struct {
+				ID string `json:"id"`
+			} `json:"createRoom"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	_ = json.Unmarshal(second.Body.Bytes(), &secondBody)
+	if len(secondBody.Errors) > 0 || secondBody.Data.CreateRoom.ID == "" {
+		t.Fatalf("second room: %s", second.Body.String())
+	}
+	seated := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `query ($id: ID!) { room(id: $id) { characters { name species path skills hp xp level } } }`,
+		"variables": map[string]string{"id": secondBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(seated.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(seated.Body.Bytes(), []byte(`"Wren"`)) {
+		t.Fatalf("returning hero: %s", seated.Body.String())
+	}
+	init := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { rollInitiative(roomId: $id) }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(init.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("rollInitiative: %s", init.Body.String())
+	}
 	start := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query":     `mutation ($id: ID!) { startRoom(roomId: $id) }`,
 		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
@@ -182,6 +220,18 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	})
 	if bytes.Contains(lic.Body.Bytes(), []byte(`"errors"`)) {
 		t.Fatalf("registerLicense: %s", lic.Body.String())
+	}
+	portrait := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { setPortrait(id: "blade") }`,
+	})
+	if bytes.Contains(portrait.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("setPortrait: %s", portrait.Body.String())
+	}
+	mePortrait := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ me { portraitId } }`,
+	})
+	if !bytes.Contains(mePortrait.Body.Bytes(), []byte(`"portraitId":"blade"`)) {
+		t.Fatalf("portrait: %s", mePortrait.Body.String())
 	}
 	erased := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query": `{ me { totpEnabled } }`,

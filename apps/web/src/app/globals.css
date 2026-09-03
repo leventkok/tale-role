@@ -150,10 +150,14 @@ h2,
 
 .brand {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.55rem;
   color: inherit;
   text-decoration: none;
+}
+
+.brand svg {
+  flex-shrink: 0;
 }
 
 .brand strong {
@@ -185,6 +189,100 @@ h2,
   text-decoration: none;
 }
 
+.nav-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 16rem;
+  padding: 0.18rem 0.7rem 0.18rem 0.18rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--elev) 72%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav-profile:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  text-decoration: none;
+}
+
+.nav-portrait {
+  width: 2.7rem;
+  height: 2.7rem;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.nav-profile-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.nav-profile-copy strong {
+  font-size: 0.88rem;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-profile-xp {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.nav-profile-xp .hp-bar {
+  height: 4px;
+  width: 6.2rem;
+  max-width: 100%;
+}
+
+.appearance-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.portrait-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.portrait-pick {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.3rem 0.3rem 0.45rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--elev) 55%, transparent);
+  color: var(--ink);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.portrait-pick svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.portrait-pick.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.locale-row {
+  display: flex;
+  gap: 0.55rem;
+  margin: 0;
+}
+
 .page {
   width: min(1100px, calc(100% - 2rem));
   margin: 0 auto;
@@ -194,8 +292,81 @@ h2,
 
 .hero {
   display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(260px, 1fr);
+  align-items: center;
+  gap: 1.25rem 2rem;
+  padding: 1.4rem 0 2rem;
+}
+
+.hero-plain {
+  grid-template-columns: 1fr;
+  padding-bottom: 1rem;
+}
+
+.hero-copy {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+}
+
+.hero-art {
+  position: relative;
+  min-width: 0;
+}
+
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  background: radial-gradient(circle, var(--glow), transparent 68%);
+  pointer-events: none;
+}
+
+.hero-table,
+.auth-lantern {
+  display: block;
+  width: 100%;
+  height: auto;
+  position: relative;
+}
+
+.hero-beats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  padding: 2.2rem 0 1.5rem;
+}
+
+.beat {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.beat h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.beat p {
+  margin: 0;
+}
+
+.beat .btn {
+  justify-self: start;
+  margin-top: 0.45rem;
+}
+
+.lantern-glow {
+  animation: lantern-glow 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes lantern-glow {
+  from {
+    opacity: 0.28;
+  }
+  to {
+    opacity: 0.75;
+  }
 }
 
 .hero h1 {
@@ -230,10 +401,24 @@ h2,
 }
 
 .auth-wrap {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
   min-height: calc(100vh - 5rem);
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  align-items: center;
+  gap: 1.5rem 2.5rem;
+  padding: 2rem 0;
+}
+
+.auth-art {
+  display: grid;
   place-items: center;
-  padding: 2rem 1rem;
+  min-width: 0;
+}
+
+.auth-lantern {
+  width: min(280px, 100%);
 }
 
 .auth-card {
@@ -477,7 +662,7 @@ button:disabled,
 
 .act-row {
   display: grid;
-  grid-template-columns: 8rem 1fr auto;
+  grid-template-columns: minmax(10rem, 13rem) 1fr auto;
   gap: 0.75rem;
   align-items: end;
 }
@@ -628,10 +813,256 @@ button:disabled,
   .brand span {
     display: none;
   }
+  .nav-profile {
+    max-width: 11.5rem;
+  }
+  .portrait-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-.account-panel {
-  width: min(36rem, 100%);
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .hero-art {
+    max-width: 28rem;
+    margin: 0 auto;
+    order: -1;
+  }
+  .hero-beats {
+    grid-template-columns: 1fr;
+  }
+  .auth-wrap {
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: 1.25rem 0 2rem;
+  }
+  .auth-art {
+    max-width: 9.5rem;
+  }
+}
+
+.world-panel {
+  width: min(46rem, 100%);
+}
+
+.world-wizard {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.world-steps {
+  display: flex;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.world-steps .on {
+  color: var(--accent);
+}
+
+.world-sheet {
+  display: grid;
+  gap: 1rem;
+}
+
+.world-sheet .hint {
+  display: block;
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.82rem;
+}
+
+.npc-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.npc-review {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.lobby-list {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.lobby-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lobby-card h2 {
+  margin: 0 0 0.35rem;
+}
+
+.lobby-join {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 12rem;
+}
+
+.your-turn {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+}
+
+.profile-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.profile-card h2 {
+  margin: 0 0 0.2rem;
+}
+
+.profile-card.mini {
+  align-items: center;
+  padding: 0.45rem 0;
+}
+
+.roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.portrait-mark {
+  width: 4.5rem;
+  height: auto;
+}
+
+.profile-card.mini .portrait-mark {
+  width: 2.4rem;
+}
+
+.hp-bar.xp span {
+  background: var(--accent);
+}
+
+.char-sheet {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.char-sheet .hint {
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.skill-picks {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.skill-picks legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.skill-picks .hint {
+  margin: 0 0 0.55rem;
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.55rem;
+}
+
+.skill-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-weight: 400;
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.3rem 0.4rem;
+}
+
+.skill-grid label.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.skill-grid input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+.skill-pills,
+.sheet-story {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+}
+
+.sheet-story {
+  white-space: pre-wrap;
+}
+
+.dice-drop {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.die {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  animation: die-fall 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes die-fall {
+  from {
+    opacity: 0;
+    transform: translateY(-42px) rotate(-18deg) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .account-stack {
