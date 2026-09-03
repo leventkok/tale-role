@@ -2,5 +2,15 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && npm ci",
   "buildCommand": "cd ../.. && npm run build -w @tale-role/web",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/downloads/Tale-Role-Setup.exe",
+      "destination": "https://github.com/leventkok/tale-role/releases/latest/download/Tale-Role-Setup.exe"
+    },
+    {
+      "source": "/downloads/Tale-Role.dmg",
+      "destination": "https://github.com/leventkok/tale-role/releases/latest/download/Tale-Role.dmg"
+    }
+  ]
 }

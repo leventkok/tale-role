@@ -1,15 +1,15 @@
 # Desktop installers
 
-Production downloads come from **GitHub Releases**, not this folder.
+Production downloads use **same-origin URLs** on the site:
 
-When `main` is pushed (and `apps/desktop` changed), the **Desktop** workflow builds:
+- `/downloads/Tale-Role-Setup.exe`
+- `/downloads/Tale-Role.dmg`
 
-- `Tale-Role-Setup.exe` (Windows)
-- `Tale-Role.dmg` (macOS)
+Vercel rewrites (see `apps/web/vercel.json`) serve the latest GitHub Release assets through `talerole.com` — the browser downloads the file; it does not open the GitHub website.
 
-… and publishes them to the latest GitHub Release. The home page download button points there automatically.
+## Local testing
 
-## Local testing only
+Build Windows installer and copy here (gitignored):
 
 ```powershell
 cd apps\desktop
@@ -18,11 +18,6 @@ npm run pack:win
 copy dist\Tale-Role-Setup.exe ..\web\public\downloads\Tale-Role-Setup.exe
 ```
 
-Then set in `apps/web/.env.local`:
+When the file exists under `public/downloads/`, Next.js serves it directly in dev.
 
-```
-NEXT_PUBLIC_DESKTOP_DOWNLOAD_WIN=/downloads/Tale-Role-Setup.exe
-NEXT_PUBLIC_DESKTOP_DOWNLOAD_MAC=/downloads/Tale-Role.dmg
-```
-
-Do not commit `.exe` / `.dmg` files (gitignored).
+Do not commit `.exe` / `.dmg` (too large; gitignored).

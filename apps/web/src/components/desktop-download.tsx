@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { desktopDownloadUrl, type DesktopPlatform } from "@/lib/desktop-download";
+import { DESKTOP_FILENAMES, desktopDownloadPath, type DesktopPlatform } from "@/lib/desktop-download";
 
 function guessPlatform(): DesktopPlatform {
   if (typeof navigator === "undefined") {
@@ -23,7 +23,8 @@ export function DesktopDownload() {
     setPlatform(guessPlatform());
   }, []);
 
-  const href = desktopDownloadUrl(platform);
+  const href = desktopDownloadPath(platform);
+  const filename = DESKTOP_FILENAMES[platform];
 
   return (
     <div className="desktop-download">
@@ -46,7 +47,7 @@ export function DesktopDownload() {
           {t("downloadMac")}
         </button>
       </div>
-      <a className="btn" href={href} download rel="noopener">
+      <a className="btn" href={href} download={filename}>
         {platform === "win" ? t("downloadCtaWin") : t("downloadCtaMac")}
       </a>
     </div>

@@ -43,9 +43,9 @@ Unsigned builds only until you set signing env vars — see [docs/SIGNING.md](..
 
 ## Website download button
 
-The home page links to the **latest GitHub Release** (`Tale-Role-Setup.exe`, `Tale-Role.dmg`). Pushing to `main` (when `apps/desktop` changes) runs `.github/workflows/desktop.yml` and publishes a new release automatically.
+The home page links to `/downloads/Tale-Role-Setup.exe` and `/downloads/Tale-Role.dmg` on the same domain. Vercel rewrites those paths to the latest GitHub Release assets so the browser downloads the file directly.
 
-For local web testing, copy installers to `apps/web/public/downloads/` and set `NEXT_PUBLIC_DESKTOP_DOWNLOAD_*` in `.env.local`. See `apps/web/public/downloads/README.md`.
+Pushing to `main` (when `apps/desktop` changes) runs `.github/workflows/desktop.yml` and publishes new Release assets automatically.
 
 ## Device license
 
