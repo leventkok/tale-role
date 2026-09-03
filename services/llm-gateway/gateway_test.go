@@ -315,6 +315,39 @@ func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
 	}
 }
 
+func TestTableTitleNeverBecomesPlace(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	for _, title := range []string{"Star Wars", "Dragon Age", "Harry Potter"} {
+		n := svc.Narrate(gateway.NarrateRequest{
+			Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: title,
+			Notes: "Examine the humming carvings", Total: 10, Success: &fail,
+		})
+		if strings.Contains(n.Prose, title) {
+			t.Fatalf("lobby title leaked into beat (%s): %s", title, n.Prose)
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Luther looks. Star Wars resists. Number 10. The tool slips. Time ends.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	opening := "You wake on the cold stone floor of an abandoned Shaper temple."
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "Star Wars",
+		Notes: "Examine the humming carvings", Opening: opening, Total: 10, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "Star Wars") || strings.Contains(n.Prose, "The tool slips") {
+		t.Fatalf("table title or staccato salad reached the table: %s", n.Prose)
+	}
+}
+
 func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
 	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
 	mux := http.NewServeMux()

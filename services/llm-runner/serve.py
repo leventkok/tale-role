@@ -153,7 +153,15 @@ def locale_matches(prose: str, locale: str) -> bool:
     return en_n >= tr_n
 
 
-def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = None, *, opening: bool = False) -> bool:
+def prose_looks_valid(
+    prose: str,
+    locale: str = "en",
+    prior: list[str] | None = None,
+    *,
+    opening: bool = False,
+    table_title: str = "",
+    host: str = "",
+) -> bool:
     text = (prose or "").strip()
     if len(text) < 12:
         return False
@@ -166,6 +174,10 @@ def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = 
         return False
     if any(stock in lowered for stock in STOCK):
         return False
+    if table_title_leak(text, table_title, host):
+        return False
+    if not opening and clause_salad(text):
+        return False
     if len(text) < 90:
         return False
     if text.count(".") + text.count("!") + text.count("?") > 12:
@@ -177,6 +189,26 @@ def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = 
     if not locale_matches(text, locale):
         return False
     return True
+
+
+def table_title_leak(prose: str, title: str, host: str) -> bool:
+    name = (title or "").strip()
+    if not name:
+        return False
+    if len(name) < 6 and not any(ch in name for ch in " \t-"):
+        return False
+    low = name.casefold()
+    if low in (host or "").casefold():
+        return False
+    return low in (prose or "").casefold()
+
+
+def clause_salad(prose: str) -> bool:
+    parts = [p.strip() for p in re.split(r"[.!?]", prose or "") if p.strip()]
+    if len(parts) < 4:
+        return False
+    words = sum(len(p.split()) for p in parts)
+    return words / len(parts) < 6
 
 
 def pick_line(pool: tuple[str, ...], seed: str) -> str:
@@ -204,10 +236,9 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     lang = "Turkish" if locale == "tr" else "English"
     body = (
         f"You are a tabletop storyteller. Write 4 to 6 vivid literary sentences in {lang} only. "
-        "Describe place, light, sound, and what the named people do. "
+        "Describe light, sound, and what the named people do. "
         "Never mention dice, HP, UI, JSON, or training. Never mix languages. "
-        "Forbidden fragments: nöbet dönmez, rün karanlık, menteşe, çandan önce, "
-        "the watch, hold the line, the bar splinters. "
+        "Never use a table, lobby, or product title as a place name. Place comes only from the opening. "
         'Return only JSON {"prose":"...","npc_lines":[]}.'
     )
     if opening:
@@ -223,15 +254,16 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
 
 def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> str:
     present = ", ".join(payload.get("presence") or []) or "the company"
+    place = scene_place(locale)
     if opening:
         seed = payload.get("notes") or "(none — invent a full opening scene)"
         return (
-            f"language={locale}\nplace={payload.get('room')}\n"
+            f"language={locale}\nplace={place}\n"
             f"theme={payload.get('theme') or ''}\npresent={present}\n"
             f"host_opening={seed}\nWrite the opening now."
         )
     return (
-        f"language={locale}\nactor={payload.get('actor')}\nplace={payload.get('room')}\n"
+        f"language={locale}\nactor={payload.get('actor')}\nplace={place}\n"
         f"kind={payload.get('kind')}\nnotes={payload.get('notes')}\n"
         f"count={payload.get('total')}\nsuccess={payload.get('success')}\n"
         f"present={present}\nNarrate this beat."
@@ -242,7 +274,7 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     locale = "tr" if req.get("locale") == "tr" else "en"
     kind = normalize_kind(str(req.get("kind") or "action"))
     actor = str(req.get("actor_name") or "Someone")
-    room = str(req.get("room_name") or "Hall")
+    table_title = str(req.get("room_name") or "")
     notes = redact(str(req.get("notes") or req.get("opening") or ""))
     dice = str(req.get("dice_system") or "d20")
     theme = redact(str(req.get("theme_id") or ""))
@@ -273,7 +305,8 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
     payload = {
         "actor": actor,
-        "room": room,
+        "room": scene_place(locale),
+        "table_title": table_title,
         "kind": model_kind,
         "dice": dice,
         "rolls": rolls,
@@ -282,6 +315,7 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "notes": notes,
         "presence": presence,
         "theme": theme,
+        "opening": redact(str(req.get("opening") or "")),
     }
     return locale, payload
 
@@ -295,12 +329,8 @@ def fallback_opening(locale: str, payload: dict[str, Any]) -> str:
     return "A hush. Lanternlight. The storyteller takes the floor."
 
 
-def scene_place(room: str, locale: str) -> str:
-    name = (room or "").strip()
-    low = name.casefold()
-    if not name or "warcraft" in low or "talerole" in low:
-        return "salon" if locale == "tr" else "the hall"
-    return name
+def scene_place(locale: str) -> str:
+    return "salon" if locale == "tr" else "the hall"
 
 
 def beat_locale(locale: str, notes: str) -> str:
@@ -316,7 +346,8 @@ def beat_locale(locale: str, notes: str) -> str:
 
 def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, success: bool | None, total: int) -> str:
     loc = beat_locale(locale, notes)
-    place = scene_place(room, loc)
+    place = scene_place(loc)
+    _ = room
     deed = (notes or "").strip()
     if kind == "say":
         if loc == "tr":
@@ -337,7 +368,7 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
             return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
         return f"{actor} hamleyi dener: {deed} Taş susar. Sayı {total}; koridor aynı kalır."
     if success is True:
-        return f"{actor} follows through: {deed} The stone answers in {place}. The count is {total}; the way opens."
+        return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
     return f"{actor} follows through: {deed} The stone stays mute. The count is {total}; nothing shifts yet."
 
 
@@ -358,7 +389,13 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
 
 
 def parse_storyteller_response(
-    raw: str, locale: str = "en", prior: list[str] | None = None, *, opening: bool = False
+    raw: str,
+    locale: str = "en",
+    prior: list[str] | None = None,
+    *,
+    opening: bool = False,
+    table_title: str = "",
+    host: str = "",
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
     prose = ""
@@ -368,7 +405,9 @@ def parse_storyteller_response(
         npc_raw = parsed.get("npc_lines")
     elif raw and not raw.lstrip().startswith("{"):
         prose = redact(raw.strip().split("\n\n")[0][:800])
-    if not prose_looks_valid(prose, locale, prior, opening=opening):
+    if not prose_looks_valid(
+        prose, locale, prior, opening=opening, table_title=table_title, host=host
+    ):
         return None
     npc_lines: list[dict[str, str]] = []
     if isinstance(npc_raw, list):
@@ -567,7 +606,17 @@ class Handler(BaseHTTPRequestHandler):
             user = storyteller_user(payload, opening=opening, locale=locale)
             prompt = chat_prompt(tokenizer, system, user)
             raw = self.generate(prompt, max_new_tokens=320 if opening else 260)
-            parsed = parse_storyteller_response(raw, locale, prior, opening=opening)
+            host = " ".join(
+                str(part) for part in (req.get("opening"), payload.get("notes")) if part
+            )
+            parsed = parse_storyteller_response(
+                raw,
+                locale,
+                prior,
+                opening=opening,
+                table_title=str(payload.get("table_title") or ""),
+                host=host,
+            )
 
         if parsed:
             return {"locale": locale, "prose": parsed["prose"], "npc_lines": parsed["npc_lines"]}

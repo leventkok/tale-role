@@ -1,4 +1,9 @@
-"""Build synthetic/storyteller.jsonl with invariants the chat window cannot keep."""
+"""Do not train the live storyteller on this file.
+
+Combinatorial stems × tails taught the clipped salad voice. This JSONL is an
+eval/contract set (locale, dice digits, no PII). Live narration uses base
+instruct until a hand-written literary storyteller set exists.
+"""
 
 from __future__ import annotations
 
@@ -504,6 +509,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"wrote {len(rows)} lines -> {OUT}")
+    print("eval/contract set only — do not QLoRA the live storyteller on this file")
 
 
 if __name__ == "__main__":

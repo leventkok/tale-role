@@ -216,7 +216,8 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
 	var remote Narrative
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind) {
+	host := strings.TrimSpace(req.Opening + " " + notes)
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -305,7 +306,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose, locale, kind string) bool {
+func runnerProseOK(prose, locale, kind, tableTitle, host string) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -321,6 +322,12 @@ func runnerProseOK(prose, locale, kind string) bool {
 		return false
 	}
 	if trainingSalad(lower) {
+		return false
+	}
+	if tableTitleLeak(p, tableTitle, host) {
+		return false
+	}
+	if kind != "story" && clauseSalad(p) {
 		return false
 	}
 	if kind == "story" && utf8.RuneCountInString(p) < 90 {
@@ -361,6 +368,40 @@ func trainingSalad(lower string) bool {
 		}
 	}
 	return hits >= 1
+}
+
+func tableTitleLeak(prose, title, host string) bool {
+	t := strings.TrimSpace(title)
+	if t == "" {
+		return false
+	}
+	if utf8.RuneCountInString(t) < 6 && !strings.ContainsAny(t, " \t-") {
+		return false
+	}
+	tl := strings.ToLower(t)
+	if strings.Contains(strings.ToLower(host), tl) {
+		return false
+	}
+	return strings.Contains(strings.ToLower(prose), tl)
+}
+
+func clauseSalad(p string) bool {
+	clauses := strings.FieldsFunc(p, func(r rune) bool {
+		return r == '.' || r == '!' || r == '?'
+	})
+	n, words := 0, 0
+	for _, c := range clauses {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		n++
+		words += len(strings.Fields(c))
+	}
+	if n < 4 || words == 0 {
+		return false
+	}
+	return words/n < 6
 }
 
 func outcomeText(locale, kind string, success *bool) string {
@@ -410,7 +451,7 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 	_ = dice
 	_ = rolls
 	_ = theme
-	place := strings.TrimSpace(room)
+	_ = room
 	if pack == packs.V1Terse {
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
@@ -425,7 +466,7 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		return "A hush. Lanternlight. The storyteller takes the floor."
 	}
 	loc := beatLocale(locale, deed)
-	place = scenePlace(place, loc)
+	place := scenePlace(loc)
 	if loc == "tr" {
 		return literaryTR(kind, actor, place, deed, outcome, total)
 	}
@@ -450,16 +491,11 @@ func beatLocale(locale, notes string) string {
 	return "tr"
 }
 
-func scenePlace(room, locale string) string {
-	r := strings.TrimSpace(room)
-	low := strings.ToLower(r)
-	if r == "" || strings.Contains(low, "warcraft") || strings.Contains(low, "talerole") {
-		if locale == "tr" {
-			return "salon"
-		}
-		return "the hall"
+func scenePlace(locale string) string {
+	if locale == "tr" {
+		return "salon"
 	}
-	return r
+	return "the hall"
 }
 
 func literaryTR(kind, actor, place, deed, outcome string, total int) string {
@@ -511,7 +547,7 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 		deed = deed + "."
 	}
 	if strings.Contains(outcome, "finds the way") {
-		return fmt.Sprintf("%s follows through: %s The stone answers in %s. The count is %d; the way opens.", actor, deed, place, total)
+		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
 	}
 	return fmt.Sprintf("%s follows through: %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
 }

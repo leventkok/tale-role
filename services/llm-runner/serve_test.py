@@ -115,6 +115,34 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("World Of Warcraft", out["prose"])
         self.assertIn("Examine the humming carvings", out["prose"])
 
+    def test_fallback_action_does_not_name_any_lobby(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Luther",
+                "room_name": "Star Wars",
+                "notes": "Examine the humming carvings",
+                "rolls": [8],
+                "total": 10,
+                "success": False,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertNotIn("Star Wars", out["prose"])
+        self.assertEqual(payload["room"], "salon")
+
+    def test_staccato_title_salad_rejected(self):
+        raw = (
+            '{"prose":"Luther looks. Star Wars resists. Number 10. '
+            'The tool slips. Time ends.","npc_lines":[]}'
+        )
+        self.assertIsNone(
+            parse_storyteller_response(
+                raw, "tr", table_title="Star Wars", host="Shaper temple opening"
+            )
+        )
+
     def test_story_opening_stays_in_locale(self):
         locale, payload = storyteller_input(
             {
