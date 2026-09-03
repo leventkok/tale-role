@@ -91,6 +91,8 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 				r.Get("/admin/runtime", s.adminRuntime)
 				r.Put("/admin/runtime", s.adminSwap)
 				r.Get("/admin/traces", s.adminTraces)
+				r.Get("/admin/packs", s.adminPacks)
+				r.Put("/admin/packs", s.adminPutPack)
 			})
 		})
 	})

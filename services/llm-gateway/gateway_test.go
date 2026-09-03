@@ -102,6 +102,41 @@ func TestHubAdapterRequiresModelIDs(t *testing.T) {
 	}
 }
 
+func TestReplicaFailsOverAndPackOverride(t *testing.T) {
+	good := http.NewServeMux()
+	good.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{Locale: "en", Prose: "replica two spoke"})
+	})
+	good.HandleFunc("/v1/intent", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.MechanicIntent{Kind: "action", Skill: "cha", DC: 11})
+	})
+	live := httptest.NewServer(good)
+	t.Cleanup(live.Close)
+	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(dead.Close)
+
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "your-org/talerole-mechanics")
+	svc.SetRunners(dead.URL+","+live.URL, dead.URL+","+live.URL)
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "en", ActorName: "Mira", Kind: "wait"})
+	if !strings.Contains(n.Prose, "replica two spoke") {
+		t.Fatalf("failover prose: %s", n.Prose)
+	}
+	intent := svc.ProposeIntent(gateway.IntentRequest{Kind: "action", Skill: "str"})
+	if intent.Skill != "cha" {
+		t.Fatalf("failover intent: %+v", intent)
+	}
+	if err := svc.PutPack("v1", "custom-en-voice never invent dice", "özel-tr"); err != nil {
+		t.Fatal(err)
+	}
+	docs := svc.Packs()
+	if len(docs) != 2 || !strings.Contains(docs[0].EN, "custom-en-voice") {
+		t.Fatalf("packs: %+v", docs)
+	}
+}
+
 func TestHubRunnerNarrateAndFallback(t *testing.T) {
 	ok := true
 	mux := http.NewServeMux()

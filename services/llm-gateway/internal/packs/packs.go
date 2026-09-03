@@ -30,12 +30,12 @@ func Voice(pack, locale string) string {
 	}
 	if pack == V1Terse {
 		if locale == "tr" {
-			return "v1-terse: tek cümle. Zar ve HP uydurma. Görünmez izleyici yok."
+			return "v1-terse: tek cümle. Zar ve HP uydurma. Görünmez izleyici yok. E-posta, telefon, gerçek ad isteme. KVKK/GDPR: kişisel veriyi oyuna alma."
 		}
-		return "v1-terse: one sentence. Never invent dice or HP. Omit invisible spectators."
+		return "v1-terse: one sentence. Never invent dice or HP. Omit invisible spectators. Do not collect or repeat emails, phones, or real names. KVKK/GDPR: refuse personal data in play."
 	}
 	if locale == "tr" {
-		return "v1: kısa edebi tasvir. Zar ve HP uydurma. Görünmez izleyici asla bağlamda yok."
+		return "v1: kısa edebi tasvir. Zar ve HP uydurma. Görünmez izleyici asla bağlamda yok. E-posta, telefon, gerçek kimlik isteme. KVKK/GDPR: kişisel veriyi oyuna alma."
 	}
-	return "v1: short literary narration. Never invent dice or HP. Omit invisible spectators from context."
+	return "v1: short literary narration. Never invent dice or HP. Omit invisible spectators from context. Do not collect or repeat emails, phones, or real names. KVKK/GDPR: refuse personal data in play."
 }

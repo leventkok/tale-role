@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Runtime = { adapter_id?: string; prompt_pack?: string };
+type Runtime = { adapter_id?: string; prompt_pack?: string; inference?: string };
 type Trace = {
   at?: string;
   room_id?: string;
@@ -12,6 +12,7 @@ type Trace = {
   mechanic_intent?: unknown;
   narrative_excerpt?: string;
 };
+type Pack = { id: string; en: string; tr: string };
 
 export function AdminConsole() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,8 @@ export function AdminConsole() {
   const [error, setError] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<Runtime | null>(null);
   const [traces, setTraces] = useState<Trace[]>([]);
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [edit, setEdit] = useState<Pack | null>(null);
 
   async function load() {
     const rt = await fetch("/api/admin/runtime", { cache: "no-store" });
@@ -35,10 +38,17 @@ export function AdminConsole() {
     }
     if (rt.ok) {
       setRuntime((await rt.json()) as Runtime);
-      const tr = await fetch("/api/admin/traces", { cache: "no-store" });
+      const [tr, pk] = await Promise.all([
+        fetch("/api/admin/traces", { cache: "no-store" }),
+        fetch("/api/admin/packs", { cache: "no-store" }),
+      ]);
       if (tr.ok) {
         const data = (await tr.json()) as { traces?: Trace[] };
         setTraces(data.traces ?? []);
+      }
+      if (pk.ok) {
+        const data = (await pk.json()) as { packs?: Pack[] };
+        setPacks(data.packs ?? []);
       }
     }
   }
@@ -46,6 +56,16 @@ export function AdminConsole() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!runtime) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void load();
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [runtime]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -73,12 +93,26 @@ export function AdminConsole() {
     await load();
   }
 
-  async function swap(pack: string) {
+  async function swap(pack: string, adapter: string) {
     await fetch("/api/admin/runtime", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt_pack: pack, adapter_id: "stub" }),
+      body: JSON.stringify({ prompt_pack: pack, adapter_id: adapter }),
     });
+    await load();
+  }
+
+  async function savePack(e: React.FormEvent) {
+    e.preventDefault();
+    if (!edit) {
+      return;
+    }
+    await fetch("/api/admin/packs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    });
+    setEdit(null);
     await load();
   }
 
@@ -107,20 +141,30 @@ export function AdminConsole() {
     );
   }
 
+  const pack = runtime.prompt_pack || "v1";
+  const adapter = runtime.adapter_id === "hub" ? "hub" : "stub";
+
   return (
     <div>
       <p>
-        Adapter <code>{runtime.adapter_id}</code> · pack <code>{runtime.prompt_pack}</code>
+        Adapter <code>{runtime.adapter_id}</code> · pack <code>{runtime.prompt_pack}</code> · inference{" "}
+        <code>{runtime.inference}</code>
       </p>
       <div className="row">
-        <button type="button" onClick={() => void swap("v1")}>
+        <button type="button" onClick={() => void swap("v1", adapter)}>
           Use v1
         </button>
-        <button type="button" onClick={() => void swap("v1-terse")}>
+        <button type="button" onClick={() => void swap("v1-terse", adapter)}>
           Use v1-terse
         </button>
+        <button type="button" onClick={() => void swap(pack, "hub")}>
+          Adapter hub
+        </button>
+        <button type="button" onClick={() => void swap(pack, "stub")}>
+          Adapter stub
+        </button>
       </div>
-      <p>Live traces are redacted. Mechanic JSON stays off the player table.</p>
+      <p>Live traces refresh every 4s. Mechanic JSON stays off the player table. Next turn uses the pack text below.</p>
       <ul className="traces">
         {traces.length === 0 ? <li>No turns yet.</li> : null}
         {traces
@@ -136,6 +180,33 @@ export function AdminConsole() {
             </li>
           ))}
       </ul>
+      <h2>Pack context</h2>
+      <ul>
+        {packs.map((p) => (
+          <li key={p.id}>
+            <button type="button" className="ghost" onClick={() => setEdit({ ...p })}>
+              Edit {p.id}
+            </button>
+            <pre>{p.en}</pre>
+          </li>
+        ))}
+      </ul>
+      {edit ? (
+        <form onSubmit={savePack}>
+          <p>
+            Editing <code>{edit.id}</code>
+          </p>
+          <label>
+            English
+            <textarea rows={4} value={edit.en} onChange={(e) => setEdit({ ...edit, en: e.target.value })} />
+          </label>
+          <label>
+            Turkish
+            <textarea rows={4} value={edit.tr} onChange={(e) => setEdit({ ...edit, tr: e.target.value })} />
+          </label>
+          <button type="submit">Save pack</button>
+        </form>
+      ) : null}
       <form action="/api/auth/logout" method="post">
         <button type="submit">Sign out</button>
       </form>
