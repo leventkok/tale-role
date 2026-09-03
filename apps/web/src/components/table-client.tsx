@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ROOM_QUERY, gql, gqlData, mapRoom, type TableRoom } from "@/lib/gql";
-import { DiceDrop, PortraitMark, TypeProse } from "@/components/art/table-motion";
+import { DiceCast, DiceDrop, PortraitMark, TypeProse, type DiceCastShow } from "@/components/art/table-motion";
 import { readStoredPortrait, type PortraitId } from "@/lib/portraits";
 
 const emptyStats = { str: 3, dex: 3, con: 3, int: 3, wis: 3, cha: 3 };
@@ -52,10 +52,16 @@ export function TableClient({ roomId }: { roomId: string }) {
   const [picks, setPicks] = useState<string[]>([]);
   const [stats, setStats] = useState<Stats>(emptyStats);
   const [notes, setNotes] = useState("");
-  const [skill, setSkill] = useState<string>("athletics");
+  const [skill, setSkill] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cast, setCast] = useState<DiceCastShow | null>(null);
+  const [sceneCards, setSceneCards] = useState<{ idx: number; prose: string; svg?: string }[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const sceneSnap = useRef<Map<number, string>>(new Map());
+  const lastCastKey = useRef("");
+  const seenTurns = useRef<number | null>(null);
 
   async function refresh() {
     const result = await gql<{ room: Parameters<typeof mapRoom>[0] | null }>(ROOM_QUERY, { id: roomId });
@@ -81,9 +87,50 @@ export function TableClient({ roomId }: { roomId: string }) {
   }, [roomId]);
 
   useEffect(() => {
+    const turns = room?.turns ?? [];
+    const svg = room?.scene?.image_svg;
+    const cards: { idx: number; prose: string; svg?: string }[] = [];
+    let lastStory = -1;
+    turns.forEach((turn, idx) => {
+      if (turn.narrative?.prose) lastStory = idx;
+    });
+    turns.forEach((turn, idx) => {
+      if (!turn.narrative?.prose) return;
+      if (svg && (idx === lastStory || !sceneSnap.current.has(idx))) {
+        sceneSnap.current.set(idx, svg);
+      }
+      cards.push({ idx, prose: turn.narrative.prose, svg: sceneSnap.current.get(idx) ?? svg });
+    });
+    setSceneCards(cards);
+  }, [room?.turns, room?.scene?.image_svg]);
+
+  useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [room?.turns.length]);
+    const scene = sceneRef.current;
+    if (scene) scene.scrollTop = scene.scrollHeight;
+  }, [room?.turns.length, sceneCards.length, room?.scene?.image_svg]);
+
+  useEffect(() => {
+    const n = room?.turns.length ?? 0;
+    if (seenTurns.current === null) {
+      seenTurns.current = n;
+      return;
+    }
+    if (n === seenTurns.current) return;
+    seenTurns.current = n;
+    const last = room?.turns[n - 1];
+    if (!last?.rolls?.length) return;
+    const key = `${n}:${last.rolls.join(",")}:${last.total}`;
+    if (key === lastCastKey.current) return;
+    lastCastKey.current = key;
+    setCast({
+      rolls: last.rolls,
+      total: last.total ?? 0,
+      system: room?.dice_system ?? "d20",
+      success: last.success ?? null,
+    });
+  }, [room?.turns, room?.dice_system]);
 
   const names = useMemo(() => {
     const map = new Map<string, string>();
@@ -154,11 +201,19 @@ export function TableClient({ roomId }: { roomId: string }) {
 
   async function act(kind: string) {
     setBusy(true);
+    const rolling = kind === "action";
     await gql(
-      `mutation ($roomId: ID!, $kind: String, $skill: String, $notes: String, $locale: String) {
-        actTurn(roomId: $roomId, kind: $kind, skill: $skill, notes: $notes, dc: 12, locale: $locale) { kind total }
+      `mutation ($roomId: ID!, $kind: String, $skill: String, $notes: String, $locale: String, $dc: Int) {
+        actTurn(roomId: $roomId, kind: $kind, skill: $skill, notes: $notes, dc: $dc, locale: $locale) { kind total }
       }`,
-      { roomId, kind, skill, notes, locale },
+      {
+        roomId,
+        kind,
+        notes,
+        locale,
+        skill: rolling ? skill : "",
+        dc: rolling ? 12 : null,
+      },
     );
     setNotes("");
     setBusy(false);
@@ -183,11 +238,14 @@ export function TableClient({ roomId }: { roomId: string }) {
 
   return (
     <section className="stage">
-      {myTurn ? (
-        <p className="your-turn" role="status">
-          {t("yourTurn")}
-        </p>
-      ) : null}
+      <div className="stage-fx">
+        <DiceCast cast={cast} onDone={() => setCast(null)} />
+        {myTurn ? (
+          <p className="your-turn" role="status">
+            {t("yourTurn")}
+          </p>
+        ) : null}
+      </div>
       <aside className="story">
         <div className="room-head">
           <div>
@@ -200,17 +258,28 @@ export function TableClient({ roomId }: { roomId: string }) {
             {t("dice")} {room.dice_system}
           </span>
         </div>
-        {room.scene?.image_svg ? (
-          <div className="portrait has-art">
-            <img
-              alt=""
-              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(room.scene.image_svg)}`}
-            />
-            <p>{t("sceneStub")}</p>
-          </div>
-        ) : (
-          <div className="portrait">{t("sceneSoon")}</div>
-        )}
+        <div className="scene-stack" ref={sceneRef}>
+          {sceneCards.length === 0 ? (
+            <div className="portrait">{t("sceneSoon")}</div>
+          ) : (
+            sceneCards.map((card, i) => {
+              const last = i === sceneCards.length - 1;
+              return (
+                <article className="scene-card" key={card.idx}>
+                  {card.svg ? (
+                    <img
+                      alt=""
+                      src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(card.svg)}`}
+                    />
+                  ) : (
+                    <div className="portrait">{t("sceneStub")}</div>
+                  )}
+                  {last ? <TypeProse text={card.prose} /> : <p className="prose">{card.prose}</p>}
+                </article>
+              );
+            })
+          )}
+        </div>
         <div className="scene">
           <button className="ghost copy" type="button" onClick={() => void copyId()}>
             {copied ? t("copied") : t("copyId")}
@@ -242,13 +311,6 @@ export function TableClient({ roomId }: { roomId: string }) {
                   <div className="kind">{kindLabel(turn.kind, t)}</div>
                   <strong>{labelFor(turn.actor_id)}</strong>
                   {turn.notes ? <p style={{ margin: "0.35rem 0 0" }}>{turn.notes}</p> : null}
-                  {turn.narrative?.prose ? (
-                    last && turn.kind === "story" ? (
-                      <TypeProse text={turn.narrative.prose} />
-                    ) : (
-                      <p className="prose">{turn.narrative.prose}</p>
-                    )
-                  ) : null}
                   {turn.rolls?.length ? (
                     last ? (
                       <DiceDrop rolls={turn.rolls} />
@@ -404,6 +466,7 @@ export function TableClient({ roomId }: { roomId: string }) {
               <label>
                 {t("skill")}
                 <select value={skill} onChange={(e) => setSkill(e.target.value)}>
+                  <option value="">{t("skillNone")}</option>
                   {TALE_SKILLS.map((s) => (
                     <option key={s} value={s}>
                       {skillsT(s)}
@@ -419,7 +482,7 @@ export function TableClient({ roomId }: { roomId: string }) {
                 <button type="button" disabled={busy || !mine || !notes.trim()} onClick={() => void act("say")}>
                   {t("speak")}
                 </button>
-                <button type="button" disabled={busy || !mine} onClick={() => void act("action")}>
+                <button type="button" disabled={busy || !mine || !skill} onClick={() => void act("action")}>
                   {t("roll")}
                 </button>
                 <button className="ghost" type="button" disabled={busy || !mine} onClick={() => void act("pass")}>

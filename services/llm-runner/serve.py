@@ -141,9 +141,9 @@ class Handler(BaseHTTPRequestHandler):
         prose = self.generate(prompt)
         if not prose:
             if locale == "tr":
-                prose = f"[hub] {actor} hareket eder. Motorun zarı {dice} toplam {total}. {notes}"
+                prose = f"[hub] {actor} salonun loşluğunda adım atar. {notes} Fener sönmez."
             else:
-                prose = f"[hub] {actor} acts. The engine's dice {dice} total {total}. {notes}"
+                prose = f"[hub] {actor} steps into the hall. {notes} The lantern holds."
         return {"locale": locale, "prose": redact(prose), "npc_lines": []}
 
     def intent(self, req: dict) -> dict:

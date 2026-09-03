@@ -105,7 +105,7 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	h, _ := setup(t)
 	token := registerAndVerify(t, h, "host@tale.role")
 	uni := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
-		"query": `mutation { createUniverse(nameEn: "Ashwood", themeId: "fairytale") { id nameEn compiledPrompt } }`,
+		"query": `mutation { createUniverse(nameEn: "Ashwood", themeId: "fairytale", description: "A wet wood.", opening: "Fog on the lane.") { id nameEn compiledPrompt } }`,
 	})
 	var uniBody struct {
 		Data struct {

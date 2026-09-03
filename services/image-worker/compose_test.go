@@ -27,6 +27,9 @@ func TestComposeStubsThemeAndRedactsPII(t *testing.T) {
 	if strings.Contains(card.VisualPrompt, "system_admin") || strings.Contains(card.ImageSVG, "system_admin") {
 		t.Fatal("system_admin must not enter the scene")
 	}
+	if !strings.Contains(card.ImageSVG, "open the door") {
+		t.Fatalf("plaque should carry the beat: %s", card.ImageSVG)
+	}
 	if !strings.Contains(card.VisualPrompt, worker.Marker) {
 		t.Fatalf("expected redaction: %s", card.VisualPrompt)
 	}
