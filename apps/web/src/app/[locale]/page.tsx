@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { apiBase, getSessionToken } from "@/lib/session";
+import { getSessionToken, gqlUpstream } from "@/lib/session";
 import { Link } from "@/i18n/routing";
 import { locales } from "@tale-role/i18n";
 
@@ -18,13 +18,8 @@ export default async function HomePage({
   const token = await getSessionToken();
   let email: string | null = null;
   if (token) {
-    const me = await fetch(`${apiBase()}/api/v1/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (me.ok) {
-      email = ((await me.json()) as { email?: string }).email ?? null;
-    }
+    const me = await gqlUpstream<{ me: { email: string } | null }>(token, "{ me { email } }");
+    email = me.data?.me?.email ?? null;
   }
 
   return (

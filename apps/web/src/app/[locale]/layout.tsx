@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { isLocale, locales } from "@tale-role/i18n";
-import { apiBase, getSessionToken } from "@/lib/session";
+import { getSessionToken, gqlUpstream } from "@/lib/session";
 import { SiteHeader } from "@/components/site-header";
 import { Link } from "@/i18n/routing";
 import "../globals.css";
@@ -33,13 +33,8 @@ export default async function LocaleLayout({
   const token = await getSessionToken();
   let email: string | null = null;
   if (token) {
-    const me = await fetch(`${apiBase()}/api/v1/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (me.ok) {
-      email = ((await me.json()) as { email?: string }).email ?? null;
-    }
+    const me = await gqlUpstream<{ me: { email: string } | null }>(token, "{ me { email } }");
+    email = me.data?.me?.email ?? null;
   }
 
   return (

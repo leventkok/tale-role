@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/graphql-go/graphql"
 	"github.com/leventkok/tale-role/apps/api/internal/application/game"
@@ -27,12 +28,45 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"role":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 		},
 	})
+	statsType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Stats",
+		Fields: graphql.Fields{
+			"str": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"dex": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"con": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"int": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"wis": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"cha": &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+		},
+	})
 	characterType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "Character",
 		Fields: graphql.Fields{
 			"userId": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"name":   &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"hp":     &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"stats":  &graphql.Field{Type: statsType},
+		},
+	})
+	sceneType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Scene",
+		Fields: graphql.Fields{
+			"themeId":      &graphql.Field{Type: graphql.String},
+			"visualPrompt": &graphql.Field{Type: graphql.String},
+			"imageSvg":     &graphql.Field{Type: graphql.String},
+			"inference":    &graphql.Field{Type: graphql.String},
+		},
+	})
+	turnType := graphql.NewObject(graphql.ObjectConfig{
+		Name: "Turn",
+		Fields: graphql.Fields{
+			"actorId": &graphql.Field{Type: graphql.String},
+			"kind":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"notes":   &graphql.Field{Type: graphql.String},
+			"rolls":   &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.Int)))},
+			"total":   &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
+			"success": &graphql.Field{Type: graphql.Boolean},
+			"prose":   &graphql.Field{Type: graphql.String},
 		},
 	})
 	roomType := graphql.NewObject(graphql.ObjectConfig{
@@ -47,8 +81,11 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"universeId":        &graphql.Field{Type: graphql.String},
 			"themeId":           &graphql.Field{Type: graphql.String},
 			"promptPackVersion": &graphql.Field{Type: graphql.String},
+			"turnOrder":         &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(graphql.String)))},
 			"presence":          &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(memberType)))},
 			"characters":        &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(characterType)))},
+			"turns":             &graphql.Field{Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(turnType)))},
+			"scene":             &graphql.Field{Type: sceneType},
 		},
 	})
 	universeSummary := graphql.NewObject(graphql.ObjectConfig{
@@ -101,18 +138,10 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 	licenseType := graphql.NewObject(graphql.ObjectConfig{
 		Name: "License",
 		Fields: graphql.Fields{
-			"id":       &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
-			"deviceId": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"platform": &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-		},
-	})
-	turnType := graphql.NewObject(graphql.ObjectConfig{
-		Name: "Turn",
-		Fields: graphql.Fields{
-			"kind":    &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
-			"total":   &graphql.Field{Type: graphql.NewNonNull(graphql.Int)},
-			"success": &graphql.Field{Type: graphql.Boolean},
-			"prose":   &graphql.Field{Type: graphql.String},
+			"id":        &graphql.Field{Type: graphql.NewNonNull(graphql.ID)},
+			"deviceId":  &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"platform":  &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"createdAt": &graphql.Field{Type: graphql.String},
 		},
 	})
 	statsInput := graphql.NewInputObject(graphql.InputObjectConfig{
@@ -214,6 +243,24 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						"id": doc.ID, "nameEn": doc.NameEN, "themeId": doc.ThemeID,
 						"diceSystem": doc.DiceSystem, "compiledPrompt": doc.CompiledPrompt,
 					}, nil
+				},
+			},
+			"licenses": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.NewList(graphql.NewNonNull(licenseType))),
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					list := s.svc.Licenses(u.ID)
+					out := make([]map[string]any, 0, len(list))
+					for _, l := range list {
+						out = append(out, map[string]any{
+							"id": l.ID, "deviceId": l.DeviceID, "platform": l.Platform,
+							"createdAt": l.CreatedAt.UTC().Format(time.RFC3339),
+						})
+					}
+					return out, nil
 				},
 			},
 		},
@@ -358,7 +405,10 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if turn.Narrative != nil {
 						prose = turn.Narrative.Prose
 					}
-					return map[string]any{"kind": turn.Kind, "total": turn.Total, "success": turn.Success, "prose": prose}, nil
+					return map[string]any{
+						"actorId": turn.ActorID, "kind": turn.Kind, "notes": turn.Notes,
+						"rolls": turnRolls(turn.Rolls), "total": turn.Total, "success": turn.Success, "prose": prose,
+					}, nil
 				},
 			},
 			"createUniverse": &graphql.Field{
@@ -418,7 +468,10 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if err != nil {
 						return nil, err
 					}
-					return map[string]any{"id": lic.ID, "deviceId": lic.DeviceID, "platform": lic.Platform}, nil
+					return map[string]any{
+						"id": lic.ID, "deviceId": lic.DeviceID, "platform": lic.Platform,
+						"createdAt": lic.CreatedAt.UTC().Format(time.RFC3339),
+					}, nil
 				},
 			},
 			"eraseMe": &graphql.Field{
@@ -449,14 +502,49 @@ func roomMap(pub *game.PublicRoom) map[string]any {
 	}
 	chars := make([]map[string]any, 0, len(pub.Characters))
 	for _, ch := range pub.Characters {
-		chars = append(chars, map[string]any{"userId": ch.UserID, "name": ch.Name, "hp": ch.HP})
+		chars = append(chars, map[string]any{
+			"userId": ch.UserID, "name": ch.Name, "hp": ch.HP,
+			"stats": map[string]any{
+				"str": ch.Stats.STR, "dex": ch.Stats.DEX, "con": ch.Stats.CON,
+				"int": ch.Stats.INT, "wis": ch.Stats.WIS, "cha": ch.Stats.CHA,
+			},
+		})
 	}
-	return map[string]any{
+	turns := make([]map[string]any, 0, len(pub.Turns))
+	for _, t := range pub.Turns {
+		prose := ""
+		if t.Narrative != nil {
+			prose = t.Narrative.Prose
+		}
+		turns = append(turns, map[string]any{
+			"actorId": t.ActorID, "kind": t.Kind, "notes": t.Notes,
+			"rolls": turnRolls(t.Rolls), "total": t.Total, "success": t.Success, "prose": prose,
+		})
+	}
+	order := pub.TurnOrder
+	if order == nil {
+		order = []string{}
+	}
+	out := map[string]any{
 		"id": pub.ID, "name": pub.Name, "hostId": pub.HostID, "diceSystem": pub.DiceSystem,
 		"joinMode": pub.JoinMode, "started": pub.Started, "universeId": pub.UniverseID,
 		"themeId": pub.ThemeID, "promptPackVersion": pub.PromptPackVersion,
-		"presence": presence, "characters": chars,
+		"turnOrder": order, "presence": presence, "characters": chars, "turns": turns,
 	}
+	if pub.Scene != nil {
+		out["scene"] = map[string]any{
+			"themeId": pub.Scene.ThemeID, "visualPrompt": pub.Scene.VisualPrompt,
+			"imageSvg": pub.Scene.ImageSVG, "inference": pub.Scene.Inference,
+		}
+	}
+	return out
+}
+
+func turnRolls(rolls []int) []int {
+	if rolls == nil {
+		return []int{}
+	}
+	return rolls
 }
 
 func gqlString(v any) string {

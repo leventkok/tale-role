@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
+import { gql, gqlData } from "@/lib/gql";
 import { TotpQr } from "@/components/totp-qr";
 
 type License = { id: string; device_id: string; platform: string; created_at?: string };
@@ -29,18 +30,22 @@ export function AccountPanel() {
   const desktop = desktopBridge();
 
   async function refresh() {
-    const [meRes, licRes] = await Promise.all([
-      fetch("/api/me", { cache: "no-store" }),
-      fetch("/api/licenses/me", { cache: "no-store" }),
-    ]);
-    if (meRes.ok) {
-      const me = (await meRes.json()) as { totp_enabled?: boolean };
-      setTotpEnabled(Boolean(me.totp_enabled));
+    const result = await gql<{
+      me: { totpEnabled: boolean } | null;
+      licenses: { id: string; deviceId: string; platform: string; createdAt?: string }[];
+    }>(`{ me { totpEnabled } licenses { id deviceId platform createdAt } }`);
+    const data = gqlData(result);
+    if (data?.me) {
+      setTotpEnabled(Boolean(data.me.totpEnabled));
     }
-    if (licRes.ok) {
-      const data = (await licRes.json()) as { licenses?: License[] };
-      setLicenses(data.licenses ?? []);
-    }
+    setLicenses(
+      (data?.licenses ?? []).map((row) => ({
+        id: row.id,
+        device_id: row.deviceId,
+        platform: row.platform,
+        created_at: row.createdAt,
+      })),
+    );
   }
 
   useEffect(() => {
@@ -123,13 +128,14 @@ export function AccountPanel() {
     }
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/licenses/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_id: desktop.deviceId, platform: desktop.platform }),
-    });
+    const result = await gql<{ registerLicense: { id: string } }>(
+      `mutation ($deviceId: String!, $platform: String) {
+        registerLicense(deviceId: $deviceId, platform: $platform) { id }
+      }`,
+      { deviceId: desktop.deviceId, platform: desktop.platform },
+    );
     setBusy(false);
-    if (!res.ok) {
+    if (!gqlData(result)?.registerLicense?.id) {
       setError("error");
       return;
     }
@@ -143,8 +149,8 @@ export function AccountPanel() {
     }
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/me", { method: "DELETE" });
-    if (!res.ok) {
+    const result = await gql<{ eraseMe: boolean }>(`mutation { eraseMe }`);
+    if (!gqlData(result)?.eraseMe) {
       setBusy(false);
       setError("error");
       return;

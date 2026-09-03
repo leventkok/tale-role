@@ -161,6 +161,22 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	if bytes.Contains(act.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(act.Body.Bytes(), []byte(`"kind"`)) {
 		t.Fatalf("actTurn: %s", act.Body.String())
 	}
+	snap := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `query ($id: ID!) { room(id: $id) { started turnOrder characters { name stats { str } } turns { actorId kind rolls total prose } } }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(snap.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(snap.Body.Bytes(), []byte(`"Wren"`)) || !bytes.Contains(snap.Body.Bytes(), []byte(`"turns"`)) {
+		t.Fatalf("room snapshot: %s", snap.Body.String())
+	}
+	if bytes.Contains(snap.Body.Bytes(), []byte("password")) || bytes.Contains(snap.Body.Bytes(), []byte("compiledPrompt")) {
+		t.Fatalf("room leaked: %s", snap.Body.String())
+	}
+	listed := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ licenses { deviceId } }`,
+	})
+	if bytes.Contains(listed.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("licenses empty query: %s", listed.Body.String())
+	}
 	lic := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query": `mutation { registerLicense(deviceId: "desk-gql", platform: "win32") { id deviceId } }`,
 	})
