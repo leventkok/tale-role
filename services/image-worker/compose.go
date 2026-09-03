@@ -51,7 +51,7 @@ func (s *Service) Compose(req Request) Card {
 	return Card{
 		ThemeID:      theme,
 		VisualPrompt: prompt,
-		ImageSVG:     stubSVG(theme),
+		ImageSVG:     stubSVG(theme, plaqueText(theme, req.Notes, req.Prose)),
 		Inference:    "stub",
 	}
 }
@@ -77,9 +77,38 @@ func buildPrompt(theme, room, notes, prose string) string {
 	return b.String()
 }
 
-func stubSVG(theme string) string {
+func plaqueText(theme, notes, prose string) string {
+	extra := redact(strings.TrimSpace(notes))
+	if extra == "" {
+		extra = redact(strings.TrimSpace(prose))
+	}
+	extra = strings.ReplaceAll(extra, "system_admin", "")
+	extra = strings.Join(strings.Fields(extra), " ")
+	if extra == "" {
+		return theme
+	}
+	runes := []rune(extra)
+	if len(runes) > 28 {
+		extra = string(runes[:28]) + "..."
+	}
+	return extra
+}
+
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	return s
+}
+
+func stubSVG(theme, plaque string) string {
 	pair := themes[theme]
 	bg, gold := pair[0], pair[1]
+	if strings.TrimSpace(plaque) == "" {
+		plaque = theme
+	}
+	plaque = xmlEscape(plaque)
 	return fmt.Sprintf(
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" data-theme="%s" data-art="tableau">`+
 			`<title>%s</title>`+
@@ -104,7 +133,7 @@ func stubSVG(theme string) string {
 			`<rect x="70" y="428" width="260" height="28" rx="4" fill="#120e0a" stroke="%s" stroke-width="1.5"/>`+
 			`<text x="200" y="447" text-anchor="middle" fill="%s" font-size="14" font-family="Georgia,serif">%s</text>`+
 			`</svg>`,
-		theme, theme, bg, gold, bg, gold, landscape(theme, gold), gold, gold, gold, theme,
+		theme, theme, bg, gold, bg, gold, landscape(theme, gold), gold, gold, gold, plaque,
 	)
 }
 

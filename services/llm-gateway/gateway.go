@@ -305,43 +305,44 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 func outcomeText(locale, kind string, success *bool) string {
 	if kind == "pass" {
 		if locale == "tr" {
-			return "pas geçti"
+			return "sessizce beklemeyi seçer"
 		}
-		return "passes"
+		return "lets the moment pass"
 	}
 	if kind == "wait" {
 		if locale == "tr" {
-			return "bekliyor"
+			return "nefesini tutar"
 		}
-		return "waits"
+		return "holds still"
+	}
+	if kind == "say" {
+		if locale == "tr" {
+			return "sözünü salona bırakır"
+		}
+		return "gives their word to the hall"
 	}
 	if success == nil {
 		if locale == "tr" {
-			return "hareket eder"
+			return "adım atar"
 		}
-		return "acts"
+		return "steps forward"
 	}
 	if *success {
 		if locale == "tr" {
-			return "isabet eder"
+			return "yolu açar"
 		}
-		return "hits"
+		return "finds the way"
 	}
 	if locale == "tr" {
-		return "kaçırır"
+		return "gölgede kalır"
 	}
-	return "misses"
+	return "falters"
 }
 
 func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes string) string {
-	rollBits := ""
-	if len(rolls) > 0 {
-		parts := make([]string, len(rolls))
-		for i, n := range rolls {
-			parts[i] = fmt.Sprintf("%d", n)
-		}
-		rollBits = strings.Join(parts, "+")
-	}
+	_ = dice
+	_ = rolls
+	_ = total
 	place := room
 	if theme != "" {
 		place = room + " [" + theme + "]"
@@ -352,16 +353,19 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		}
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
+	deed := strings.TrimSpace(notes)
 	if locale == "tr" {
-		return fmt.Sprintf(
-			"%s salonunda %s %s. Motorun zarı (%s %s, toplam %d) anlatıyı bağlar. %s",
-			place, actor, outcome, dice, rollBits, total, notes,
-		)
+		body := fmt.Sprintf("%s salonunda %s %s.", place, actor, outcome)
+		if deed != "" {
+			body += " " + deed
+		}
+		return body + " Fener sönmez."
 	}
-	return fmt.Sprintf(
-		"In %s, %s %s. The engine's dice (%s %s, total %d) bind the tale. %s",
-		place, actor, outcome, dice, rollBits, total, notes,
-	)
+	body := fmt.Sprintf("In %s, %s %s.", place, actor, outcome)
+	if deed != "" {
+		body += " " + deed
+	}
+	return body + " The lantern holds."
 }
 
 func excerpt(s string) string {

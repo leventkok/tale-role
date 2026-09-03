@@ -40,6 +40,9 @@ func TestRedactsPIIAndOmitsAdminFromPrompt(t *testing.T) {
 	if !strings.Contains(themed.Prose, "[gothic-horror]") {
 		t.Fatalf("theme missing from stub prose: %s", themed.Prose)
 	}
+	if strings.Contains(strings.ToLower(themed.Prose), "engine") || strings.Contains(themed.Prose, "d20") {
+		t.Fatalf("stub must stay literary: %s", themed.Prose)
+	}
 	intent := svc.ProposeIntent(gateway.IntentRequest{
 		Locale: "en",
 		RoomID: "r1",
@@ -175,7 +178,10 @@ func TestHubRunnerNarrateAndFallback(t *testing.T) {
 	down.ConfigureHub("your-org/talerole-storyteller", "")
 	down.SetRunners("http://127.0.0.1:1", "")
 	fallback := down.Narrate(gateway.NarrateRequest{Locale: "en", ActorName: "Mira", Kind: "wait", RoomName: "Ashwood"})
-	if !strings.Contains(fallback.Prose, "The engine's dice") {
+	if !strings.Contains(fallback.Prose, "The lantern holds") {
 		t.Fatalf("expected stub fallback: %s", fallback.Prose)
+	}
+	if strings.Contains(strings.ToLower(fallback.Prose), "engine") || strings.Contains(fallback.Prose, "d20") {
+		t.Fatalf("stub must stay literary: %s", fallback.Prose)
 	}
 }

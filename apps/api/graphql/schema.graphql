@@ -1,5 +1,5 @@
 # Documentary schema. The live schema is built in Go (httpapi/graphql.go).
-# POST /graphql. REST BFF remains the primary client path. No GraphiQL.
+# POST /graphql. No GraphiQL.
 
 type Query {
   health: Health!
@@ -19,6 +19,26 @@ type Mutation {
     universeId: ID
   ): RoomCreated
   joinRoom(roomId: ID!, password: String): Boolean!
+  createUniverse(
+    nameEn: String!
+    nameTr: String
+    themeId: String!
+    diceSystem: String
+    contentRating: String
+    era: String
+    tone: String
+    description: String
+    opening: String
+    taboos: String
+    npcs: [NPCInput]
+  ): Universe
+}
+
+input NPCInput {
+  nameEn: String!
+  nameTr: String
+  alignment: String
+  voice: String
 }
 
 type Health {

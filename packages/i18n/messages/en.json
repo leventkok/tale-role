@@ -100,6 +100,7 @@
     "waitTurn": "Wait for your turn. The table is quiet until then.",
     "order": "Seating",
     "skill": "Trait",
+    "skillNone": "None",
     "notes": "What do you do or ask?",
     "presence": "At the table",
     "storyteller": "Storyteller",
