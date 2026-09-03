@@ -319,13 +319,7 @@ func runnerProseOK(prose, locale, kind string) bool {
 	if strings.Contains(p, `"actor"`) && strings.Contains(p, `"room"`) {
 		return false
 	}
-	if strings.Count(p, "The bar splinters") > 1 {
-		return false
-	}
-	if strings.Contains(lower, "the engine's die reads 0") || strings.Contains(lower, "what will you do") {
-		return false
-	}
-	if strings.Contains(lower, "hold the line") || strings.Contains(lower, "the watch is unblinded") {
+	if trainingSalad(lower) {
 		return false
 	}
 	if kind == "story" {
@@ -344,6 +338,23 @@ func runnerProseOK(prose, locale, kind string) bool {
 		return false
 	}
 	return true
+}
+
+func trainingSalad(lower string) bool {
+	frags := []string{
+		"nöbet dönmez", "nöbet dönüyor", "rün karanlık", "kilit durur", "pim kopar",
+		"kahkaha bitince", "kahkaha kopar", "menteşe", "zar ", " der.",
+		"motorun", "içinde,", "hold the line", "the watch is unblinded",
+		"the bar splinters", "the die reads", "the engine's", "the rune stays dark",
+		"the latch yields", "a pin snaps", "what will you do",
+	}
+	hits := 0
+	for _, f := range frags {
+		if strings.Contains(lower, f) {
+			hits++
+		}
+	}
+	return hits >= 1
 }
 
 func outcomeText(locale, kind string, success *bool) string {
@@ -392,13 +403,9 @@ func outcomeText(locale, kind string, success *bool) string {
 func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string) string {
 	_ = dice
 	_ = rolls
-	_ = total
 	_ = theme
 	place := strings.TrimSpace(room)
 	if pack == packs.V1Terse {
-		if locale == "tr" {
-			return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
-		}
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
 	deed := strings.TrimSpace(notes)
@@ -408,7 +415,7 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		}
 		if locale == "tr" {
 			if place != "" {
-				return fmt.Sprintf("%s sessiz. Fener yanar. Anlatıcı sözü alır.", place)
+				return fmt.Sprintf("%s karanlık. Fener bir yüz bulur. Anlatıcı sözü alır.", place)
 			}
 			return "Fener yanar. Eşikte bir duraklama var. Anlatıcı sözü alır."
 		}
@@ -418,17 +425,57 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		return "A hush. Lanternlight. The storyteller takes the floor."
 	}
 	if locale == "tr" {
-		body := fmt.Sprintf("%s salonunda %s %s.", place, actor, outcome)
+		return literaryTR(kind, actor, place, deed, outcome, total)
+	}
+	return literaryEN(kind, actor, place, deed, outcome, total)
+}
+
+func literaryTR(kind, actor, place, deed, outcome string, total int) string {
+	if place == "" {
+		place = "salon"
+	}
+	switch kind {
+	case "say":
 		if deed != "" {
-			body += " " + deed
+			return fmt.Sprintf("%s sözü salona bırakır: %s Fener sönmez.", actor, deed)
 		}
-		return body + " Fener sönmez."
+		return fmt.Sprintf("%s %s'de sessizliği kırar. Fener sönmez.", actor, place)
+	case "pass":
+		return fmt.Sprintf("%s bu eli bırakır. %s bekler. Fener sönmez.", actor, place)
+	case "wait":
+		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
-	body := fmt.Sprintf("In %s, %s %s.", place, actor, outcome)
-	if deed != "" {
-		body += " " + deed
+	if deed == "" {
+		deed = outcome
 	}
-	return body + " The lantern holds."
+	if strings.Contains(outcome, "yolu açar") {
+		return fmt.Sprintf("%s %s. %s cevap verir. Sayı %d; yol açılır.", actor, deed, place, total)
+	}
+	return fmt.Sprintf("%s %s. %s direnir. Sayı %d. Bir şey yerinden oynamaz.", actor, deed, place, total)
+}
+
+func literaryEN(kind, actor, place, deed, outcome string, total int) string {
+	if place == "" {
+		place = "the hall"
+	}
+	switch kind {
+	case "say":
+		if deed != "" {
+			return fmt.Sprintf("%s gives their word in %s: %s The lantern holds.", actor, place, deed)
+		}
+		return fmt.Sprintf("%s breaks the hush in %s. The lantern holds.", actor, place)
+	case "pass":
+		return fmt.Sprintf("%s lets the beat pass in %s. The lantern holds.", actor, place)
+	case "wait":
+		return fmt.Sprintf("%s holds still in %s. Breath only. The lantern holds.", actor, place)
+	}
+	if deed == "" {
+		deed = outcome
+	}
+	if strings.Contains(outcome, "finds the way") {
+		return fmt.Sprintf("%s %s. %s answers. The count is %d; the way opens.", actor, deed, place, total)
+	}
+	return fmt.Sprintf("%s %s. %s holds. The count is %d. Nothing yields yet.", actor, deed, place, total)
 }
 
 func excerpt(s string) string {

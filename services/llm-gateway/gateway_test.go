@@ -251,6 +251,32 @@ func TestStoryOpeningKeepsHostText(t *testing.T) {
 	}
 }
 
+func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Nöbet dönmez. Luther, World Of Warcraft içinde, NE oluyor bu ses ne ??. Zar 10 der. Kilit durur. Bir pim kopar.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	fail := false
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "World Of Warcraft",
+		Notes: "NE oluyor bu ses ne ??", Total: 10, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "Nöbet dönmez") || strings.Contains(n.Prose, "Zar 10 der") || strings.Contains(n.Prose, "pim kopar") {
+		t.Fatalf("training salad reached the table: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "10") {
+		t.Fatalf("literary fallback missing actor or count: %s", n.Prose)
+	}
+}
+
 func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
 	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
 	mux := http.NewServeMux()
