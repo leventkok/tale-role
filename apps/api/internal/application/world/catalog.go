@@ -266,6 +266,16 @@ func (c *Catalog) List(ownerID string) []Summary {
 	return out
 }
 
+func (c *Catalog) SceneSeed(id string) (opening, description, nameEN, nameTR string, ok bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, found := c.items[id]
+	if !found {
+		return "", "", "", "", false
+	}
+	return u.Opening, u.Description, u.NameEN, u.NameTR, true
+}
+
 func (c *Catalog) Get(id, userID string) (*Universe, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

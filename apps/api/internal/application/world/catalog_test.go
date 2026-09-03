@@ -38,6 +38,10 @@ func TestCreateCompilesPromptPack(t *testing.T) {
 	if _, err := cat.Get(u.ID, "other"); err == nil {
 		t.Fatal("other user must not read the universe")
 	}
+	opening, desc, nameEN, _, ok := cat.SceneSeed(u.ID)
+	if !ok || opening != "You wake on the Ashwood road." || desc == "" || nameEN != "Ashwood" {
+		t.Fatalf("scene seed: %q %q %q", opening, desc, nameEN)
+	}
 	stats := game.Stats{STR: 3, DEX: 3, CON: 3, INT: 3, WIS: 3, CHA: 3}
 	if err := cat.UpsertHero(u.ID, world.Hero{UserID: "p1", Name: "Iri", Path: "warden", Skills: []string{"athletics"}, Stats: stats, HP: 12, XP: 20, Level: 2}); err != nil {
 		t.Fatal(err)
