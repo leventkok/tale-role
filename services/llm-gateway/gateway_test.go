@@ -37,8 +37,8 @@ func TestRedactsPIIAndOmitsAdminFromPrompt(t *testing.T) {
 	themed := svc.Narrate(gateway.NarrateRequest{
 		Locale: "en", RoomName: "Ashwood", ActorName: "Iri", Kind: "wait", ThemeID: "gothic-horror",
 	})
-	if !strings.Contains(themed.Prose, "[gothic-horror]") {
-		t.Fatalf("theme missing from stub prose: %s", themed.Prose)
+	if strings.Contains(themed.Prose, "[gothic-horror]") {
+		t.Fatalf("theme id must not leak into player prose: %s", themed.Prose)
 	}
 	if strings.Contains(strings.ToLower(themed.Prose), "engine") || strings.Contains(themed.Prose, "d20") {
 		t.Fatalf("stub must stay literary: %s", themed.Prose)
@@ -227,7 +227,43 @@ func TestRunnerMixedLocaleFallsBack(t *testing.T) {
 	if strings.Contains(n.Prose, "Hold the line") || strings.Contains(n.Prose, "die reads") {
 		t.Fatalf("mixed locale runner prose must not reach players: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "Anlatıcı sözü alır") && !strings.Contains(n.Prose, "anlatıcı") {
-		t.Fatalf("expected turkish opening stub: %s", n.Prose)
+	if strings.Contains(n.Prose, "[") || strings.Contains(n.Prose, "eşiğe durur") {
+		t.Fatalf("opening stub must not dump theme or narrator stage directions: %s", n.Prose)
+	}
+}
+
+func TestStoryOpeningKeepsHostText(t *testing.T) {
+	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale:   "tr",
+		Kind:     "story",
+		RoomName: "World Of Warcraft",
+		ThemeID:  "high-fantasy",
+		Notes:    opening,
+		Opening:  opening,
+	})
+	if !strings.Contains(n.Prose, "Shaper temple") {
+		t.Fatalf("host opening missing: %s", n.Prose)
+	}
+	if strings.Contains(n.Prose, "Anlatıcı") || strings.Contains(n.Prose, "[high-fantasy]") || strings.Contains(n.Prose, "sessiz") {
+		t.Fatalf("must not append turkish stub to host opening: %s", n.Prose)
+	}
+}
+
+func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
+	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{Locale: "en", Prose: opening})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "tr", Kind: "story", Notes: opening, Opening: opening, RoomName: "World Of Warcraft", ThemeID: "high-fantasy"})
+	if n.Prose != opening {
+		t.Fatalf("runner opening rewritten: %s", n.Prose)
 	}
 }

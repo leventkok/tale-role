@@ -103,10 +103,29 @@ class ServeFormatTests(unittest.TestCase):
         self.assertEqual(payload["kind"], "story")
         self.assertEqual(payload["total"], 0)
         out = fallback_storyteller(locale, payload, say=False)
-        self.assertIn("Sis kapı eşiğinde bekler", out["prose"])
-        self.assertIn("Kalekarga", out["prose"])
+        self.assertEqual(out["prose"], "Sis kapı eşiğinde bekler.")
         self.assertNotIn("die reads", out["prose"].casefold())
-        self.assertTrue(prose_looks_valid(out["prose"], "tr"))
+        self.assertNotIn("Anlatıcı eşiğe", out["prose"])
+
+    def test_host_english_opening_not_mashed(self):
+        opening = (
+            "You wake on the cold stone floor of an abandoned Shaper temple. "
+            "Pale blue light leaks through the cracks."
+        )
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "story",
+                "room_name": "World Of Warcraft",
+                "opening": opening,
+                "theme_id": "high-fantasy",
+                "presence_names": ["Bram"],
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertEqual(out["prose"], opening)
+        self.assertNotIn("sessiz", out["prose"])
+        self.assertNotIn("high-fantasy", out["prose"])
 
     def test_reject_english_when_locale_is_tr(self):
         raw = '{"prose":"The watch is unblinded. Hold the line. The bar splinters and yields.","npc_lines":[]}'
