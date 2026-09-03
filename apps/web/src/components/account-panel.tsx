@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
+import { TotpQr } from "@/components/totp-qr";
 
 type License = { id: string; device_id: string; platform: string; created_at?: string };
 
@@ -23,6 +24,7 @@ export function AccountPanel() {
   const [secret, setSecret] = useState<string | null>(null);
   const [otpauth, setOtpauth] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
+  const [copied, setCopied] = useState(false);
   const [licenses, setLicenses] = useState<License[]>([]);
   const desktop = desktopBridge();
 
@@ -152,8 +154,17 @@ export function AccountPanel() {
     router.refresh();
   }
 
+  async function copySecret() {
+    if (!secret) {
+      return;
+    }
+    await navigator.clipboard.writeText(secret);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
   return (
-    <div>
+    <div className="account-stack">
       <section>
         <h2>{t("totpTitle")}</h2>
         <p className="muted">{totpEnabled ? t("totpOn") : t("totpOff")}</p>
@@ -165,16 +176,16 @@ export function AccountPanel() {
           </p>
         ) : null}
         {secret ? (
-          <form onSubmit={(e) => void onConfirmTotp(e)}>
-            <p className="muted">{t("totpSecretHint")}</p>
-            <p>
-              <code>{secret}</code>
-            </p>
-            {otpauth ? (
-              <p>
-                <a href={otpauth}>{otpauth}</a>
-              </p>
-            ) : null}
+          <form className="totp-setup" onSubmit={(e) => void onConfirmTotp(e)}>
+            <p className="muted">{t("totpScan")}</p>
+            {otpauth ? <TotpQr value={otpauth} /> : null}
+            <p className="muted">{t("totpManual")}</p>
+            <code className="totp-secret">{secret.match(/.{1,4}/g)?.join(" ") ?? secret}</code>
+            <div className="btn-row">
+              <button className="ghost copy" type="button" onClick={() => void copySecret()}>
+                {copied ? t("totpCopied") : t("totpCopy")}
+              </button>
+            </div>
             <label>
               {t("totpCode")}
               <input
