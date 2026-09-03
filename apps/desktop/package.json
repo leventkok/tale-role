@@ -6,14 +6,17 @@
   "private": true,
   "main": "main.cjs",
   "scripts": {
+    "icons": "node scripts/generate-icons.mjs",
     "start": "electron .",
-    "pack": "electron-builder --publish never",
-    "pack:win": "electron-builder --win --publish never",
-    "pack:mac": "electron-builder --mac --publish never",
-    "pack:unsigned": "electron-builder --publish never"
+    "pack": "npm run icons && electron-builder --publish never",
+    "pack:win": "npm run icons && electron-builder --win --publish never",
+    "pack:mac": "npm run icons && electron-builder --mac --publish never",
+    "pack:unsigned": "npm run icons && electron-builder --publish never"
   },
   "devDependencies": {
     "electron": "^44.1.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5"
   }
 }

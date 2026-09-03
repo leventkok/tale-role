@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 
 const WEB_URL = (process.env.TALEROLE_WEB_URL || "https://www.talerole.com").replace(/\/$/, "");
 const LOCALE = process.env.TALEROLE_LOCALE === "tr" ? "tr" : "en";
+const APP_ICON = path.join(__dirname, "icons", "icon.png");
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "talerole", privileges: { standard: true, secure: true } },
@@ -45,6 +46,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 640,
     title: "Tale Role",
+    icon: APP_ICON,
     backgroundColor: "#120e0a",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -121,6 +123,9 @@ if (!locked) {
   });
 
   app.whenReady().then(() => {
+    if (process.platform === "darwin" && app.dock) {
+      app.dock.setIcon(APP_ICON);
+    }
     protocol.handle("talerole", (request) => Response.redirect(joinDest(request.url), 302));
     buildMenu();
     createWindow();
