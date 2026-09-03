@@ -72,18 +72,27 @@ type Trace struct {
 	NarrativeExcerpt string          `json:"narrative_excerpt,omitempty"`
 }
 
+type PackDoc struct {
+	ID string `json:"id"`
+	EN string `json:"en"`
+	TR string `json:"tr"`
+}
+
 type Service struct {
-	mu             sync.Mutex
-	adapter        string
-	pack           string
-	traces         []Trace
-	adapterDirSet  bool
-	weightsReady   bool
-	hubStoryteller string
-	hubMechanics   string
-	storytellerURL string
-	mechanicsURL   string
-	client         *http.Client
+	mu              sync.Mutex
+	adapter         string
+	pack            string
+	traces          []Trace
+	adapterDirSet   bool
+	weightsReady    bool
+	hubStoryteller  string
+	hubMechanics    string
+	storytellerURLs []string
+	mechanicsURLs   []string
+	storytellerRR   uint64
+	mechanicsRR     uint64
+	voiceOverride   map[string]string
+	client          *http.Client
 }
 
 func New() *Service {
@@ -164,16 +173,14 @@ func (s *Service) Traces() []Trace {
 func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 	notes := pii.Redact(req.Notes)
 	req.Notes = notes
-	if base, ok := s.useLocal("mechanics"); ok {
-		var intent MechanicIntent
-		if err := s.callJSON(base+"/v1/intent", req, &intent); err == nil {
-			intent.Notes = pii.Redact(intent.Notes)
-			if intent.Kind == "" {
-				intent.Kind = req.Kind
-			}
-			s.record(req.RoomID, packs.Voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
-			return intent
+	var intent MechanicIntent
+	if s.callRole("mechanics", "/v1/intent", req, &intent) {
+		intent.Notes = pii.Redact(intent.Notes)
+		if intent.Kind == "" {
+			intent.Kind = req.Kind
 		}
+		s.record(req.RoomID, s.voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
+		return intent
 	}
 	kind := req.Kind
 	if kind == "" {
@@ -183,11 +190,11 @@ func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 	if kind == "action" && skill == "" {
 		skill = "str"
 	}
-	intent := MechanicIntent{Kind: kind, Skill: skill, Notes: notes}
+	intent = MechanicIntent{Kind: kind, Skill: skill, Notes: notes}
 	if kind == "action" {
 		intent.DC = 12
 	}
-	s.record(req.RoomID, packs.Voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
+	s.record(req.RoomID, s.voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
 	return intent
 }
 
@@ -204,18 +211,16 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 		actor = "Someone"
 	}
 	outcome := outcomeText(locale, req.Kind, req.Success)
-	voice := packs.Voice(pack, locale)
-	if base, ok := s.useLocal("storyteller"); ok {
-		var remote Narrative
-		if err := s.callJSON(base+"/v1/narrate", req, &remote); err == nil && strings.TrimSpace(remote.Prose) != "" {
-			remote.Locale = locale
-			remote.Prose = pii.Redact(remote.Prose)
-			if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
-				remote.Prose = strings.ReplaceAll(remote.Prose, "system_admin", "")
-			}
-			s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
-			return remote
+	voice := s.voice(pack, locale)
+	var remote Narrative
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && strings.TrimSpace(remote.Prose) != "" {
+		remote.Locale = locale
+		remote.Prose = pii.Redact(remote.Prose)
+		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
+			remote.Prose = strings.ReplaceAll(remote.Prose, "system_admin", "")
 		}
+		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
+		return remote
 	}
 	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -224,6 +229,49 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	n := Narrative{Locale: locale, Prose: prose, NPCLines: []NPCLine{}}
 	s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(prose))
 	return n
+}
+
+func (s *Service) Packs() []PackDoc {
+	ids := []string{packs.V1, packs.V1Terse}
+	out := make([]PackDoc, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, PackDoc{ID: id, EN: s.voice(id, "en"), TR: s.voice(id, "tr")})
+	}
+	return out
+}
+
+func (s *Service) PutPack(id, en, tr string) error {
+	if !packs.Known(id) {
+		return fmt.Errorf("unknown prompt pack")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.voiceOverride == nil {
+		s.voiceOverride = map[string]string{}
+	}
+	if strings.TrimSpace(en) != "" {
+		s.voiceOverride[id+":en"] = strings.TrimSpace(en)
+	}
+	if strings.TrimSpace(tr) != "" {
+		s.voiceOverride[id+":tr"] = strings.TrimSpace(tr)
+	}
+	return nil
+}
+
+func (s *Service) voice(pack, locale string) string {
+	if locale != "tr" {
+		locale = "en"
+	}
+	s.mu.Lock()
+	ov := ""
+	if s.voiceOverride != nil {
+		ov = s.voiceOverride[pack+":"+locale]
+	}
+	s.mu.Unlock()
+	if strings.TrimSpace(ov) != "" {
+		return ov
+	}
+	return packs.Voice(pack, locale)
 }
 
 func (s *Service) currentPack() string {

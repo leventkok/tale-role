@@ -207,3 +207,24 @@ func (s *Server) adminSwap(w http.ResponseWriter, r *http.Request) {
 func (s *Server) adminTraces(w http.ResponseWriter, _ *http.Request) {
 	httperr.JSON(w, http.StatusOK, map[string]any{"traces": s.llm.Traces()})
 }
+
+func (s *Server) adminPacks(w http.ResponseWriter, _ *http.Request) {
+	httperr.JSON(w, http.StatusOK, map[string]any{"packs": s.llm.Packs()})
+}
+
+func (s *Server) adminPutPack(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID string `json:"id"`
+		EN string `json:"en"`
+		TR string `json:"tr"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	if err := s.llm.PutPack(body.ID, body.EN, body.TR); err != nil {
+		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"packs": s.llm.Packs()})
+}

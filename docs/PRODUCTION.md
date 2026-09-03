@@ -11,7 +11,7 @@ Browser → Next.js (Vercel)
                           └─ Hugging Face Hub (private repos, from_pretrained)
 ```
 
-`HF_TOKEN` only on the GPU runner. Game API only has model **ids** and runner **URLs**. No paid OpenAI/Anthropic/HF Inference API. Dice stay in Go.
+`HF_TOKEN` only on the GPU runner. Game API only has model **ids** and runner **URLs** (`LLM_STORYTELLER_URL` / `LLM_MECHANICS_URL`, or comma-separated `LLM_*_URLS` replicas). No paid OpenAI/Anthropic/HF Inference API. Dice stay in Go.
 
 The Cloudflare tunnel to this PC (`localhost:3000/8080/3001`) is a smoke path. Cut DNS over after Vercel + Render are healthy. Do not set `TALEROLE_DEV_OTP` on hosted API.
 
