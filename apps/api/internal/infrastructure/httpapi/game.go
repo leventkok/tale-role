@@ -44,7 +44,6 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = s.table.BindUniverse(room.ID, uni.ID, uni.ThemeID, uni.PromptPackVersion)
 		s.seatSavedHero(room.ID, u.ID)
-		s.svc.GrantLantern(u.ID, 10)
 		httperr.JSON(w, http.StatusCreated, map[string]any{"id": room.ID, "dice_system": room.DiceSystem, "universe_id": uni.ID})
 		return
 	}
@@ -53,7 +52,6 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 		s.writeAppError(w, err)
 		return
 	}
-	s.svc.GrantLantern(u.ID, 10)
 	httperr.JSON(w, http.StatusCreated, map[string]any{"id": room.ID, "dice_system": room.DiceSystem})
 }
 
@@ -106,7 +104,6 @@ func (s *Server) setCharacter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.rememberHero(chi.URLParam(r, "roomID"), u.ID)
-	s.svc.GrantLantern(u.ID, 8)
 	httperr.JSON(w, http.StatusCreated, map[string]any{"ok": true})
 }
 
@@ -125,6 +122,19 @@ func (s *Server) startRoom(w http.ResponseWriter, r *http.Request) {
 	if err := s.table.Start(chi.URLParam(r, "roomID"), u.ID); err != nil {
 		s.writeAppError(w, err)
 		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) completeRoom(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r)
+	ids, err := s.table.Complete(chi.URLParam(r, "roomID"), u.ID)
+	if err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	for _, id := range ids {
+		s.svc.GrantLantern(id, game.TaleCompleteXP)
 	}
 	httperr.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -157,9 +167,6 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	turn = s.narrateTurn(roomID, u.ID, body.Locale, body.Notes, turn)
 	s.rememberHero(roomID, u.ID)
-	if body.Kind == "say" || body.Kind == "action" {
-		s.svc.GrantLantern(u.ID, 2)
-	}
 	httperr.JSON(w, http.StatusOK, turn)
 }
 
@@ -258,4 +265,24 @@ func (s *Server) adminPutPack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httperr.JSON(w, http.StatusOK, map[string]any{"packs": s.llm.Packs()})
+}
+
+func (s *Server) adminLobbies(w http.ResponseWriter, _ *http.Request) {
+	rows := s.table.Lobbies()
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, map[string]any{
+			"id": row.ID, "name": row.Name, "join_mode": row.JoinMode,
+			"started": row.Started, "completed": row.Completed, "seats": row.Seats,
+		})
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"lobbies": out})
+}
+
+func (s *Server) adminCloseRoom(w http.ResponseWriter, r *http.Request) {
+	if err := s.table.AdminClose(chi.URLParam(r, "roomID")); err != nil {
+		s.writeAppError(w, err)
+		return
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"closed": true})
 }

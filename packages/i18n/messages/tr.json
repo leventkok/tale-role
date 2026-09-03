@@ -96,6 +96,8 @@
     "rollInit": "Oturuş zarı at",
     "initHint": "Herkes bir kez zar atar. Yüksek olan önce oturur.",
     "awaitInit": "Herkes oturuş zarı atana kadar bekle.",
+    "endTale": "Hikâyeyi bitir",
+    "taleEnded": "Hikâye tamam. Fener bir sonraki masayı bekler.",
     "yourTurn": "Sıra sende",
     "waitTurn": "Sıranı bekle. O zamana kadar masa susar.",
     "order": "Oturuş",

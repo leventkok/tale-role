@@ -150,8 +150,8 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	meLantern := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query": `{ me { lanternXp lanternLevel } }`,
 	})
-	if !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternXp":43`)) || !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternLevel":1`)) {
-		t.Fatalf("lantern after first sheet: %s", meLantern.Body.String())
+	if !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternXp":25`)) || !bytes.Contains(meLantern.Body.Bytes(), []byte(`"lanternLevel":1`)) {
+		t.Fatalf("lantern after sitting must wait for the tale: %s", meLantern.Body.String())
 	}
 	second := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query":     `mutation ($id: ID!) { createRoom(name: "Ashwood II", joinMode: "link", universeId: $id) { id } }`,
@@ -198,6 +198,19 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 	})
 	if bytes.Contains(act.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(act.Body.Bytes(), []byte(`"kind"`)) {
 		t.Fatalf("actTurn: %s", act.Body.String())
+	}
+	done := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { completeRoom(roomId: $id) }`,
+		"variables": map[string]string{"id": roomBody.Data.CreateRoom.ID},
+	})
+	if bytes.Contains(done.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("completeRoom: %s", done.Body.String())
+	}
+	meDone := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `{ me { lanternXp lanternLevel } }`,
+	})
+	if !bytes.Contains(meDone.Body.Bytes(), []byte(`"lanternXp":45`)) {
+		t.Fatalf("lantern after completing the tale: %s", meDone.Body.String())
 	}
 	snap := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
 		"query":     `query ($id: ID!) { room(id: $id) { started turnOrder characters { name stats { str } } turns { actorId kind rolls total prose } } }`,

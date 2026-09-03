@@ -91,6 +91,7 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 			r.Post("/rooms/{roomID}/characters", s.setCharacter)
 			r.Post("/rooms/{roomID}/initiative", s.rollInitiative)
 			r.Post("/rooms/{roomID}/start", s.startRoom)
+			r.Post("/rooms/{roomID}/complete", s.completeRoom)
 			r.Post("/rooms/{roomID}/turns", s.actRoom)
 			r.Group(func(r chi.Router) {
 				r.Use(s.adminOnly)
@@ -99,6 +100,8 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 				r.Get("/admin/traces", s.adminTraces)
 				r.Get("/admin/packs", s.adminPacks)
 				r.Put("/admin/packs", s.adminPutPack)
+				r.Get("/admin/lobbies", s.adminLobbies)
+				r.Post("/admin/rooms/{roomID}/close", s.adminCloseRoom)
 			})
 		})
 	})
@@ -317,7 +320,7 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusNotFound, "not found", err)
 	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden), errors.Is(err, world.ErrForbidden):
 		httperr.Write(w, s.log, http.StatusForbidden, "forbidden", err)
-	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter), errors.Is(err, game.ErrInitiative), errors.Is(err, game.ErrHasInit), errors.Is(err, game.ErrNotYourTurn), errors.Is(err, world.ErrInvalid):
+	case errors.Is(err, game.ErrBadStats), errors.Is(err, game.ErrUnknownDice), errors.Is(err, game.ErrUnknownSkill), errors.Is(err, game.ErrHasCharacter), errors.Is(err, game.ErrNoCharacter), errors.Is(err, game.ErrInitiative), errors.Is(err, game.ErrHasInit), errors.Is(err, game.ErrNotYourTurn), errors.Is(err, game.ErrAlreadyEnded), errors.Is(err, world.ErrInvalid):
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 	default:
 		httperr.Write(w, s.log, http.StatusInternalServerError, "an internal error occurred", err)

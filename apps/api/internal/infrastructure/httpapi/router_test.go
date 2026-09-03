@@ -328,6 +328,24 @@ func TestStorytellerAfterEngineAndAdminTrace(t *testing.T) {
 	if swap.Code != http.StatusOK {
 		t.Fatalf("swap: %d %s", swap.Code, swap.Body.String())
 	}
+	createdClose := authed(t, h, http.MethodPost, "/api/v1/rooms", token, map[string]any{
+		"name": "Spectator Close", "join_mode": "public", "dice_system": "d20",
+	})
+	if createdClose.Code != http.StatusCreated {
+		t.Fatalf("room: %d %s", createdClose.Code, createdClose.Body.String())
+	}
+	var closeRoom struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(createdClose.Body.Bytes(), &closeRoom)
+	lobbies := authed(t, h, http.MethodGet, "/api/v1/admin/lobbies", adminTok, nil)
+	if lobbies.Code != http.StatusOK || !bytes.Contains(lobbies.Body.Bytes(), []byte(closeRoom.ID)) {
+		t.Fatalf("admin lobbies: %d %s", lobbies.Code, lobbies.Body.String())
+	}
+	closed := authed(t, h, http.MethodPost, "/api/v1/admin/rooms/"+closeRoom.ID+"/close", adminTok, nil)
+	if closed.Code != http.StatusOK {
+		t.Fatalf("admin close: %d %s", closed.Code, closed.Body.String())
+	}
 }
 
 func TestUniverseWizardBindsThemeToRoom(t *testing.T) {

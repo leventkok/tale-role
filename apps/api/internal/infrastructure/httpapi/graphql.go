@@ -86,6 +86,7 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 			"diceSystem":        &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"joinMode":          &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 			"started":           &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
+			"completed":         &graphql.Field{Type: graphql.NewNonNull(graphql.Boolean)},
 			"universeId":        &graphql.Field{Type: graphql.String},
 			"themeId":           &graphql.Field{Type: graphql.String},
 			"promptPackVersion": &graphql.Field{Type: graphql.String},
@@ -350,14 +351,12 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						}
 						_ = s.table.BindUniverse(room.ID, uni.ID, uni.ThemeID, uni.PromptPackVersion)
 						s.seatSavedHero(room.ID, u.ID)
-						s.svc.GrantLantern(u.ID, 10)
 						return map[string]any{"id": room.ID, "diceSystem": room.DiceSystem, "universeId": uni.ID}, nil
 					}
 					room, err := s.table.Create(u.ID, name, join, pass, dice)
 					if err != nil {
 						return nil, err
 					}
-					s.svc.GrantLantern(u.ID, 10)
 					return map[string]any{"id": room.ID, "diceSystem": room.DiceSystem}, nil
 				},
 			},
@@ -411,6 +410,27 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					return true, nil
 				},
 			},
+			"completeRoom": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"roomId": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					roomID, _ := p.Args["roomId"].(string)
+					ids, err := s.table.Complete(roomID, u.ID)
+					if err != nil {
+						return nil, err
+					}
+					for _, id := range ids {
+						s.svc.GrantLantern(id, game.TaleCompleteXP)
+					}
+					return true, nil
+				},
+			},
 			"rollInitiative": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.Int),
 				Args: graphql.FieldConfigArgument{
@@ -457,7 +477,6 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 						return nil, err
 					}
 					s.rememberHero(roomID, u.ID)
-					s.svc.GrantLantern(u.ID, 8)
 					return true, nil
 				},
 			},
@@ -491,9 +510,6 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					}
 					turn = s.narrateTurn(roomID, u.ID, locale, notes, turn)
 					s.rememberHero(roomID, u.ID)
-					if kind == "say" || kind == "action" {
-						s.svc.GrantLantern(u.ID, 2)
-					}
 					prose := ""
 					if turn.Narrative != nil {
 						prose = turn.Narrative.Prose
@@ -649,7 +665,7 @@ func roomMap(pub *game.PublicRoom) map[string]any {
 	}
 	out := map[string]any{
 		"id": pub.ID, "name": pub.Name, "hostId": pub.HostID, "diceSystem": pub.DiceSystem,
-		"joinMode": pub.JoinMode, "started": pub.Started, "universeId": pub.UniverseID,
+		"joinMode": pub.JoinMode, "started": pub.Started, "completed": pub.Completed, "universeId": pub.UniverseID,
 		"themeId": pub.ThemeID, "promptPackVersion": pub.PromptPackVersion,
 		"turnOrder": order, "currentActorId": pub.CurrentActorID,
 		"presence": presence, "characters": chars, "turns": turns,

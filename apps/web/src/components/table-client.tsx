@@ -192,6 +192,13 @@ export function TableClient({ roomId }: { roomId: string }) {
     await refresh();
   }
 
+  async function completeTale() {
+    setBusy(true);
+    await gql(`mutation ($roomId: ID!) { completeRoom(roomId: $roomId) }`, { roomId });
+    setBusy(false);
+    await refresh();
+  }
+
   async function rollInit() {
     setBusy(true);
     await gql(`mutation ($roomId: ID!) { rollInitiative(roomId: $roomId) }`, { roomId });
@@ -458,7 +465,11 @@ export function TableClient({ roomId }: { roomId: string }) {
       </aside>
 
       <div className="act">
-        {room.started ? (
+        {room.completed ? (
+          <p className="muted" style={{ margin: 0 }}>
+            {t("taleEnded")}
+          </p>
+        ) : room.started ? (
           myTurn ? (
             <div className="act-row">
               <label>
@@ -486,12 +497,24 @@ export function TableClient({ roomId }: { roomId: string }) {
                 <button className="ghost" type="button" disabled={busy || !mine} onClick={() => void act("pass")}>
                   {t("pass")}
                 </button>
+                {isHost ? (
+                  <button className="ghost" type="button" disabled={busy} onClick={() => void completeTale()}>
+                    {t("endTale")}
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : (
-            <p className="muted" style={{ margin: 0 }}>
-              {t("waitTurn")}
-            </p>
+            <div className="btn-row">
+              <p className="muted" style={{ margin: 0 }}>
+                {t("waitTurn")}
+              </p>
+              {isHost ? (
+                <button className="ghost" type="button" disabled={busy} onClick={() => void completeTale()}>
+                  {t("endTale")}
+                </button>
+              ) : null}
+            </div>
           )
         ) : (
           <div className="btn-row">

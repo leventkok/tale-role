@@ -96,6 +96,8 @@
     "rollInit": "Roll for seating",
     "initHint": "Each player rolls once. Highest sits first.",
     "awaitInit": "Waiting for everyone to roll for seating.",
+    "endTale": "End the tale",
+    "taleEnded": "The tale is told. Lantern standing waits for the next table.",
     "yourTurn": "Your turn",
     "waitTurn": "Wait for your turn. The table is quiet until then.",
     "order": "Seating",
