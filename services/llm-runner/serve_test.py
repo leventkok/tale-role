@@ -2,6 +2,7 @@ import json
 import unittest
 
 from serve import (
+    apply_storyteller_adapter,
     chat_prompt,
     extract_json_object,
     fallback_storyteller,
@@ -50,12 +51,18 @@ class ServeFormatTests(unittest.TestCase):
         self.assertTrue(prompt.endswith("assistant:"))
 
     def test_parse_storyteller_response(self):
-        raw = '{"prose":"Iri waits in Ashwood, listening, and does not roll. The table waits.","npc_lines":[]}'
+        raw = '{"prose":"Iri waits in Ashwood under wet canvas, listening for the second creak on the stair, and does not rush the dark.","npc_lines":[]}'
         parsed = parse_storyteller_response(raw)
         self.assertIsNotNone(parsed)
         assert parsed is not None
         self.assertIn("Ashwood", parsed["prose"])
-        self.assertEqual(parsed["npc_lines"], [])
+
+    def test_reject_short_training_wait(self):
+        raw = '{"prose":"Bir sonraki çandan önce. Çığlık gelene dek bekle.","npc_lines":[]}'
+        self.assertIsNone(parse_storyteller_response(raw, "tr", opening=True))
+
+    def test_base_instruct_by_default(self):
+        self.assertFalse(apply_storyteller_adapter())
 
     def test_reject_json_leak_as_prose(self):
         raw = '{"prose":"{\\"actor\\":\\"Lute\\"}","npc_lines":[]}'

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/leventkok/tale-role/services/llm-gateway/internal/packs"
 	"github.com/leventkok/tale-role/services/llm-gateway/internal/pii"
@@ -322,6 +323,9 @@ func runnerProseOK(prose, locale, kind string) bool {
 	if trainingSalad(lower) {
 		return false
 	}
+	if kind == "story" && utf8.RuneCountInString(p) < 90 {
+		return false
+	}
 	if kind == "story" {
 		if strings.Contains(p, "eşiğe durur") || strings.Contains(p, "[high-fantasy]") || strings.Contains(p, "[gothic") {
 			return false
@@ -344,6 +348,7 @@ func trainingSalad(lower string) bool {
 	frags := []string{
 		"nöbet dönmez", "nöbet dönüyor", "rün karanlık", "kilit durur", "pim kopar",
 		"kahkaha bitince", "kahkaha kopar", "menteşe", "zar ", " der.",
+		"çandan önce", "gelene dek", "bir sonraki çan",
 		"motorun", "içinde,", "hold the line", "the watch is unblinded",
 		"the bar splinters", "the die reads", "the engine's", "the rune stays dark",
 		"the latch yields", "a pin snaps", "what will you do",
@@ -415,9 +420,9 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		}
 		if locale == "tr" {
 			if place != "" {
-				return fmt.Sprintf("%s karanlık. Fener bir yüz bulur. Anlatıcı sözü alır.", place)
+				return fmt.Sprintf("%s taş gibi soğuk. Bir fener titrer. Uzak bir metal sesi sürter. Anlatıcı sahneyi açar.", place)
 			}
-			return "Fener yanar. Eşikte bir duraklama var. Anlatıcı sözü alır."
+			return "Fener yanar. Eşikte bir duraklama var. Uzak bir ses gelir. Anlatıcı sözü alır."
 		}
 		if place != "" {
 			return fmt.Sprintf("Night holds %s. The storyteller takes the floor.", place)

@@ -32,6 +32,16 @@ STOCK = (
     "the engine's die reads",
     "never invent dice",
     "what will you do",
+    "nöbet dönmez",
+    "nöbet dönüyor",
+    "rün karanlık",
+    "kilit durur",
+    "pim kopar",
+    "kahkaha bitince",
+    "kahkaha kopar",
+    "çandan önce",
+    "gelene dek bekle",
+    "zar ",
 )
 
 EN_OK = (
@@ -153,6 +163,8 @@ def prose_looks_valid(prose: str, locale: str = "en", prior: list[str] | None = 
         return False
     if any(stock in lowered for stock in STOCK):
         return False
+    if len(text) < 90:
+        return False
     if text.count(".") + text.count("!") + text.count("?") > 12:
         return False
     if too_similar(text, prior or []):
@@ -181,33 +193,46 @@ def normalize_kind(kind: str) -> str:
     return "action"
 
 
+def apply_storyteller_adapter() -> bool:
+    return os.environ.get("TALEROLE_STORYTELLER_ADAPTER", "").strip() == "1"
+
+
 def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     lang = "Turkish" if locale == "tr" else "English"
-    lock = (
-        f"Write the prose field entirely in {lang}. "
-        "Do not mix English and Turkish. Do not switch language mid-sentence. "
-        "Never invent dice, HP, or turn order. Never echo the user JSON."
+    body = (
+        f"You are a tabletop storyteller. Write 4 to 6 vivid literary sentences in {lang} only. "
+        "Describe place, light, sound, and what the named people do. "
+        "Never mention dice, HP, UI, JSON, or training. Never mix languages. "
+        "Forbidden fragments: nöbet dönmez, rün karanlık, menteşe, çandan önce, "
+        "the watch, hold the line, the bar splinters. "
+        'Return only JSON {"prose":"...","npc_lines":[]}.'
     )
     if opening:
-        body = (
-            "You are the table storyteller. Open the tale in 3 to 5 literary sentences. "
-            "Set place, weather, and tension. Name who is present. "
-            "Do not mention dice, rolls, waiting, or passing. "
-            + lock
-            + ' Return only JSON {"prose":"...","npc_lines":[]}.'
-        )
+        body += " Open the tale. If a host opening is given, keep it and extend it; do not replace it."
     else:
-        body = (
-            f"Narrate the engine result in {lang}. "
-            "On a successful action, include the total number in the prose. "
-            "Vary metaphor. Do not reuse stock training lines. "
-            + lock
-        )
+        body += " On a successful action, mention the count number naturally. Do not say you rolled."
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
         if clipped:
-            body += f" Do not repeat these prior lines: {clipped}"
+            body += f" Do not repeat: {clipped}"
     return body
+
+
+def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> str:
+    present = ", ".join(payload.get("presence") or []) or "the company"
+    if opening:
+        seed = payload.get("notes") or "(none — invent a full opening scene)"
+        return (
+            f"language={locale}\nplace={payload.get('room')}\n"
+            f"theme={payload.get('theme') or ''}\npresent={present}\n"
+            f"host_opening={seed}\nWrite the opening now."
+        )
+    return (
+        f"language={locale}\nactor={payload.get('actor')}\nplace={payload.get('room')}\n"
+        f"kind={payload.get('kind')}\nnotes={payload.get('notes')}\n"
+        f"count={payload.get('total')}\nsuccess={payload.get('success')}\n"
+        f"present={present}\nNarrate this beat."
+    )
 
 
 def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -263,11 +288,13 @@ def fallback_opening(locale: str, payload: dict[str, Any]) -> str:
     notes = str(payload.get("notes") or "").strip()
     if notes:
         return notes
-    seed = f"{room}:{locale}"
     if locale == "tr":
         if room:
-            return pick_line(TR_OPEN, seed).format(room=room, cast="kahramanlar")
-        return "Fener yanar. Eşikte bir duraklama var. Anlatıcı sözü alır."
+            return (
+                f"{room} taş gibi soğuk. Bir fener titrer, uzak bir metal sesi sürter. "
+                "Kimse henüz konuşmaz. Anlatıcı sahneyi açar; hava durur."
+            )
+        return "Fener yanar. Eşikte bir duraklama var. Uzak bir ses gelir. Anlatıcı sözü alır."
     if room:
         return pick_line(EN_OPEN, seed).format(room=room, cast="the company")
     return "A hush. Lanternlight. The storyteller takes the floor."
@@ -394,7 +421,7 @@ def chat_prompt(tokenizer: Any, system: str, user: str) -> str:
     )
 
 
-def load_pipeline(model_id: str, token: str | None):
+def load_pipeline(model_id: str, token: str | None, *, apply_adapter: bool = True):
     import torch
     from huggingface_hub import list_repo_files
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
@@ -424,7 +451,10 @@ def load_pipeline(model_id: str, token: str | None):
             trust_remote_code=True,
             quantization_config=quant,
         )
-        model = PeftModel.from_pretrained(base, model_id, token=token)
+        if apply_adapter:
+            model = PeftModel.from_pretrained(base, model_id, token=token)
+        else:
+            model = base
         return pipeline("text-generation", model=model, tokenizer=tok, return_full_text=False)
 
     tok = AutoTokenizer.from_pretrained(tok_id, token=token, trust_remote_code=True)
@@ -524,21 +554,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = None
         if tokenizer is not None:
             system = storyteller_system(locale, opening=opening, prior=prior)
-            if opening:
-                user = (
-                    f"locale={locale}\nroom={payload['room']}\n"
-                    f"theme={payload.get('theme') or ''}\n"
-                    f"present={', '.join(payload.get('presence') or [])}\n"
-                    f"opening={payload['notes']}\nBegin."
-                )
-            else:
-                user = json.dumps(
-                    {k: payload[k] for k in ("actor", "room", "kind", "dice", "rolls", "total", "success", "notes", "presence")},
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                )
+            user = storyteller_user(payload, opening=opening, locale=locale)
             prompt = chat_prompt(tokenizer, system, user)
-            raw = self.generate(prompt, max_new_tokens=280 if opening else 240)
+            raw = self.generate(prompt, max_new_tokens=320 if opening else 260)
             parsed = parse_storyteller_response(raw, locale, prior, opening=opening)
 
         if parsed:
@@ -586,7 +604,9 @@ def main() -> None:
     global _pipe
     if not Handler.allow_unloaded:
         with _pipe_lock:
-            _pipe = load_pipeline(args.hf_model, token)
+            _pipe = load_pipeline(args.hf_model, token, apply_adapter=args.role != "storyteller" or apply_storyteller_adapter())
+        if args.role == "storyteller" and not apply_storyteller_adapter():
+            print("storyteller: base instruct (LoRA skipped)", flush=True)
     httpd = ReusableHTTPServer((args.host, args.port), Handler)
     print(f"llm-runner {args.role} hub={args.hf_model} on {args.host}:{args.port}", flush=True)
     httpd.serve_forever()

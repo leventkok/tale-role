@@ -251,6 +251,29 @@ func TestStoryOpeningKeepsHostText(t *testing.T) {
 	}
 }
 
+func TestShortOpeningSaladRejected(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Bir sonraki çandan önce. Çığlık gelene dek bekle.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "tr", Kind: "story", Notes: opening, Opening: opening, RoomName: "World Of Warcraft"})
+	if strings.Contains(n.Prose, "çandan") || strings.Contains(n.Prose, "Çığlık") {
+		t.Fatalf("short salad opening reached table: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Shaper temple") {
+		t.Fatalf("expected host opening: %s", n.Prose)
+	}
+}
+
 func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
