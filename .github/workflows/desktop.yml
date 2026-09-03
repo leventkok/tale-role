@@ -11,6 +11,9 @@ on:
 permissions:
   contents: write
 
+env:
+  DESKTOP_VERSION: 0.1.${{ github.run_number }}
+
 jobs:
   build-win:
     runs-on: windows-latest
@@ -25,11 +28,17 @@ jobs:
         working-directory: apps/desktop
         run: |
           npm ci
+          npm version $env:DESKTOP_VERSION --no-git-tag-version --allow-same-version
           npm run pack:win
+        env:
+          DESKTOP_VERSION: ${{ env.DESKTOP_VERSION }}
       - uses: actions/upload-artifact@v4
         with:
           name: win-installer
-          path: apps/desktop/dist/Tale-Role-Setup.exe
+          path: |
+            apps/desktop/dist/Tale-Role-Setup.exe
+            apps/desktop/dist/latest.yml
+            apps/desktop/dist/*.blockmap
           if-no-files-found: error
 
   build-mac:
@@ -45,11 +54,17 @@ jobs:
         working-directory: apps/desktop
         run: |
           npm ci
+          npm version "$DESKTOP_VERSION" --no-git-tag-version --allow-same-version
           npm run pack:mac
+        env:
+          DESKTOP_VERSION: ${{ env.DESKTOP_VERSION }}
       - uses: actions/upload-artifact@v4
         with:
           name: mac-installer
-          path: apps/desktop/dist/Tale-Role.dmg
+          path: |
+            apps/desktop/dist/Tale-Role.dmg
+            apps/desktop/dist/latest-mac.yml
+            apps/desktop/dist/*.blockmap
           if-no-files-found: error
 
   release:
@@ -66,15 +81,18 @@ jobs:
           path: dist/mac
       - name: Stage release files
         run: |
-          cp dist/win/Tale-Role-Setup.exe .
-          cp dist/mac/Tale-Role.dmg .
-          ls -lh Tale-Role-Setup.exe Tale-Role.dmg
+          cp dist/win/* .
+          cp dist/mac/* .
+          ls -lh
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: desktop-build-${{ github.run_number }}
-          name: Tale Role Desktop (build ${{ github.run_number }})
+          tag_name: v${{ env.DESKTOP_VERSION }}
+          name: Tale Role Desktop v${{ env.DESKTOP_VERSION }}
           files: |
             Tale-Role-Setup.exe
+            Tale-Role-Setup.exe.blockmap
+            latest.yml
             Tale-Role.dmg
+            latest-mac.yml
           make_latest: true
           generate_release_notes: true

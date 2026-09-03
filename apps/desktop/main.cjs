@@ -1,11 +1,13 @@
-const { app, BrowserWindow, Menu, protocol, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, nativeImage, protocol, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
 
 const WEB_URL = (process.env.TALEROLE_WEB_URL || "https://www.talerole.com").replace(/\/$/, "");
 const LOCALE = process.env.TALEROLE_LOCALE === "tr" ? "tr" : "en";
-const APP_ICON = path.join(__dirname, "icons", "icon.png");
+const APP_ID = "role.tale.desktop";
+const APP_ICON = nativeImage.createFromPath(path.join(__dirname, "icons", "icon.png"));
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "talerole", privileges: { standard: true, secure: true } },
@@ -47,6 +49,7 @@ function createWindow() {
     minHeight: 640,
     title: "Tale Role",
     icon: APP_ICON,
+    autoHideMenuBar: true,
     backgroundColor: "#120e0a",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -55,6 +58,7 @@ function createWindow() {
     },
   });
   mainWindow.loadURL(`${WEB_URL}/${LOCALE}`);
+  mainWindow.setMenuBarVisibility(false);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("http:") || url.startsWith("https:")) {
       void shell.openExternal(url);
@@ -66,39 +70,60 @@ function createWindow() {
   });
 }
 
-function buildMenu() {
-  const template = [
-    {
-      label: "Tale Role",
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "quit" },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [{ role: "reload" }, { role: "togglefullscreen" }],
-    },
-    {
-      label: "Help",
-      submenu: [
-        {
-          label: "Open in browser",
-          click: () => {
-            void shell.openExternal(`${WEB_URL}/${LOCALE}`);
-          },
-        },
-      ],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+function updateCopy() {
+  if (LOCALE === "tr") {
+    return {
+      readyTitle: "Güncelleme hazır",
+      readyBody: "Yeni sürüm indirildi. Tale Role'ü yeniden başlatın.",
+      restart: "Yeniden başlat",
+      later: "Sonra",
+    };
+  }
+  return {
+    readyTitle: "Update ready",
+    readyBody: "A new version was downloaded. Restart Tale Role to apply it.",
+    restart: "Restart now",
+    later: "Later",
+  };
+}
+
+function initAutoUpdate() {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-downloaded", () => {
+    const copy = updateCopy();
+    void dialog
+      .showMessageBox({
+        type: "info",
+        title: copy.readyTitle,
+        message: copy.readyBody,
+        buttons: [copy.restart, copy.later],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+
+  void autoUpdater.checkForUpdatesAndNotify().catch(() => {});
 }
 
 const locked = app.requestSingleInstanceLock();
 if (!locked) {
   app.quit();
 } else {
+  if (process.platform === "win32") {
+    app.setAppUserModelId(APP_ID);
+  }
+
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
       app.setAsDefaultProtocolClient("talerole", process.execPath, [path.resolve(process.argv[1])]);
@@ -123,11 +148,12 @@ if (!locked) {
   });
 
   app.whenReady().then(() => {
+    Menu.setApplicationMenu(null);
     if (process.platform === "darwin" && app.dock) {
       app.dock.setIcon(APP_ICON);
     }
     protocol.handle("talerole", (request) => Response.redirect(joinDest(request.url), 302));
-    buildMenu();
+    initAutoUpdate();
     createWindow();
     const fromArg = process.argv.find((a) => typeof a === "string" && a.startsWith("talerole:"));
     if (fromArg) {
