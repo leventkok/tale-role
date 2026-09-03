@@ -315,6 +315,10 @@ def load_pipeline(model_id: str, token: str | None):
     return pipeline("text-generation", model=model, tokenizer=tok, return_full_text=False)
 
 
+class ReusableHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+
+
 class Handler(BaseHTTPRequestHandler):
     role = "storyteller"
     model_id = ""
@@ -440,7 +444,7 @@ def main() -> None:
     if not Handler.allow_unloaded:
         with _pipe_lock:
             _pipe = load_pipeline(args.hf_model, token)
-    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    httpd = ReusableHTTPServer((args.host, args.port), Handler)
     print(f"llm-runner {args.role} hub={args.hf_model} on {args.host}:{args.port}", flush=True)
     httpd.serve_forever()
 
