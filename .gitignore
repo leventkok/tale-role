@@ -65,6 +65,7 @@ llm/**/*.safetensors
 llm/**/*.bin
 llm/**/*.gguf
 llm/datasets/raw/
+llm/notebooks/serve_colab*.ipynb
 *.pt
 *.onnx
 .ipynb_checkpoints/
