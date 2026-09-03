@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
+import { gql, gqlData } from "@/lib/gql";
 
 const THEMES = [
   "high-fantasy",
@@ -36,30 +37,37 @@ export function UniverseWizard() {
     setBusy(true);
     setError(null);
     const npcs = npcName.trim()
-      ? [{ name_en: npcName.trim(), alignment: npcAlign, voice: npcVoice.trim() }]
+      ? [{ nameEn: npcName.trim(), alignment: npcAlign, voice: npcVoice.trim() }]
       : [];
-    const res = await fetch("/api/universes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name_en: nameEn,
-        name_tr: nameTr,
-        theme_id: themeId,
-        dice_system: dice,
-        content_rating: rating,
+    const result = await gql<{ createUniverse: { id: string } }>(
+      `mutation (
+        $nameEn: String!, $nameTr: String, $themeId: String!, $diceSystem: String,
+        $contentRating: String, $era: String, $tone: String, $taboos: String, $npcs: [NPCInput]
+      ) {
+        createUniverse(
+          nameEn: $nameEn, nameTr: $nameTr, themeId: $themeId, diceSystem: $diceSystem,
+          contentRating: $contentRating, era: $era, tone: $tone, taboos: $taboos, npcs: $npcs
+        ) { id }
+      }`,
+      {
+        nameEn,
+        nameTr: nameTr || null,
+        themeId,
+        diceSystem: dice,
+        contentRating: rating,
         era,
         tone,
         taboos,
         npcs,
-      }),
-    });
-    const data = (await res.json()) as { id?: string; error?: string };
+      },
+    );
+    const created = gqlData(result)?.createUniverse;
     setBusy(false);
-    if (!res.ok || !data.id) {
-      setError(data.error ?? "error");
+    if (!created?.id) {
+      setError(result.errors?.[0]?.message ?? "error");
       return;
     }
-    router.push(`/host?universe=${data.id}`);
+    router.push(`/host?universe=${created.id}`);
   }
 
   return (

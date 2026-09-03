@@ -2,45 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { ROOM_QUERY, gql, gqlData, mapRoom, type TableRoom } from "@/lib/gql";
 
 const emptyStats = { str: 3, dex: 3, con: 3, int: 3, wis: 3, cha: 3 };
 const SKILLS = ["str", "dex", "con", "int", "wis", "cha"] as const;
 
 type Stats = Record<(typeof SKILLS)[number], number>;
-
-type Character = {
-  user_id: string;
-  name: string;
-  hp: number;
-  stats?: Stats;
-};
-
-type Room = {
-  id: string;
-  name: string;
-  host_id: string;
-  dice_system: string;
-  started: boolean;
-  turn_order: string[];
-  presence: { user_id: string; role: string }[];
-  characters: Character[];
-  theme_id?: string;
-  scene?: {
-    theme_id: string;
-    visual_prompt?: string;
-    image_svg?: string;
-    inference?: string;
-  };
-  turns: {
-    actor_id: string;
-    kind: string;
-    notes?: string;
-    rolls?: number[];
-    total?: number;
-    success?: boolean | null;
-    narrative?: { prose?: string };
-  }[];
-};
 
 function kindLabel(kind: string, t: (key: "kindPass" | "kindWait" | "kindAction") => string) {
   if (kind === "pass") return t("kindPass");
@@ -51,7 +18,7 @@ function kindLabel(kind: string, t: (key: "kindPass" | "kindWait" | "kindAction"
 export function TableClient({ roomId }: { roomId: string }) {
   const t = useTranslations("table");
   const locale = useLocale();
-  const [room, setRoom] = useState<Room | null>(null);
+  const [room, setRoom] = useState<TableRoom | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [name, setName] = useState("Adventurer");
   const [stats, setStats] = useState<Stats>(emptyStats);
@@ -62,18 +29,18 @@ export function TableClient({ roomId }: { roomId: string }) {
   const logRef = useRef<HTMLDivElement>(null);
 
   async function refresh() {
-    const res = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
-    if (res.ok) {
-      setRoom(await res.json());
+    const result = await gql<{ room: Parameters<typeof mapRoom>[0] | null }>(ROOM_QUERY, { id: roomId });
+    const data = gqlData(result);
+    if (data?.room) {
+      setRoom(mapRoom(data.room));
     }
   }
 
   useEffect(() => {
-    void fetch("/api/me", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { id?: string } | null) => {
-        if (data?.id) setMe(data.id);
-      });
+    void gql<{ me: { id: string } | null }>("{ me { id } }").then((result) => {
+      const data = gqlData(result);
+      if (data?.me?.id) setMe(data.me.id);
+    });
   }, []);
 
   useEffect(() => {
@@ -110,29 +77,31 @@ export function TableClient({ roomId }: { roomId: string }) {
   async function saveCharacter(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    await fetch(`/api/rooms/${roomId}/characters`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, stats }),
-    });
+    await gql(
+      `mutation ($roomId: ID!, $name: String!, $stats: StatsInput!) {
+        setCharacter(roomId: $roomId, name: $name, stats: $stats)
+      }`,
+      { roomId, name, stats },
+    );
     setBusy(false);
     await refresh();
   }
 
   async function start() {
     setBusy(true);
-    await fetch(`/api/rooms/${roomId}/start`, { method: "POST" });
+    await gql(`mutation ($roomId: ID!) { startRoom(roomId: $roomId) }`, { roomId });
     setBusy(false);
     await refresh();
   }
 
   async function act(kind: string) {
     setBusy(true);
-    await fetch(`/api/rooms/${roomId}/turns`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, skill, notes, dc: 12, locale }),
-    });
+    await gql(
+      `mutation ($roomId: ID!, $kind: String, $skill: String, $notes: String, $locale: String) {
+        actTurn(roomId: $roomId, kind: $kind, skill: $skill, notes: $notes, dc: 12, locale: $locale) { kind total }
+      }`,
+      { roomId, kind, skill, notes, locale },
+    );
     setNotes("");
     setBusy(false);
     await refresh();

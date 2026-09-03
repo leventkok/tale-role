@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 
+import { gql, gqlData } from "@/lib/gql";
+
 type Uni = { id: string; name_en: string; theme_id: string; dice_system: string };
 
 export function HostForm({ universeId }: { universeId?: string }) {
@@ -19,15 +21,20 @@ export function HostForm({ universeId }: { universeId?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch("/api/universes", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { universes: [] }))
-      .then((data: { universes?: Uni[] }) => {
-        const rows = data.universes ?? [];
-        setCatalog(rows);
-        if (universeId && rows.some((row) => row.id === universeId)) {
-          setUniverse(universeId);
-        }
-      });
+    void gql<{ universes: { id: string; nameEn: string; themeId: string; diceSystem: string }[] }>(
+      `{ universes { id nameEn themeId diceSystem } }`,
+    ).then((result) => {
+      const rows = (gqlData(result)?.universes ?? []).map((row) => ({
+        id: row.id,
+        name_en: row.nameEn,
+        theme_id: row.themeId,
+        dice_system: row.diceSystem,
+      }));
+      setCatalog(rows);
+      if (universeId && rows.some((row) => row.id === universeId)) {
+        setUniverse(universeId);
+      }
+    });
   }, [universeId]);
 
   useEffect(() => {
@@ -40,23 +47,24 @@ export function HostForm({ universeId }: { universeId?: string }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const res = await fetch("/api/rooms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const result = await gql<{ createRoom: { id: string } }>(
+      `mutation ($name: String, $joinMode: String, $password: String, $diceSystem: String, $universeId: ID) {
+        createRoom(name: $name, joinMode: $joinMode, password: $password, diceSystem: $diceSystem, universeId: $universeId) { id }
+      }`,
+      {
         name,
-        join_mode: joinMode,
-        password,
-        dice_system: dice,
-        universe_id: universe || undefined,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "error");
+        joinMode,
+        password: password || null,
+        diceSystem: dice,
+        universeId: universe || null,
+      },
+    );
+    const created = gqlData(result)?.createRoom;
+    if (!created?.id) {
+      setError(result.errors?.[0]?.message ?? "error");
       return;
     }
-    router.push(`/table/${data.id}`);
+    router.push(`/table/${created.id}`);
   }
 
   return (

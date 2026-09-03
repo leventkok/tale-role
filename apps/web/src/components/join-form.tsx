@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
+import { gql, gqlData } from "@/lib/gql";
 
 export function JoinForm({ initialRoomId = "" }: { initialRoomId?: string }) {
   const t = useTranslations("table");
@@ -13,12 +14,11 @@ export function JoinForm({ initialRoomId = "" }: { initialRoomId?: string }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const join = await fetch(`/api/rooms/${roomId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    if (!join.ok) {
+    const result = await gql<{ joinRoom: boolean }>(
+      `mutation ($roomId: ID!, $password: String) { joinRoom(roomId: $roomId, password: $password) }`,
+      { roomId, password: password || null },
+    );
+    if (!gqlData(result)?.joinRoom) {
       setError("forbidden");
       return;
     }

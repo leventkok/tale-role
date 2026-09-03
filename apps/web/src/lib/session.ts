@@ -26,3 +26,21 @@ export function apiFetch(path: string, init: RequestInit = {}): Promise<Response
     signal: init.signal ?? AbortSignal.timeout(20_000),
   });
 }
+
+export async function gqlUpstream<T>(
+  token: string | undefined,
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<{ data?: T; errors?: { message: string }[] }> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(`${apiBase()}/graphql`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query, variables }),
+    cache: "no-store",
+  });
+  return (await res.json().catch(() => ({}))) as { data?: T; errors?: { message: string }[] };
+}
