@@ -2,24 +2,51 @@
 
 Electron shell (Windows + macOS). Loads the live web app and registers `talerole://join/...`.
 
-```bash
-# live site (default)
-npx electron apps/desktop
+## Run locally
 
-# local web
+```powershell
+cd apps\desktop
+npm install
+npm start
+```
+
+Live site (default `https://www.talerole.com`):
+
+```powershell
+npm start
+```
+
+Local web dev:
+
+```powershell
 $env:TALEROLE_WEB_URL="http://127.0.0.1:3000"
-npx electron apps/desktop
+$env:TALEROLE_LOCALE="tr"
+npm start
 ```
 
-Turkish join links: `$env:TALEROLE_LOCALE="tr"`.
+## Build installers
 
-Unsigned local pack (no certificates):
-
-```bash
-cd apps/desktop
-npx electron-builder --publish never
+```powershell
+cd apps\desktop
+npm install
+npm run pack
 ```
 
-Signing is a human step. See [docs/SIGNING.md](../../docs/SIGNING.md). Do not commit certificates.
+Outputs in `dist/`:
 
-Device id is a hostname hash on `window.taleRoleDesktop`. The JWT stays in the HttpOnly web cookie; never `localStorage`.
+| OS | File |
+| --- | --- |
+| Windows | `Tale-Role-Setup.exe` |
+| macOS | `Tale-Role.dmg` (build on a Mac) |
+
+Unsigned builds only until you set signing env vars — see [docs/SIGNING.md](../../docs/SIGNING.md).
+
+## Website download button
+
+The home page links to the **latest GitHub Release** (`Tale-Role-Setup.exe`, `Tale-Role.dmg`). Pushing to `main` (when `apps/desktop` changes) runs `.github/workflows/desktop.yml` and publishes a new release automatically.
+
+For local web testing, copy installers to `apps/web/public/downloads/` and set `NEXT_PUBLIC_DESKTOP_DOWNLOAD_*` in `.env.local`. See `apps/web/public/downloads/README.md`.
+
+## Device license
+
+`window.taleRoleDesktop` exposes `deviceId` and `platform`. Register the device from Account → Devices in the desktop app. JWT stays in HttpOnly cookies, not `localStorage`.

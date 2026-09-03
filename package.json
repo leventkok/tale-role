@@ -17,7 +17,9 @@
     "eval": "npm run eval -w @tale-role/game-schema",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:web": "npm run dev -w @tale-role/web",
-    "dev:admin": "npm run dev -w @tale-role/admin"
+    "dev:admin": "npm run dev -w @tale-role/admin",
+    "dev:desktop": "npm start --prefix apps/desktop",
+    "pack:desktop": "npm run pack --prefix apps/desktop"
   },
   "devDependencies": {
     "@types/node": "^20.17.19",

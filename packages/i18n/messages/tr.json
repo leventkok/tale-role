@@ -45,7 +45,13 @@
     "pitch": "Anlatıcı hikâyeyi söyler. Sen ne yapacağını seçersin. Masa skoru tutar.",
     "hostLead": "Kendi dünyalarından birini seç ve oda aç.",
     "playLead": "Açık masalara bak. Herkese açık odaya hemen oturursun. Gizli oda şifre ister.",
-    "universeLead": "Dünyaya ad, çağ ve ruh ver; sonra orada yaşayanları çağır."
+    "universeLead": "Dünyaya ad, çağ ve ruh ver; sonra orada yaşayanları çağır.",
+    "downloadLead": "Masaüstü uygulamasını mı tercih edersin? Platformunu seç ve Windows veya Mac için indir.",
+    "downloadPlatform": "Platform",
+    "downloadWindows": "Windows",
+    "downloadMac": "macOS",
+    "downloadCtaWin": "Windows için indir",
+    "downloadCtaMac": "Mac için indir"
   },
   "admin": {
     "title": "İzleyici konsolu",

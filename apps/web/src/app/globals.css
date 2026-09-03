@@ -493,6 +493,40 @@ button.ghost {
   gap: 0.55rem;
 }
 
+.desktop-download {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: start;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+  max-width: 28rem;
+}
+
+.platform-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.platform {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.platform.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .hint,
 .muted {
   color: var(--muted);
