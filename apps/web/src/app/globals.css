@@ -719,17 +719,24 @@ button:disabled,
 
 .act {
   grid-area: act;
-  grid-column: unset;
+  overflow: hidden;
 }
 
 .act-row {
   display: grid;
-  grid-template-columns: minmax(10rem, 13rem) 1fr auto;
+  grid-template-columns: 11rem minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: end;
+  min-width: 0;
+}
+
+.act-row > * {
+  min-width: 0;
 }
 
 .act-row .btn-row {
+  display: flex;
+  flex-wrap: nowrap;
   padding-bottom: 0.1rem;
 }
 
