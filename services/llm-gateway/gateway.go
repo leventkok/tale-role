@@ -215,7 +215,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
 	var remote Narrative
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale) {
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -224,7 +224,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
 		return remote
 	}
-	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes)
+	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
@@ -304,7 +304,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose, locale string) bool {
+func runnerProseOK(prose, locale, kind string) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -325,10 +325,16 @@ func runnerProseOK(prose, locale string) bool {
 	if strings.Contains(lower, "the engine's die reads 0") || strings.Contains(lower, "what will you do") {
 		return false
 	}
-	if locale == "tr" {
-		if strings.Contains(lower, "hold the line") || strings.Contains(lower, "the watch is unblinded") {
+	if strings.Contains(lower, "hold the line") || strings.Contains(lower, "the watch is unblinded") {
+		return false
+	}
+	if kind == "story" {
+		if strings.Contains(p, "eşiğe durur") || strings.Contains(p, "[high-fantasy]") || strings.Contains(p, "[gothic") {
 			return false
 		}
+		return true
+	}
+	if locale == "tr" {
 		enHits := strings.Count(lower, " the ") + strings.Count(lower, " and ") + strings.Count(lower, " with ")
 		if enHits >= 4 && !strings.ContainsAny(p, "çğıöşüÇĞİÖŞÜ") {
 			return false
@@ -383,14 +389,12 @@ func outcomeText(locale, kind string, success *bool) string {
 	return "falters"
 }
 
-func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes string) string {
+func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string) string {
 	_ = dice
 	_ = rolls
 	_ = total
-	place := room
-	if theme != "" {
-		place = room + " [" + theme + "]"
-	}
+	_ = theme
+	place := strings.TrimSpace(room)
 	if pack == packs.V1Terse {
 		if locale == "tr" {
 			return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
@@ -398,19 +402,20 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
 	deed := strings.TrimSpace(notes)
-	if strings.Contains(strings.ToLower(outcome), "storyteller takes the floor") || strings.Contains(outcome, "anlatıcı sözü alır") {
-		if locale == "tr" {
-			body := fmt.Sprintf("%s sessiz. %s eşiğe durur. Anlatıcı sözü alır.", place, actor)
-			if deed != "" {
-				body = deed + " " + body
-			}
-			return body
-		}
-		body := fmt.Sprintf("Night holds %s. %s stand at the threshold. The storyteller takes the floor.", place, actor)
+	if kind == "story" || strings.Contains(strings.ToLower(outcome), "storyteller takes the floor") || strings.Contains(outcome, "anlatıcı sözü alır") {
 		if deed != "" {
-			body = deed + " " + body
+			return deed
 		}
-		return body
+		if locale == "tr" {
+			if place != "" {
+				return fmt.Sprintf("%s sessiz. Fener yanar. Anlatıcı sözü alır.", place)
+			}
+			return "Fener yanar. Eşikte bir duraklama var. Anlatıcı sözü alır."
+		}
+		if place != "" {
+			return fmt.Sprintf("Night holds %s. The storyteller takes the floor.", place)
+		}
+		return "A hush. Lanternlight. The storyteller takes the floor."
 	}
 	if locale == "tr" {
 		body := fmt.Sprintf("%s salonunda %s %s.", place, actor, outcome)

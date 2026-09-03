@@ -412,8 +412,11 @@ func TestUniverseWizardBindsThemeToRoom(t *testing.T) {
 	if turn.Code != http.StatusOK {
 		t.Fatalf("turn: %d %s", turn.Code, turn.Body.String())
 	}
-	if !bytes.Contains(turn.Body.Bytes(), []byte("[gothic-horror]")) {
-		t.Fatalf("stub narrator should name the theme: %s", turn.Body.String())
+	if bytes.Contains(turn.Body.Bytes(), []byte("[gothic-horror]")) {
+		t.Fatal("theme id must not leak into narrator prose")
+	}
+	if !bytes.Contains(turn.Body.Bytes(), []byte("The lantern holds")) && !bytes.Contains(turn.Body.Bytes(), []byte("Ashwood")) {
+		t.Fatalf("stub narrator missing: %s", turn.Body.String())
 	}
 	if bytes.Contains(turn.Body.Bytes(), []byte("image_svg")) {
 		t.Fatal("scene art must not inline in the chronicle turn")
