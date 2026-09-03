@@ -503,6 +503,11 @@ button.ghost {
   max-width: 28rem;
 }
 
+html[data-talerole-shell="desktop"] .desktop-download,
+body[data-talerole-shell="desktop"] .desktop-download {
+  display: none !important;
+}
+
 .platform-pick {
   display: flex;
   flex-wrap: wrap;

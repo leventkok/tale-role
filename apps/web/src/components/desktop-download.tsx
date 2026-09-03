@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { isDesktopShell } from "@/lib/desktop-shell";
 import { DESKTOP_FILENAMES, desktopDownloadPath, type DesktopPlatform } from "@/lib/desktop-download";
@@ -18,9 +19,20 @@ function guessPlatform(): DesktopPlatform {
 
 export function DesktopDownload() {
   const t = useTranslations("home");
-  const [platform, setPlatform] = useState<DesktopPlatform>(() => guessPlatform());
+  const pathname = usePathname();
+  const [platform, setPlatform] = useState<DesktopPlatform>("win");
+  const [show, setShow] = useState(false);
 
-  if (isDesktopShell()) {
+  useLayoutEffect(() => {
+    if (isDesktopShell()) {
+      setShow(false);
+      return;
+    }
+    setPlatform(guessPlatform());
+    setShow(true);
+  }, [pathname]);
+
+  if (!show) {
     return null;
   }
 

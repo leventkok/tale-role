@@ -5,8 +5,12 @@ import { notFound } from "next/navigation";
 import { isLocale, locales } from "@tale-role/i18n";
 import { getSessionToken, gqlUpstream } from "@/lib/session";
 import { SiteHeader } from "@/components/site-header";
+import { DesktopShellMark } from "@/components/desktop-shell-mark";
 import { Link } from "@/i18n/routing";
 import "../globals.css";
+
+const desktopShellScript =
+  '(function(){try{if(window.taleRoleDesktop||/\\bTaleRoleDesktop\\b/i.test(navigator.userAgent)){document.documentElement.setAttribute("data-talerole-shell","desktop");}}catch(e){}})();';
 
 const display = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const body = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif" });
@@ -38,8 +42,12 @@ export default async function LocaleLayout({
   }
 
   return (
-    <html lang={locale} data-theme="high-fantasy" className={`${display.variable} ${body.variable} ${sans.variable}`}>
+    <html lang={locale} suppressHydrationWarning data-theme="high-fantasy" className={`${display.variable} ${body.variable} ${sans.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: desktopShellScript }} />
+      </head>
       <body className="shell" style={{ fontFamily: "var(--font-serif), Georgia, serif" }}>
+        <DesktopShellMark />
         <NextIntlClientProvider messages={messages}>
           <SiteHeader email={email} />
           {children}
