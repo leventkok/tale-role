@@ -92,22 +92,17 @@ export function LobbyBoard() {
 
   return (
     <div className="lobby">
-      {rows === null ? (
-        <p className="muted">{table("loading")}</p>
-      ) : rows.length === 0 ? (
-        <p className="muted">{t("empty")}</p>
-      ) : (
-        <div className="panel lobby-browser">
-          <div className="lobby-table-head" aria-hidden="true">
-            <span>{t("colUniverse")}</span>
-            <span>{t("colStatus")}</span>
-            <span>{t("colPlayers")}</span>
-            <span>{t("colDuration")}</span>
-          </div>
-          <ul className="lobby-table">
-            {rows.map((row) => {
+      <div className="lobby-browser" aria-label={t("title")}>
+        <ul className="lobby-table">
+          {rows === null ? (
+            <li className="lobby-message">{table("loading")}</li>
+          ) : rows.length === 0 ? (
+            <li className="lobby-message">{t("empty")}</li>
+          ) : (
+            rows.map((row) => {
               const duration = row.started ? formatDuration(row.startedAt, now) : null;
               const isPrivate = row.joinMode === "password";
+              const label = row.universeName || row.name;
               return (
                 <li key={row.id} className={expanded === row.id ? "expanded" : undefined}>
                   <button
@@ -116,19 +111,14 @@ export function LobbyBoard() {
                     disabled={busy === row.id}
                     onClick={() => openRow(row)}
                   >
-                    <span className="lobby-universe">
-                      <strong>{row.universeName || row.name}</strong>
-                      {row.universeName && row.universeName !== row.name ? (
-                        <span className="muted lobby-room-name">{row.name}</span>
-                      ) : null}
+                    <span className="lobby-universe" title={label}>
+                      {label}
                     </span>
-                    <span className={`lobby-status ${row.started ? "live" : "waiting"}`}>
-                      {row.started ? table("inPlay") : table("gathering")}
-                    </span>
+                    <span className="lobby-status">{row.started ? table("inPlay") : table("gathering")}</span>
+                    <span className="lobby-duration">{duration ?? t("noDuration")}</span>
                     <span className="lobby-players">
                       {row.seats} / {TABLE_MAX_SEATS}
                     </span>
-                    <span className="lobby-duration">{duration ?? t("noDuration")}</span>
                   </button>
                   {isPrivate && expanded === row.id ? (
                     <div className="lobby-private">
@@ -142,6 +132,7 @@ export function LobbyBoard() {
                       </label>
                       <button
                         type="button"
+                        className="lobby-join-btn"
                         disabled={busy === row.id || !(passwords[row.id] ?? "").trim()}
                         onClick={() => void sit(row.id, passwords[row.id])}
                       >
@@ -151,10 +142,10 @@ export function LobbyBoard() {
                   ) : null}
                 </li>
               );
-            })}
-          </ul>
-        </div>
-      )}
+            })
+          )}
+        </ul>
+      </div>
 
       <form
         className="panel lobby-invite"
