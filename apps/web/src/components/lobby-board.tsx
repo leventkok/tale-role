@@ -92,7 +92,7 @@ export function LobbyBoard() {
 
   return (
     <div className="lobby">
-      <div className="lobby-browser" aria-label={t("title")}>
+      <div className="panel lobby-browser" aria-label={t("title")}>
         <ul className="lobby-table">
           {rows === null ? (
             <li className="lobby-message">{table("loading")}</li>
