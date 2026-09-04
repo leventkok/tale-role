@@ -601,7 +601,7 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	if strings.Contains(outcome, "yolu açar") {
 		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
 	}
-	return fmt.Sprintf("%s hamleyi dener: %s Taş susar. Sayı %d; koridor aynı kalır.", actor, deed, total)
+	return fmt.Sprintf("%s hamleyi kaçırır: %s Taş susar. Sayı %d; uzaktan bir ses sahneyi sürdürür.", actor, deed, total)
 }
 
 func literaryEN(kind, actor, place, deed, outcome string, total int) string {
@@ -628,7 +628,7 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	if strings.Contains(outcome, "finds the way") {
 		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
 	}
-	return fmt.Sprintf("%s misses. %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
+	return fmt.Sprintf("%s misses. %s The stone stays mute. The count is %d; a farther sound takes the next beat.", actor, deed, total)
 }
 
 func excerpt(s string) string {

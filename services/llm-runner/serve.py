@@ -303,7 +303,9 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     else:
         body += (
             " Continue the scene with the people already present. Do not restart the tale. "
-            "Do not quote the player's deed as a header. If the deed failed, show the miss in the room; never say the attempt succeeded."
+            "Do not quote the player's deed as a header. "
+            "If the deed failed, do not grant the goal; the world answers with a complication and play continues. "
+            "Never freeze the table. Never write the attempt as a success."
         )
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
@@ -337,8 +339,8 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
     if success is False:
         result = (
             "RESULT: MISS. The rules engine already ruled this attempt failed. "
-            "Narrate the miss in the room. The actor learns nothing useful, maps nothing, "
-            "and does not succeed. Do not write hesitation-free competence."
+            "Do not grant the deed. Fail forward: the world answers with new pressure, sound, "
+            "or danger, and the scene continues. Do not write hesitation-free competence."
         )
     elif success is True:
         result = (
@@ -457,10 +459,10 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
     if loc == "tr":
         if success is True:
             return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
-        return f"{actor} hamleyi dener: {deed} Taş susar. Sayı {total}; koridor aynı kalır."
+        return f"{actor} hamleyi kaçırır: {deed} Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
     if success is True:
         return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
-    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; nothing shifts yet."
+    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; a farther sound takes the next beat."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:

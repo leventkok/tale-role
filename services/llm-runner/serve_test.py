@@ -71,6 +71,8 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("high-fantasy", user)
         self.assertIn("RESULT: MISS", user)
         self.assertIn("success=False", user)
+        self.assertIn("Fail forward", user)
+        self.assertNotIn("learns nothing useful", user)
 
     def test_chat_prompt_uses_template(self):
         prompt = chat_prompt(StubTokenizer(), "sys", '{"actor":"Iri"}')
@@ -144,6 +146,8 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("Examine the humming carvings", out["prose"])
         self.assertNotIn("follows through", out["prose"])
         self.assertIn("misses", out["prose"])
+        self.assertIn("next beat", out["prose"])
+        self.assertNotIn("nothing shifts", out["prose"])
 
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(

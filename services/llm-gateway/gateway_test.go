@@ -325,6 +325,9 @@ func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "misses") || !strings.Contains(n.Prose, "5") {
 		t.Fatalf("expected honest miss stub: %s", n.Prose)
 	}
+	if !strings.Contains(n.Prose, "next beat") || strings.Contains(n.Prose, "nothing shifts") {
+		t.Fatalf("miss must fail forward, not freeze: %s", n.Prose)
+	}
 }
 
 func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
