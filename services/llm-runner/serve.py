@@ -162,6 +162,7 @@ def prose_looks_valid(
     table_title: str = "",
     host: str = "",
     success: bool | None = None,
+    notes: str = "",
 ) -> bool:
     text = (prose or "").strip()
     if len(text) < 12:
@@ -189,6 +190,8 @@ def prose_looks_valid(
         return True
     if not engine_outcome_ok(text, success):
         return False
+    if actor_moved_against_deed(text, notes):
+        return False
     if not locale_matches(text, locale):
         return False
     return True
@@ -209,6 +212,49 @@ def engine_outcome_ok(prose: str, success: bool | None) -> bool:
         if tell in low:
             return False
     return True
+
+
+def stay_put_deed(notes: str) -> bool:
+    low = (notes or "").casefold()
+    return any(
+        p in low
+        for p in (
+            "without going",
+            "without taking a step",
+            "stay where",
+            "without walking",
+            "without stepping",
+            "don't go",
+            "do not go",
+            "yerinde kal",
+            "adım atmadan",
+            "koridora inmeden",
+        )
+    )
+
+
+def actor_moved_against_deed(prose: str, notes: str) -> bool:
+    if not stay_put_deed(notes):
+        return False
+    low = (prose or "").casefold()
+    return any(
+        tell in low
+        for tell in (
+            "steps into",
+            "steps toward",
+            "he walks",
+            "she walks",
+            "they walk",
+            "walks into",
+            "walked down",
+            "walks down",
+            "enters the corridor",
+            "leading him deeper",
+            "leading her deeper",
+            "adım atar",
+            "koridora iner",
+        )
+    )
 
 
 def table_title_leak(prose: str, title: str, host: str) -> bool:
@@ -303,7 +349,8 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     else:
         body += (
             " Continue the scene with the people already present. Do not restart the tale. "
-            "Do not quote the player's deed as a header. "
+            "Do not quote the player's deed as a header. Narrate only this deed. "
+            "If the player stays put, they do not walk, step, or enter a new place. "
             "If the deed failed, do not grant the goal; the world answers with a complication and play continues. "
             "Never freeze the table. Never write the attempt as a success."
         )
@@ -345,7 +392,8 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
     elif success is True:
         result = (
             "RESULT: HIT. The rules engine already ruled this attempt succeeded. "
-            "Narrate the success without inventing dice, HP, or turn order."
+            "Grant the deed only. Do not move the actor into a place the deed forbids. "
+            "Do not invent dice, HP, or turn order."
         )
     else:
         result = "Continue the scene from the world, the people, and this deed."
@@ -448,11 +496,24 @@ def table_deed(notes: str) -> str:
 
 
 def miss_rewrite_user(user: str) -> str:
-    return (
-        user
-        + "\n\nThe first draft failed the table. Rewrite. The attempt does not succeed. "
-        "The world complicates and play continues. No competence, no recognition, no unhesitating action."
+    return beat_rewrite_user(user, success=False, notes="")
+
+
+def beat_rewrite_user(user: str, *, success: bool | None, notes: str) -> str:
+    extra = (
+        "The first draft failed the table. Rewrite. Narrate only this deed. "
+        "If the player stays put, they do not walk, step, or enter a new place."
     )
+    if success is False:
+        extra += (
+            " The attempt does not succeed. The world complicates and play continues. "
+            "No competence, no recognition, no unhesitating action."
+        )
+    elif success is True:
+        extra += " Grant the deed only. Do not add extra movement."
+    if stay_put_deed(notes):
+        extra += " The actor does not take a step toward the corridor."
+    return user + "\n\n" + extra
 
 
 def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, success: bool | None, total: int) -> str:
@@ -475,6 +536,14 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
     deed = table_deed(raw_notes)
     if deed and deed[-1] not in ".!?":
         deed = deed + "."
+    if stay_put_deed(raw_notes):
+        if loc == "tr":
+            if success is True:
+                return f"{actor} hamleyi yerinde tutar. Sayı {total}. Gitmediği yer açık kalmaz."
+            return f"{actor} hamleyi kaçırır. Sayı {total}. Taş susar; uzaktan bir ses sahneyi sürdürür."
+        if success is True:
+            return f"{actor} holds the beat. The count is {total}. The place they refused stays unentered."
+        return f"{actor} misses. The count is {total}. The stone stays mute, and a farther sound takes the next beat."
     if loc == "tr":
         if success is True:
             if deed:
@@ -517,6 +586,7 @@ def parse_storyteller_response(
     table_title: str = "",
     host: str = "",
     success: bool | None = None,
+    notes: str = "",
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
     prose = ""
@@ -534,6 +604,7 @@ def parse_storyteller_response(
         table_title=table_title,
         host=host,
         success=success,
+        notes=notes,
     ):
         return None
     npc_lines: list[dict[str, str]] = []
@@ -744,10 +815,19 @@ class Handler(BaseHTTPRequestHandler):
                 table_title=str(payload.get("table_title") or ""),
                 host=host,
                 success=payload.get("success"),
+                notes=str(payload.get("notes") or ""),
             )
-            if parsed is None and payload.get("success") is False and not opening:
+            if parsed is None and payload.get("kind") == "action" and not opening:
                 raw = self.generate(
-                    chat_prompt(tokenizer, system, miss_rewrite_user(user)),
+                    chat_prompt(
+                        tokenizer,
+                        system,
+                        beat_rewrite_user(
+                            user,
+                            success=payload.get("success"),
+                            notes=str(payload.get("notes") or ""),
+                        ),
+                    ),
                     max_new_tokens=260,
                 )
                 parsed = parse_storyteller_response(
@@ -758,6 +838,7 @@ class Handler(BaseHTTPRequestHandler):
                     table_title=str(payload.get("table_title") or ""),
                     host=host,
                     success=payload.get("success"),
+                    notes=str(payload.get("notes") or ""),
                 )
 
         if parsed:

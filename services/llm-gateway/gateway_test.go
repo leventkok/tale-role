@@ -333,6 +333,33 @@ func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	}
 }
 
+func TestRunnerStayPutHitDoesNotWalk(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose:  "With focused determination Luther closes his eyes. He steps into the luminous void. As he walks the air thickens, leading him deeper into the unknown. The corridor drinks him whole and the star-path unfurls under his boots.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	ok := true
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "en", ActorName: "Luther", Kind: "action",
+		Notes:   "I stay where I am and try to remember the star-path, without taking a step toward the corridor.",
+		Total:   12, Success: &ok,
+	})
+	if strings.Contains(strings.ToLower(n.Prose), "steps into") || strings.Contains(strings.ToLower(n.Prose), "he walks") {
+		t.Fatalf("stay-put hit walked the actor: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "holds the beat") || strings.Contains(n.Prose, "the way opens") {
+		t.Fatalf("expected stay-put hit stub: %s", n.Prose)
+	}
+}
+
 func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
 	fail := false
 	svc := gateway.New()

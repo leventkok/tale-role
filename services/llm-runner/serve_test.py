@@ -172,6 +172,39 @@ class ServeFormatTests(unittest.TestCase):
         self.assertEqual(table_deed(payload["notes"]), "")
         self.assertIn("Rewrite", miss_rewrite_user("THIS BEAT"))
 
+    def test_reject_walking_when_deed_stays_put(self):
+        deed = "I stay where I am and try to remember the star-path from the song, without taking a step toward the corridor."
+        overshoot = (
+            "With focused determination, Luther closes his eyes and allows the resonant tones to guide him. "
+            "Opening his eyes, Luther notices the corridor ahead shimmering. He steps into the luminous void, "
+            "feeling a gentle push against his feet. As he walks, the air thickens."
+        )
+        raw = json.dumps({"prose": overshoot, "npc_lines": []})
+        self.assertIsNone(parse_storyteller_response(raw, "en", success=True, notes=deed))
+        held = (
+            "Luther stays on the cold stone and lets the song finish in his skull. "
+            "The star-path is only a shape, not a map. Pale light still pools on the medallion. "
+            "Down the corridor the dark waits, unentered."
+        )
+        ok = json.dumps({"prose": held, "npc_lines": []})
+        self.assertIsNotNone(parse_storyteller_response(ok, "en", success=True, notes=deed))
+
+    def test_stay_put_hit_stub_does_not_open_the_way(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "en",
+                "kind": "action",
+                "actor_name": "Luther",
+                "notes": "I stay where I am, without going down the corridor.",
+                "total": 12,
+                "success": True,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("holds the beat", out["prose"])
+        self.assertNotIn("the way opens", out["prose"])
+        self.assertNotIn("steps into", out["prose"])
+
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(
             {

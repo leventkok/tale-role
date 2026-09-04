@@ -227,7 +227,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	req.Locale = locale
 	var remote Narrative
 	host := strings.TrimSpace(req.Opening + " " + notes)
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host, req.Success) {
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host, req.Success, notes) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -316,7 +316,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose, locale, kind, tableTitle, host string, success *bool) bool {
+func runnerProseOK(prose, locale, kind, tableTitle, host string, success *bool, notes string) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -338,6 +338,9 @@ func runnerProseOK(prose, locale, kind, tableTitle, host string, success *bool) 
 		return false
 	}
 	if missLooksLikeHit(lower, success) {
+		return false
+	}
+	if actorMovedAgainstDeed(lower, notes) {
 		return false
 	}
 	if kind != "story" && clauseSalad(p) {
@@ -378,6 +381,37 @@ func missLooksLikeHit(lower string, success *bool) bool {
 	}
 	for _, tell := range tells {
 		if strings.Contains(lower, tell) {
+			return true
+		}
+	}
+	return false
+}
+
+func stayPut(notes string) bool {
+	low := strings.ToLower(notes)
+	tells := []string{
+		"without going", "without taking a step", "stay where", "without walking",
+		"without stepping", "don't go", "do not go", "yerinde kal", "adım atmadan", "koridora inmeden",
+	}
+	for _, t := range tells {
+		if strings.Contains(low, t) {
+			return true
+		}
+	}
+	return false
+}
+
+func actorMovedAgainstDeed(lower, notes string) bool {
+	if !stayPut(notes) {
+		return false
+	}
+	tells := []string{
+		"steps into", "steps toward", "he walks", "she walks", "they walk",
+		"walks into", "walked down", "walks down", "enters the corridor",
+		"leading him deeper", "leading her deeper", "adım atar", "koridora iner",
+	}
+	for _, t := range tells {
+		if strings.Contains(lower, t) {
 			return true
 		}
 	}
@@ -604,6 +638,12 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	case "wait":
 		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
+	if stayPut(deed) {
+		if strings.Contains(outcome, "yolu açar") {
+			return fmt.Sprintf("%s hamleyi yerinde tutar. Sayı %d. Gitmediği yer açık kalmaz.", actor, total)
+		}
+		return fmt.Sprintf("%s hamleyi kaçırır. Sayı %d. Taş susar; uzaktan bir ses sahneyi sürdürür.", actor, total)
+	}
 	deed = tableDeed(deed)
 	if strings.Contains(outcome, "yolu açar") {
 		if deed == "" {
@@ -637,6 +677,12 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 		return fmt.Sprintf("%s lets the beat pass in %s. The lantern holds.", actor, place)
 	case "wait":
 		return fmt.Sprintf("%s holds still in %s. Breath only. The lantern holds.", actor, place)
+	}
+	if stayPut(deed) {
+		if strings.Contains(outcome, "finds the way") {
+			return fmt.Sprintf("%s holds the beat. The count is %d. The place they refused stays unentered.", actor, total)
+		}
+		return fmt.Sprintf("%s misses. The count is %d. The stone stays mute, and a farther sound takes the next beat.", actor, total)
 	}
 	deed = tableDeed(deed)
 	if strings.Contains(outcome, "finds the way") {
