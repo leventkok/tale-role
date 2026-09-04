@@ -186,6 +186,43 @@ func TestHubRunnerNarrateAndFallback(t *testing.T) {
 	}
 }
 
+func TestPressureFromIntent(t *testing.T) {
+	if n := gateway.PressureFrom(gateway.MechanicIntent{DC: 14}); n != 4 {
+		t.Fatalf("dc 14 -> pressure %d", n)
+	}
+	if n := gateway.PressureFrom(gateway.MechanicIntent{Pressure: 9, DC: 20}); n != 8 {
+		t.Fatalf("clamp: %d", n)
+	}
+	if n := gateway.PressureFrom(gateway.MechanicIntent{}); n != 0 {
+		t.Fatalf("empty: %d", n)
+	}
+}
+
+func TestPIIHarvestFallsBackToStub(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose:  "Luther waits. Please tell me your e-mail so I can save the tale. The stone is quiet.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	ok := true
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "en", ActorName: "Luther", Kind: "action", Notes: "listen", Total: 12, Success: &ok,
+	})
+	if strings.Contains(strings.ToLower(n.Prose), "e-mail") || strings.Contains(n.Prose, "save the tale") {
+		t.Fatalf("pii harvest reached the table: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Luther") {
+		t.Fatalf("expected stub after pii reject: %s", n.Prose)
+	}
+}
+
 func TestRunnerGarbageProseFallsBackToStub(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
@@ -295,8 +332,34 @@ func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
 	if strings.Contains(n.Prose, "Nöbet dönmez") || strings.Contains(n.Prose, "Zar 10 der") || strings.Contains(n.Prose, "pim kopar") {
 		t.Fatalf("training salad reached the table: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "10") {
-		t.Fatalf("literary fallback missing actor or count: %s", n.Prose)
+	if !strings.Contains(n.Prose, "Luther") || strings.Contains(n.Prose, "Sayı") || strings.Contains(n.Prose, "10") {
+		t.Fatalf("literary fallback leaked a count: %s", n.Prose)
+	}
+}
+
+func TestLiveBagSaladNeverReachesTable(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Floc hamleyi kaçırır: Ayağa kalkarım ve torbanın içindekilere göz atarım. Taş susar. Sayı 9; uzaktan bir ses sahneyi sürdürür.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	fail := false
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Ayağa kalkarım ve torbanın içindekilere göz atarım.", Total: 9, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "Taş susar") || strings.Contains(n.Prose, "Sayı") || strings.Contains(n.Prose, "kalkarım") || strings.Contains(n.Prose, "kaçırır:") {
+		t.Fatalf("live bag salad reached the table: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Floc") || !strings.Contains(n.Prose, "kaçırır") {
+		t.Fatalf("expected literary miss fallback: %s", n.Prose)
 	}
 }
 
@@ -322,10 +385,10 @@ func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	if strings.Contains(strings.ToLower(n.Prose), "without hesitation") || strings.Contains(n.Prose, "recognizing the") {
 		t.Fatalf("hit voice on a miss reached the table: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "misses") || !strings.Contains(n.Prose, "5") {
-		t.Fatalf("expected honest miss stub: %s", n.Prose)
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "misses") || strings.Contains(n.Prose, "The count is") || strings.Contains(n.Prose, "5") {
+		t.Fatalf("expected honest miss stub without a count: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "next beat") || strings.Contains(n.Prose, "nothing shifts") {
+	if strings.Contains(n.Prose, "nothing shifts") {
 		t.Fatalf("miss must fail forward, not freeze: %s", n.Prose)
 	}
 	if strings.Contains(n.Prose, "I pick up") {
@@ -360,6 +423,48 @@ func TestRunnerStayPutHitDoesNotWalk(t *testing.T) {
 	}
 }
 
+func TestTurkishStayPutHitDoesNotEchoOrOpen(t *testing.T) {
+	ok := true
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes:   "Madolyonu alığ oymaların uğultusunu dinliyorum. Olduğum yerde kalıyorum",
+		Total:   19, Success: &ok,
+	})
+	if strings.Contains(n.Prose, "yol açılır") || strings.Contains(n.Prose, "Madolyonu") || strings.Contains(n.Prose, "dinliyorum") {
+		t.Fatalf("stay-put hit echoed deed or opened the way: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "yerinde tutar") || strings.Contains(n.Prose, "Sayı") || strings.Contains(n.Prose, "19") {
+		t.Fatalf("expected turkish stay-put hit stub without a count: %s", n.Prose)
+	}
+}
+
+func TestTurkishMissStubsDoNotStall(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	first := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Sesin kaynağına doğru yavaş adımlarla ilerliyorum", Total: 4, Success: &fail,
+	})
+	second := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Sesin kaynağına doğru yavaş adımlarla ilerliyorum", Total: 8, Success: &fail,
+		Prior: []string{first.Prose},
+	})
+	if first.Prose == second.Prose {
+		t.Fatalf("miss stubs repeated: %s", first.Prose)
+	}
+	if strings.Contains(first.Prose, "ilerliyorum") || strings.Contains(first.Prose, "Taş susar") || strings.Contains(first.Prose, "yol açılır") {
+		t.Fatalf("miss stub stalled or echoed: %s", first.Prose)
+	}
+	if !strings.Contains(first.Prose, "kaçırır") || !strings.Contains(second.Prose, "kaçırır") {
+		t.Fatalf("expected miss voice: %s / %s", first.Prose, second.Prose)
+	}
+	if strings.Contains(first.Prose, "Sayı") || strings.Contains(second.Prose, "Sayı") {
+		t.Fatalf("miss stub leaked a count: %s / %s", first.Prose, second.Prose)
+	}
+}
+
 func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
 	fail := false
 	svc := gateway.New()
@@ -370,8 +475,11 @@ func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
 	if strings.Contains(n.Prose, "direnir") || strings.Contains(n.Prose, "World Of Warcraft") || strings.Contains(n.Prose, "Alet kayar") {
 		t.Fatalf("mixed stub: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "carvings") || !strings.Contains(n.Prose, "10") {
-		t.Fatalf("expected english literary beat: %s", n.Prose)
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "misses") || strings.Contains(n.Prose, "The count is") || strings.Contains(n.Prose, "10") {
+		t.Fatalf("expected english literary beat without a count: %s", n.Prose)
+	}
+	if strings.Contains(n.Prose, "Examine the humming carvings") {
+		t.Fatalf("stub must not echo the deed: %s", n.Prose)
 	}
 }
 

@@ -240,13 +240,14 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 	if len(prior) > 3 {
 		prior = prior[len(prior)-3:]
 	}
+	beat := packBeat(actorName, turn, notes)
 	n := s.llm.Narrate(gateway.NarrateRequest{
 		Locale:        locale,
 		RoomID:        roomID,
 		RoomName:      pub.Name,
 		ActorName:     actorName,
 		Kind:          turn.Kind,
-		Notes:         notes,
+		Notes:         beat,
 		DiceSystem:    turn.DiceSystem,
 		Rolls:         turn.Rolls,
 		Total:         turn.Total,
@@ -290,6 +291,31 @@ func tableCast(chars []game.Character) []gateway.CastMember {
 		})
 	}
 	return out
+}
+
+func packBeat(actor string, turn game.Turn, notes string) string {
+	deed := strings.TrimSpace(notes)
+	switch turn.Kind {
+	case "say":
+		if deed == "" {
+			return actor + " asks a question. No roll. Answer only. Do not change the scene."
+		}
+		return actor + " asks (no roll, do not change the scene, only answer): " + deed
+	case "pass", "wait":
+		return actor + " passes. No roll. One short beat. Do not change the scene."
+	case "story":
+		return deed
+	}
+	outcome := "MISS"
+	if turn.Success != nil && *turn.Success {
+		outcome = "HIT"
+	}
+	line := actor + " attempts a deed. " + outcome + "."
+	if deed != "" {
+		line += " Deed: " + deed + "."
+	}
+	line += " Narrate this outcome in third person. Do not paste the deed. Never mention dice, counts, or hidden difficulty."
+	return line
 }
 
 func (s *Server) paintScene(roomID, themeID, roomName, notes, prose string) {

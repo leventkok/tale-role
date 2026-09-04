@@ -4,15 +4,22 @@ import unittest
 from serve import (
     apply_storyteller_adapter,
     chat_prompt,
+    hub_has_adapter_weights,
+    hub_has_full_weights,
+    patch_torchao_for_peft,
     extract_json_object,
     fallback_storyteller,
+    is_salad,
     mechanics_input,
     miss_rewrite_user,
     parse_mechanics_response,
     parse_storyteller_response,
     prose_looks_valid,
+    stay_put_deed,
     storyteller_input,
+    storyteller_system,
     storyteller_user,
+    strip_engine_leak,
     table_deed,
 )
 
@@ -76,6 +83,128 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("Fail forward", user)
         self.assertNotIn("learns nothing useful", user)
 
+    def test_say_prompt_answers_without_changing_scene(self):
+        sys = storyteller_system("en", opening=False, prior=[], kind="say", notes="Who is there?")
+        self.assertIn("Do not change the scene", sys)
+        self.assertNotIn("This attempt succeeded", sys)
+        locale, payload = storyteller_input(
+            {"locale": "en", "kind": "say", "actor_name": "Fred", "notes": "Who is there?"}
+        )
+        self.assertEqual(payload["kind"], "say")
+        user = storyteller_user(payload, opening=False, locale=locale)
+        self.assertIn("Do not change the scene", user)
+        self.assertNotIn("RESULT: HIT", user)
+
+    def test_hit_prompt_grants_deed_and_does_not_forbid_success(self):
+        notes = "Sesin geldiği yere bıçak fırlatıyorum"
+        sys = storyteller_system("tr", opening=False, prior=[], success=True, notes=notes)
+        self.assertNotIn("Never write the attempt as a success", sys)
+        self.assertNotIn("stays put", sys)
+        self.assertIn("succeeded", sys)
+        self.assertIn("Do not refuse", sys)
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": notes,
+                "total": 16,
+                "success": True,
+            }
+        )
+        user = storyteller_user(payload, opening=False, locale=locale)
+        self.assertIn("RESULT: HIT", user)
+        self.assertIn("Narrate the deed happening", user)
+        self.assertNotIn("Grant the deed only", user)
+        self.assertNotIn("count=", user)
+        self.assertNotIn("16", user)
+
+    def test_reject_packed_miss_salad(self):
+        notes = (
+            "Floc attempts a deed. Player count 8. MISS. "
+            "Deed: Ayağa kalkarım ve tobamda ne olduğuna bakarım. "
+            "Narrate this outcome. Never mention an opposing roll or hidden difficulty."
+        )
+        raw = (
+            '{"prose":"Floc hamleyi kaçırır: Ayağa kalkarım ve tobamda ne olduğuna bakarım. '
+            'Taş susar. Sayı 8; uzaktan bir ses sahneyi sürdürür.","npc_lines":[]}'
+        )
+        self.assertIsNone(parse_storyteller_response(raw, "tr", success=False, notes=notes))
+        notes = "Torbanın içini kontrol ediyorum faydalı bir şey var mı ?"
+        raw = (
+            '{"prose":"Floc hamleyi tamamlar: Torbanın içini kontrol ediyorum faydalı bir şey var mı ? '
+            'Taş cevap verir. Sayı 23; yol açılır.","npc_lines":[]}'
+        )
+        self.assertIsNone(parse_storyteller_response(raw, "tr", success=True, notes=notes))
+
+    def test_strip_live_pack_and_reject_bag_salad(self):
+        notes = (
+            "Floc attempts a deed. Player count 9. MISS. "
+            "Deed: Ayağa kalkarım ve torbanın içindekilere göz atarım. "
+            "Narrate this outcome in third person. Do not paste the deed."
+        )
+        self.assertEqual(
+            strip_engine_leak(notes),
+            "Ayağa kalkarım ve torbanın içindekilere göz atarım",
+        )
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": notes,
+                "total": 9,
+                "success": False,
+            }
+        )
+        self.assertEqual(payload["notes"], "Ayağa kalkarım ve torbanın içindekilere göz atarım")
+        user = storyteller_user(payload, opening=False, locale=locale)
+        self.assertNotIn("Player count", user)
+        self.assertNotIn("9", user)
+        salad = (
+            "Floc hamleyi kaçırır: Ayağa kalkarım ve torbanın içindekilere göz atarım. "
+            "Taş susar. Sayı 9; uzaktan bir ses sahneyi sürdürür."
+        )
+        self.assertTrue(is_salad(salad))
+        self.assertFalse(prose_looks_valid(salad, "tr", success=False, notes=notes))
+        raw = json.dumps({"prose": salad, "npc_lines": []})
+        self.assertIsNone(parse_storyteller_response(raw, "tr", success=False, notes=notes))
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertNotIn("Sayı", out["prose"])
+        self.assertNotIn("9", out["prose"])
+        self.assertNotIn("Taş susar", out["prose"])
+        self.assertNotIn("kalkarım", out["prose"])
+        self.assertIn("kaçırır", out["prose"])
+
+    def test_miss_prompt_still_forbids_success(self):
+        sys = storyteller_system(
+            "en",
+            opening=False,
+            prior=[],
+            success=False,
+            notes="I throw a knife toward the sound",
+        )
+        self.assertIn("Never write the attempt as a success", sys)
+        self.assertNotIn("stays put", sys)
+
+    def test_stay_put_prompt_only_when_deed_stays(self):
+        held = storyteller_system(
+            "en",
+            opening=False,
+            prior=[],
+            success=True,
+            notes="I pick up the medallion, without going down the corridor.",
+        )
+        self.assertIn("stays put", held)
+        move = storyteller_system(
+            "en",
+            opening=False,
+            prior=[],
+            success=True,
+            notes="I throw a knife toward the sound",
+        )
+        self.assertNotIn("stays put", move)
+
     def test_chat_prompt_uses_template(self):
         prompt = chat_prompt(StubTokenizer(), "sys", '{"actor":"Iri"}')
         self.assertIn("system:sys", prompt)
@@ -96,10 +225,26 @@ class ServeFormatTests(unittest.TestCase):
     def test_base_instruct_by_default(self):
         self.assertFalse(apply_storyteller_adapter())
 
+    def test_hub_adapter_needs_weight_file(self):
+        self.assertFalse(hub_has_adapter_weights({"adapter_config.json", "README.md"}))
+        self.assertTrue(
+            hub_has_adapter_weights({"adapter_config.json", "adapter_model.safetensors"})
+        )
+        self.assertTrue(
+            hub_has_full_weights({"config.json", "model-00001-of-00004.safetensors"})
+        )
+
+    def test_torchao_peft_patch_is_safe(self):
+        patch_torchao_for_peft()
+
     def test_reject_json_leak_as_prose(self):
         raw = '{"prose":"{\\"actor\\":\\"Lute\\"}","npc_lines":[]}'
         self.assertIsNone(parse_storyteller_response(raw))
         self.assertFalse(prose_looks_valid('{"actor":"Lute","room":"Hall"}'))
+
+    def test_reject_pii_harvest(self):
+        raw = '{"prose":"Luther waits in the hall and asks for your e-mail address so the tale can continue after the session.","npc_lines":[]}'
+        self.assertIsNone(parse_storyteller_response(raw, "en", success=True, notes="listen"))
 
     def test_extract_json_stops_at_im_end(self):
         raw = '{"kind":"action","skill":"str","dc":12}\nnoise'
@@ -122,7 +267,7 @@ class ServeFormatTests(unittest.TestCase):
         )
         out = fallback_storyteller(locale, payload, say=False)
         self.assertIn("Mira", out["prose"])
-        self.assertIn("17", out["prose"])
+        self.assertNotIn("17", out["prose"])
         self.assertNotIn("[hub]", out["prose"])
         self.assertNotIn("tries to", out["prose"])
 
@@ -141,15 +286,15 @@ class ServeFormatTests(unittest.TestCase):
         )
         out = fallback_storyteller(locale, payload, say=False)
         self.assertIn("Luther", out["prose"])
-        self.assertIn("10", out["prose"])
+        self.assertNotIn("10", out["prose"])
         self.assertNotIn("direnir", out["prose"])
         self.assertNotIn("Alet kayar", out["prose"])
         self.assertNotIn("World Of Warcraft", out["prose"])
-        self.assertIn("Examine the humming carvings", out["prose"])
+        self.assertNotIn("Examine the humming carvings", out["prose"])
         self.assertNotIn("follows through", out["prose"])
         self.assertIn("misses", out["prose"])
-        self.assertIn("next beat", out["prose"])
         self.assertNotIn("nothing shifts", out["prose"])
+        self.assertNotIn("the stone stays mute", out["prose"].casefold())
 
     def test_fallback_miss_does_not_echo_first_person(self):
         locale, payload = storyteller_input(
@@ -167,8 +312,8 @@ class ServeFormatTests(unittest.TestCase):
         out = fallback_storyteller(locale, payload, say=False)
         self.assertIn("Luther", out["prose"])
         self.assertIn("misses", out["prose"])
-        self.assertIn("next beat", out["prose"])
         self.assertNotIn("I pick up", out["prose"])
+        self.assertNotIn("nothing shifts", out["prose"])
         self.assertEqual(table_deed(payload["notes"]), "")
         self.assertIn("Rewrite", miss_rewrite_user("THIS BEAT"))
 
@@ -204,6 +349,90 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("holds the beat", out["prose"])
         self.assertNotIn("the way opens", out["prose"])
         self.assertNotIn("steps into", out["prose"])
+
+    def test_turkish_stay_put_hit_stub_does_not_echo_or_open(self):
+        notes = "Madolyonu alığ oymaların uğultusunu dinliyorum. Olduğum yerde kalıyorum"
+        self.assertTrue(stay_put_deed(notes))
+        self.assertEqual(table_deed(notes), "")
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": notes,
+                "total": 19,
+                "success": True,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("yerinde kalır", out["prose"])
+        self.assertNotIn("19", out["prose"])
+        self.assertNotIn("yol açılır", out["prose"])
+        self.assertNotIn("Madolyonu", out["prose"])
+        self.assertNotIn("dinliyorum", out["prose"])
+
+    def test_miss_stubs_change_the_room(self):
+        notes = "Sesin kaynağına doğru yavaş adımlarla ilerliyorum"
+        first = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": notes,
+                "total": 4,
+                "success": False,
+            }
+        )[1]
+        a = fallback_storyteller("tr", first, say=False)["prose"]
+        second = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": notes,
+                "total": 8,
+                "success": False,
+                "prior": [a],
+            }
+        )[1]
+        b = fallback_storyteller("tr", second, say=False)["prose"]
+        self.assertNotEqual(a, b)
+        self.assertNotIn("ilerliyorum", a)
+        self.assertNotIn("Taş susar", a)
+        self.assertNotIn("yol açılır", a)
+        self.assertIn("kaçırır", a)
+        self.assertIn("kaçırır", b)
+
+    def test_hit_stub_does_not_open_the_way(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": "Yüksek bir sesle bağırıyorum KİM VAR ORDA",
+                "total": 16,
+                "success": True,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("Floc", out["prose"])
+        self.assertNotIn("tamamlar", out["prose"])
+        self.assertNotIn("16", out["prose"])
+        self.assertNotIn("yol açılır", out["prose"])
+        self.assertNotIn("bağırıyorum", out["prose"])
+
+    def test_recover_truncated_json_prose(self):
+        raw = (
+            '{"prose":"Floc ayağa kalkar ve koridordaki metal sürtünmesine doğru bakar. '
+            "Uğultu bir an kesilir. Madalyon avucunda soğur, kazınmış yazı yerinde kalır."
+        )
+        parsed = parse_storyteller_response(
+            raw, "tr", success=True, notes="Ayağa kalkıp sesin kaynağını bulmaya çalışıyorum"
+        )
+        self.assertIsNotNone(parsed)
+        assert parsed is not None
+        self.assertIn("Floc ayağa kalkar", parsed["prose"])
+        self.assertIn("Madalyon", parsed["prose"])
 
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(

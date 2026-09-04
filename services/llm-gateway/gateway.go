@@ -13,6 +13,11 @@ import (
 	"github.com/leventkok/tale-role/services/llm-gateway/internal/pii"
 )
 
+// Redact strips emails, phones, and long digit runs from table text before it is stored or shown.
+func Redact(s string) string {
+	return pii.Redact(s)
+}
+
 type NPCLine struct {
 	NPCID string `json:"npc_id"`
 	Text  string `json:"text"`
@@ -26,10 +31,11 @@ type Narrative struct {
 }
 
 type MechanicIntent struct {
-	Kind  string `json:"kind"`
-	Skill string `json:"skill,omitempty"`
-	DC    int    `json:"dc,omitempty"`
-	Notes string `json:"notes,omitempty"`
+	Kind     string `json:"kind"`
+	Skill    string `json:"skill,omitempty"`
+	DC       int    `json:"dc,omitempty"`
+	Pressure int    `json:"pressure,omitempty"`
+	Notes    string `json:"notes,omitempty"`
 }
 
 type NarrateRequest struct {
@@ -49,6 +55,8 @@ type NarrateRequest struct {
 	ThemeID       string       `json:"theme_id,omitempty"`
 	WorldBrief    string       `json:"world_brief,omitempty"`
 	Cast          []CastMember `json:"cast,omitempty"`
+	Facts         []string     `json:"facts,omitempty"`
+	Skill         string       `json:"skill,omitempty"`
 }
 
 type CastMember struct {
@@ -56,6 +64,12 @@ type CastMember struct {
 	Species   string `json:"species,omitempty"`
 	Path      string `json:"path,omitempty"`
 	Backstory string `json:"backstory,omitempty"`
+	STR       int    `json:"str,omitempty"`
+	DEX       int    `json:"dex,omitempty"`
+	CON       int    `json:"con,omitempty"`
+	INT       int    `json:"int,omitempty"`
+	WIS       int    `json:"wis,omitempty"`
+	CHA       int    `json:"cha,omitempty"`
 }
 
 type IntentRequest struct {
@@ -203,11 +217,23 @@ func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 		skill = "str"
 	}
 	intent = MechanicIntent{Kind: kind, Skill: skill, Notes: notes}
-	if kind == "action" {
-		intent.DC = 12
-	}
 	s.record(req.RoomID, s.voice(s.currentPack(), req.Locale)+" notes="+notes, intent, "")
 	return intent
+}
+
+// PressureFrom is the hidden world-side bonus. Players never see it. 0–8.
+func PressureFrom(intent MechanicIntent) int {
+	n := intent.Pressure
+	if n == 0 && intent.DC > 0 {
+		n = intent.DC - 10
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n > 8 {
+		n = 8
+	}
+	return n
 }
 
 func (s *Service) Narrate(req NarrateRequest) Narrative {
@@ -236,7 +262,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
 		return remote
 	}
-	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind)
+	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind, req.Prior)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
@@ -321,6 +347,9 @@ func runnerProseOK(prose, locale, kind, tableTitle, host string, success *bool, 
 	if len(p) < 12 {
 		return false
 	}
+	if pii.AsksPersonal(p) {
+		return false
+	}
 	if strings.HasPrefix(p, "{") || strings.HasPrefix(p, "[") {
 		return false
 	}
@@ -390,8 +419,10 @@ func missLooksLikeHit(lower string, success *bool) bool {
 func stayPut(notes string) bool {
 	low := strings.ToLower(notes)
 	tells := []string{
-		"without going", "without taking a step", "stay where", "without walking",
-		"without stepping", "don't go", "do not go", "yerinde kal", "adım atmadan", "koridora inmeden",
+		"without going", "without taking a step", "stay where", "staying where",
+		"without walking", "without stepping", "without moving", "don't go", "do not go",
+		"remain here", "yerinde kal", "yerimde kal", "yerde kal", "olduğum yerde", "oldugum yerde",
+		"adım atmadan", "adım atmıyor", "koridora inmeden", "koridora inmiyor", "inmeden",
 	}
 	for _, t := range tells {
 		if strings.Contains(low, t) {
@@ -422,6 +453,9 @@ func trainingSalad(lower string) bool {
 	frags := []string{
 		"nöbet dönmez", "nöbet dönüyor", "rün karanlık", "kilit durur", "pim kopar",
 		"kahkaha bitince", "kahkaha kopar", "menteşe", "zar ", " der.",
+		"yol açılır", "taş cevap verir", "taş susar",
+		"hamleyi tamamlar:", "hamleyi kaçırır:",
+		"sayı ", "the count is", "uzaktan bir ses sahneyi",
 		"çandan önce", "gelene dek", "bir sonraki çan",
 		"alet kayar", "zaman biter", " direnir.",
 		"motorun", "içinde,", "hold the line", "the watch is unblinded",
@@ -555,12 +589,14 @@ func redactCast(in []CastMember) []CastMember {
 			Species:   strings.TrimSpace(pii.Redact(row.Species)),
 			Path:      strings.TrimSpace(pii.Redact(row.Path)),
 			Backstory: strings.TrimSpace(back),
+			STR:       row.STR, DEX: row.DEX, CON: row.CON,
+			INT: row.INT, WIS: row.WIS, CHA: row.CHA,
 		})
 	}
 	return out
 }
 
-func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string) string {
+func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string, prior []string) string {
 	_ = dice
 	_ = rolls
 	_ = theme
@@ -581,9 +617,9 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 	loc := beatLocale(locale, deed)
 	place := scenePlace(loc)
 	if loc == "tr" {
-		return literaryTR(kind, actor, place, deed, outcome, total)
+		return literaryTR(kind, actor, place, deed, outcome, total, prior)
 	}
-	return literaryEN(kind, actor, place, deed, outcome, total)
+	return literaryEN(kind, actor, place, deed, outcome, total, prior)
 }
 
 func beatLocale(locale, notes string) string {
@@ -611,19 +647,32 @@ func scenePlace(locale string) string {
 	return "the hall"
 }
 
-func tableDeed(notes string) string {
-	d := strings.TrimSpace(notes)
-	if d == "" {
+func pickUnused(lines []string, prior []string, total int) string {
+	blob := strings.ToLower(strings.Join(prior, " "))
+	unused := make([]string, 0, len(lines))
+	for _, line := range lines {
+		key := strings.ToLower(line)
+		if len(key) > 28 {
+			key = key[:28]
+		}
+		if !strings.Contains(blob, key) {
+			unused = append(unused, line)
+		}
+	}
+	if len(unused) == 0 {
+		unused = lines
+	}
+	if len(unused) == 0 {
 		return ""
 	}
-	low := strings.ToLower(d)
-	if strings.HasPrefix(low, "i ") || strings.HasPrefix(low, "i'm ") || strings.HasPrefix(low, "i’m ") || strings.HasPrefix(low, "ben ") {
-		return ""
+	i := total % len(unused)
+	if i < 0 {
+		i = -i
 	}
-	return d
+	return unused[i]
 }
 
-func literaryTR(kind, actor, place, deed, outcome string, total int) string {
+func literaryTR(kind, actor, place, deed, outcome string, total int, prior []string) string {
 	if place == "" {
 		place = "salon"
 	}
@@ -638,32 +687,34 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	case "wait":
 		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
-	if stayPut(deed) {
-		if strings.Contains(outcome, "yolu açar") {
-			return fmt.Sprintf("%s hamleyi yerinde tutar. Sayı %d. Gitmediği yer açık kalmaz.", actor, total)
-		}
-		return fmt.Sprintf("%s hamleyi kaçırır. Sayı %d. Taş susar; uzaktan bir ses sahneyi sürdürür.", actor, total)
+	hits := []string{
+		"Hamle yerini bulur; oda buna göre kayar.",
+		"Dünya boyun eğer. Bir sonraki seçenek açık kalır.",
+		"Etki tutar. Sahne kapanmaz.",
 	}
-	deed = tableDeed(deed)
+	misses := []string{
+		"Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.",
+		"Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
+		"Karanlıkta bir nefes tutulur. Cevap gelmez; sahne kapanmaz.",
+		"Madalyon soğur. Kazınmış yazı yerinde kalır.",
+		"Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.",
+		"Taşın altından kısa bir tık gelir. Sıra yine oyuncuda.",
+	}
 	if strings.Contains(outcome, "yolu açar") {
-		if deed == "" {
-			return fmt.Sprintf("%s hamleyi tamamlar. Taş cevap verir. Sayı %d; yol açılır.", actor, total)
+		shift := pickUnused(hits, prior, total)
+		if stayPut(deed) {
+			return fmt.Sprintf("%s hamleyi yerinde tutar. %s Gitmediği yer açık kalmaz.", actor, shift)
 		}
-		if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
-			deed = deed + "."
-		}
-		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
+		return fmt.Sprintf("%s. %s", actor, shift)
 	}
-	if deed == "" {
-		return fmt.Sprintf("%s hamleyi kaçırır. Taş susar. Sayı %d; uzaktan bir ses sahneyi sürdürür.", actor, total)
+	shift := pickUnused(misses, prior, total)
+	if stayPut(deed) {
+		return fmt.Sprintf("%s hamleyi kaçırır. %s Gitmediği yer açık kalmaz.", actor, shift)
 	}
-	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
-		deed = deed + "."
-	}
-	return fmt.Sprintf("%s hamleyi kaçırır: %s Taş susar. Sayı %d; uzaktan bir ses sahneyi sürdürür.", actor, deed, total)
+	return fmt.Sprintf("%s hamleyi kaçırır. %s", actor, shift)
 }
 
-func literaryEN(kind, actor, place, deed, outcome string, total int) string {
+func literaryEN(kind, actor, place, deed, outcome string, total int, prior []string) string {
 	if place == "" {
 		place = "the hall"
 	}
@@ -678,29 +729,31 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	case "wait":
 		return fmt.Sprintf("%s holds still in %s. Breath only. The lantern holds.", actor, place)
 	}
-	if stayPut(deed) {
-		if strings.Contains(outcome, "finds the way") {
-			return fmt.Sprintf("%s holds the beat. The count is %d. The place they refused stays unentered.", actor, total)
-		}
-		return fmt.Sprintf("%s misses. The count is %d. The stone stays mute, and a farther sound takes the next beat.", actor, total)
+	hits := []string{
+		"The deed lands; the room shifts to match it.",
+		"The world yields. Another choice stays open.",
+		"The effect takes. The scene does not close.",
 	}
-	deed = tableDeed(deed)
+	misses := []string{
+		"Down the corridor, metal drags one pace closer.",
+		"The carvings drop a note, then return lower.",
+		"A breath holds in the dark. No answer yet.",
+		"The medallion goes cold. The scratched word stays.",
+		"Pale ceiling light dies for a beat, then returns.",
+		"Stone ticks once underfoot. The next move is still yours.",
+	}
 	if strings.Contains(outcome, "finds the way") {
-		if deed == "" {
-			return fmt.Sprintf("%s follows through. The stone answers. The count is %d; the way opens.", actor, total)
+		shift := pickUnused(hits, prior, total)
+		if stayPut(deed) {
+			return fmt.Sprintf("%s holds the beat. %s The place they refused stays unentered.", actor, shift)
 		}
-		if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
-			deed = deed + "."
-		}
-		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
+		return fmt.Sprintf("%s follows through. %s", actor, shift)
 	}
-	if deed == "" {
-		return fmt.Sprintf("%s misses. The stone stays mute. The count is %d; a farther sound takes the next beat.", actor, total)
+	shift := pickUnused(misses, prior, total)
+	if stayPut(deed) {
+		return fmt.Sprintf("%s misses. %s The place they refused stays unentered.", actor, shift)
 	}
-	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
-		deed = deed + "."
-	}
-	return fmt.Sprintf("%s misses. %s The stone stays mute. The count is %d; a farther sound takes the next beat.", actor, deed, total)
+	return fmt.Sprintf("%s misses. %s", actor, shift)
 }
 
 func excerpt(s string) string {

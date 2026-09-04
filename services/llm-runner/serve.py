@@ -17,6 +17,10 @@ from typing import Any
 from urllib.parse import urlparse
 
 EMAIL = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
+PII_ASK = re.compile(
+    r"(e-?mail|e-?posta|telefon numar|phone number|cep telefon|tc kimlik|kredi kart|credit card|social security)",
+    re.I,
+)
 IM_END = "<|" + "im_end" + "|>"
 
 MECHANICS_SYSTEM = "Return only mechanic JSON. Never dice, HP, or turn order."
@@ -42,9 +46,23 @@ STOCK = (
     "çandan önce",
     "gelene dek bekle",
     "zar ",
+    "yol açılır",
+    "taş cevap verir",
+    "taş susar",
+    "motorun sayısı",
+    "hamleyi tamamlar:",
+    "hamleyi kaçırır:",
+    "uzaktan bir ses sahneyi",
+    "the way opens",
     "alet kayar",
     "zaman biter",
     "direnir",
+    "e-posta",
+    "email address",
+    "phone number",
+    "telefon numar",
+    "tc kimlik",
+    "kredi kart",
 )
 
 EN_OK = (
@@ -108,6 +126,56 @@ def extract_json_object(raw: str) -> dict[str, Any] | None:
                     return None
                 return parsed if isinstance(parsed, dict) else None
     return None
+
+
+PROSE_KEY = re.compile(r'"prose"\s*:\s*"', re.I)
+
+
+def recover_prose(raw: str) -> str:
+    parsed = extract_json_object(raw)
+    if parsed:
+        text = redact(str(parsed.get("prose") or "").strip())
+        if text:
+            return text
+    blob = (raw or "").strip()
+    if not blob:
+        return ""
+    match = PROSE_KEY.search(blob)
+    if match:
+        chunk = blob[match.end() :]
+        out: list[str] = []
+        idx = 0
+        while idx < len(chunk):
+            ch = chunk[idx]
+            if ch == "\\":
+                if idx + 1 >= len(chunk):
+                    break
+                nxt = chunk[idx + 1]
+                if nxt == "n":
+                    out.append(" ")
+                elif nxt == "t":
+                    out.append(" ")
+                elif nxt in '"\\/':
+                    out.append(nxt)
+                elif nxt == "u" and idx + 5 < len(chunk):
+                    try:
+                        out.append(chr(int(chunk[idx + 2 : idx + 6], 16)))
+                        idx += 6
+                        continue
+                    except ValueError:
+                        out.append(nxt)
+                else:
+                    out.append(nxt)
+                idx += 2
+                continue
+            if ch == '"':
+                break
+            out.append(ch)
+            idx += 1
+        return redact("".join(out).strip())
+    if blob.startswith("{") or blob.startswith("["):
+        return ""
+    return redact(blob.split("\n\n")[0][:800].strip())
 
 
 def prior_list(req: dict[str, Any]) -> list[str]:
@@ -176,6 +244,16 @@ def prose_looks_valid(
         return False
     if any(stock in lowered for stock in STOCK):
         return False
+    if is_salad(text):
+        return False
+    if re.search(r"\bsayı\s+\d", lowered) or re.search(r"\bthe count is\s+\d", lowered):
+        return False
+    if not opening and echoes_deed(text, notes):
+        return False
+    if not opening and first_person_notes(text):
+        return False
+    if PII_ASK.search(text):
+        return False
     if table_title_leak(text, table_title, host):
         return False
     if not opening and clause_salad(text):
@@ -214,23 +292,33 @@ def engine_outcome_ok(prose: str, success: bool | None) -> bool:
     return True
 
 
+STAY_PUT_TELLS = (
+    "without going",
+    "without taking a step",
+    "stay where",
+    "staying where",
+    "without walking",
+    "without stepping",
+    "without moving",
+    "don't go",
+    "do not go",
+    "remain here",
+    "yerinde kal",
+    "yerimde kal",
+    "yerde kal",
+    "olduğum yerde",
+    "oldugum yerde",
+    "adım atmadan",
+    "adım atmıyor",
+    "koridora inmeden",
+    "koridora inmiyor",
+    "inmeden",
+)
+
+
 def stay_put_deed(notes: str) -> bool:
     low = (notes or "").casefold()
-    return any(
-        p in low
-        for p in (
-            "without going",
-            "without taking a step",
-            "stay where",
-            "without walking",
-            "without stepping",
-            "don't go",
-            "do not go",
-            "yerinde kal",
-            "adım atmadan",
-            "koridora inmeden",
-        )
-    )
+    return any(p in low for p in STAY_PUT_TELLS)
 
 
 def actor_moved_against_deed(prose: str, notes: str) -> bool:
@@ -298,6 +386,44 @@ def apply_storyteller_adapter() -> bool:
     return os.environ.get("TALEROLE_STORYTELLER_ADAPTER", "").strip() == "1"
 
 
+ADAPTER_WEIGHT_NAMES = (
+    "adapter_model.safetensors",
+    "adapter_model.bin",
+    "adapter_model.pt",
+    "adapter_model.pth",
+)
+
+
+def hub_has_adapter_weights(files: set[str]) -> bool:
+    names = {path.rsplit("/", 1)[-1] for path in files}
+    return "adapter_config.json" in names and any(name in names for name in ADAPTER_WEIGHT_NAMES)
+
+
+def hub_has_full_weights(files: set[str]) -> bool:
+    for path in files:
+        name = path.rsplit("/", 1)[-1]
+        if name in {"model.safetensors", "pytorch_model.bin"}:
+            return True
+        if name.startswith("model-") and name.endswith(".safetensors"):
+            return True
+        if name.startswith("pytorch_model-") and name.endswith(".bin"):
+            return True
+    return False
+
+
+def patch_torchao_for_peft() -> None:
+    """Colab peft 0.15 imports a torchao symbol that some wheels omit."""
+    try:
+        import torchao.quantization as quant
+    except Exception:
+        return
+    if getattr(quant, "LinearActivationQuantizedTensor", None) is None:
+        class LinearActivationQuantizedTensor:  # noqa: N801
+            pass
+
+        quant.LinearActivationQuantizedTensor = LinearActivationQuantizedTensor
+
+
 def tale_locale(ui: Any, opening: str, notes: str) -> str:
     for text in (opening, notes):
         t = (text or "").strip()
@@ -335,25 +461,61 @@ def format_cast(raw: Any) -> str:
     return "\n".join(lines)
 
 
-def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
+def storyteller_system(
+    locale: str,
+    *,
+    opening: bool,
+    prior: list[str],
+    success: bool | None = None,
+    notes: str = "",
+    kind: str = "",
+) -> str:
     lang = "Turkish" if locale == "tr" else "English"
     body = (
         f"You are the Storyteller at this table. Write 4 to 6 vivid literary sentences in {lang} only. "
         "Stay inside the world brief. Name the people at the table. Continue from the player's deed. "
-        "Never invent dice, HP, or turn order. Never mix languages. "
+        "Never invent dice, HP, turn order, or any number. Never mix languages. "
+        "Never paste the player's deed. Name the concrete result in the scene. "
         "Never use a table, lobby, or product title as a place name. Place comes from the opening and the world brief. "
+        "Write in third person. Do not write as the player. "
         'Return only JSON {"prose":"...","npc_lines":[]}.'
     )
     if opening:
         body += " Open the tale. If a host opening is given, keep it; you may add at most two sentences after it."
-    else:
+        if prior:
+            clipped = " | ".join(p[:120] for p in prior if p)
+            if clipped:
+                body += f" Do not repeat: {clipped}"
+        return body
+    if kind == "say":
         body += (
-            " Continue the scene with the people already present. Do not restart the tale. "
-            "Do not quote the player's deed as a header. Narrate only this deed. "
-            "If the player stays put, they do not walk, step, or enter a new place. "
-            "If the deed failed, do not grant the goal; the world answers with a complication and play continues. "
-            "Never freeze the table. Never write the attempt as a success."
+            " The player asked a question. Answer in the world, in character. "
+            "Do not change the scene, move anyone, or grant a new deed. No dice."
         )
+        if prior:
+            clipped = " | ".join(p[:120] for p in prior if p)
+            if clipped:
+                body += f" Do not repeat: {clipped}"
+        return body
+    body += (
+        " Continue the scene with the people already present. Do not restart the tale. "
+        "Do not quote the player's deed as a header. Narrate this deed. "
+        "The rules engine already judged the roll. You narrate; you do not overrule it. "
+        "Never freeze the table."
+    )
+    if success is True:
+        body += (
+            " This attempt succeeded. Narrate the deed happening. "
+            "Do not refuse it, delay it, or replace it with a different action."
+        )
+    elif success is False:
+        body += (
+            " This attempt failed. Do not grant the goal. "
+            "Add a new complication the table has not heard yet and keep the scene playable. "
+            "Never write the attempt as a success. Never stall."
+        )
+    if stay_put_deed(notes):
+        body += " The player stays put: they do not walk, step, or enter a new place."
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
         if clipped:
@@ -380,20 +542,34 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
         return "\n\n".join(parts)
     if happened:
         parts.append("WHAT ALREADY HAPPENED\n" + happened)
+    facts = payload.get("facts") or []
+    if isinstance(facts, list):
+        traces = "\n".join(redact(str(p)).strip() for p in facts[:8] if str(p).strip())
+        if traces:
+            parts.append("TABLE MEMORY (short; do not invent beyond this)\n" + traces)
     actor = payload.get("actor") or "Someone"
     notes = payload.get("notes") or ""
     success = payload.get("success")
-    if success is False:
+    kind = str(payload.get("kind") or "")
+    if kind == "say":
+        result = (
+            "The player asked. Answer in the world. Do not change the scene, "
+            "move anyone, or grant a deed. No dice."
+        )
+    elif kind in ("pass", "wait"):
+        result = "They pass. One short beat. Do not change the scene."
+    elif success is False:
         result = (
             "RESULT: MISS. The rules engine already ruled this attempt failed. "
-            "Do not grant the deed. Fail forward: the world answers with new pressure, sound, "
-            "or danger, and the scene continues. Do not write hesitation-free competence."
+            "Do not grant the deed. Fail forward: add a new sound, threat, or change "
+            "the player has not seen yet, and keep the scene playable. "
+            "Do not repeat the last beat. Do not write hesitation-free competence."
         )
     elif success is True:
         result = (
             "RESULT: HIT. The rules engine already ruled this attempt succeeded. "
-            "Grant the deed only. Do not move the actor into a place the deed forbids. "
-            "Do not invent dice, HP, or turn order."
+            "Narrate the deed happening in third person. Do not refuse, delay, or replace it. "
+            "Do not invent dice, HP, turn order, or any number. Do not paste the deed."
         )
     else:
         result = "Continue the scene from the world, the people, and this deed."
@@ -402,7 +578,6 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
         f"actor={actor}\n"
         f"deed={notes}\n"
         f"kind={payload.get('kind')}\n"
-        f"count={payload.get('total')}\n"
         f"success={success}\n"
         + result
     )
@@ -413,7 +588,7 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     kind = normalize_kind(str(req.get("kind") or "action"))
     actor = str(req.get("actor_name") or "Someone")
     table_title = str(req.get("room_name") or "")
-    notes = redact(str(req.get("notes") or req.get("opening") or ""))
+    notes = strip_engine_leak(redact(str(req.get("notes") or req.get("opening") or "")))
     opening_text = redact(str(req.get("opening") or ""))
     locale = tale_locale(req.get("locale"), opening_text, notes)
     dice = str(req.get("dice_system") or "d20")
@@ -438,9 +613,12 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         rolls = []
         total = 0
         success = None
-        model_kind = "wait" if kind == "say" else kind
-    else:
-        model_kind = kind
+    model_kind = kind
+
+    facts = req.get("facts") or []
+    if not isinstance(facts, list):
+        facts = []
+    facts = [redact(str(row)).strip() for row in facts if str(row).strip()][:8]
 
     payload = {
         "actor": actor,
@@ -457,6 +635,7 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "world_brief": redact(str(req.get("world_brief") or ""))[:2500],
         "cast": req.get("cast") if isinstance(req.get("cast"), list) else [],
         "prior": prior_list(req),
+        "facts": facts,
     }
     return locale, payload
 
@@ -485,12 +664,74 @@ def beat_locale(locale: str, notes: str) -> str:
     return "tr"
 
 
-def table_deed(notes: str) -> str:
+def first_person_notes(text: str) -> bool:
+    low = (text or "").casefold()
+    if low.startswith(("i ", "i'm ", "i’m ", "ben ")):
+        return True
+    return bool(
+        re.search(r"(yorum|mekteyim|maktayım|arım|erim|ırım|urum|ürüm)(\s|[.!?:]|$)", low)
+    )
+
+
+def player_deed(notes: str) -> str:
     text = (notes or "").strip()
+    low = text.casefold()
+    marker = "deed:"
+    if marker in low:
+        text = text[low.index(marker) + len(marker) :].strip()
+        text = text.split("Narrate this")[0].strip().rstrip(".")
+    return text.strip()
+
+
+def strip_engine_leak(notes: str) -> str:
+    text = redact(notes or "").strip()
     if not text:
         return ""
     low = text.casefold()
-    if low.startswith(("i ", "i'm ", "i’m ", "ben ")):
+    packed = "deed:" in low or "player count " in low or "attempts a deed" in low
+    if not packed:
+        return text
+    deed = player_deed(text)
+    if deed and deed != text:
+        return redact(deed).strip()
+    cleaned = re.sub(r"(?i)player count \d+\.\s*", "", text)
+    cleaned = re.sub(r"\b(?:HIT|MISS)\.\s*", "", cleaned)
+    cleaned = re.sub(r"(?i)^[^.]+ attempts a deed\.\s*", "", cleaned)
+    cleaned = re.sub(r"(?i)narrate this outcome\.[^.]*", "", cleaned)
+    cleaned = cleaned.strip(" .")
+    return redact(cleaned) if cleaned else text
+
+
+def is_salad(prose: str) -> bool:
+    text = (prose or "").strip()
+    if not text:
+        return False
+    low = text.casefold()
+    if re.search(r"\bsayı\s+\d", low) or re.search(r"\bthe count is\s+\d", low):
+        return True
+    tells = (
+        "taş susar",
+        "taş cevap verir",
+        "yol açılır",
+        "hamleyi kaçırır:",
+        "hamleyi tamamlar:",
+        "uzaktan bir ses sahneyi",
+        "motorun sayısı",
+    )
+    return any(tell in low for tell in tells)
+
+
+def echoes_deed(prose: str, notes: str) -> bool:
+    lowered = (prose or "").casefold()
+    for chunk in ((notes or "").strip(), player_deed(notes)):
+        if len(chunk) >= 16 and chunk.casefold() in lowered:
+            return True
+    return False
+
+
+def table_deed(notes: str) -> str:
+    text = (notes or "").strip()
+    if not text or first_person_notes(text):
         return ""
     return text
 
@@ -500,23 +741,64 @@ def miss_rewrite_user(user: str) -> str:
 
 
 def beat_rewrite_user(user: str, *, success: bool | None, notes: str) -> str:
-    extra = (
-        "The first draft failed the table. Rewrite. Narrate only this deed. "
-        "If the player stays put, they do not walk, step, or enter a new place."
-    )
+    extra = "The first draft failed the table. Rewrite. Narrate this deed in third person."
     if success is False:
         extra += (
-            " The attempt does not succeed. The world complicates and play continues. "
+            " The attempt does not succeed. Add a new complication and keep play moving. "
             "No competence, no recognition, no unhesitating action."
         )
     elif success is True:
-        extra += " Grant the deed only. Do not add extra movement."
+        extra += " The deed happens. Do not refuse it or substitute another action."
     if stay_put_deed(notes):
-        extra += " The actor does not take a step toward the corridor."
+        extra += " The actor does not walk, step, or enter a new place."
     return user + "\n\n" + extra
 
 
-def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, success: bool | None, total: int) -> str:
+HIT_TR = (
+    "Hamle yerini bulur; oda buna göre kayar.",
+    "Dünya boyun eğer. Bir sonraki seçenek açık kalır.",
+    "Etki tutar. Sahne kapanmaz.",
+)
+MISS_TR = (
+    "Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.",
+    "Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
+    "Karanlıkta bir nefes tutulur. Cevap gelmez; sahne kapanmaz.",
+    "Madalyon soğur. Kazınmış yazı yerinde kalır.",
+    "Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.",
+    "Taşın altından kısa bir tık gelir. Sıra yine oyuncuda.",
+)
+HIT_EN = (
+    "The deed lands; the room shifts to match it.",
+    "The world yields. Another choice stays open.",
+    "The effect takes. The scene does not close.",
+)
+MISS_EN = (
+    "Down the corridor, metal drags one pace closer.",
+    "The carvings drop a note, then return lower.",
+    "A breath holds in the dark. No answer yet.",
+    "The medallion goes cold. The scratched word stays.",
+    "Pale ceiling light dies for a beat, then returns.",
+    "Stone ticks once underfoot. The next move is still yours.",
+)
+
+
+def unused_line(lines: tuple[str, ...], prior: list[str] | None, total: int) -> str:
+    blob = " ".join(prior or []).casefold()
+    unused = [ln for ln in lines if ln.casefold()[:28] not in blob]
+    pool = unused or list(lines)
+    return pool[total % len(pool)]
+
+
+def literary_action(
+    locale: str,
+    kind: str,
+    actor: str,
+    room: str,
+    notes: str,
+    success: bool | None,
+    total: int,
+    prior: list[str] | None = None,
+) -> str:
     loc = beat_locale(locale, notes)
     place = scene_place(loc)
     _ = room
@@ -533,32 +815,27 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
         if loc == "tr":
             return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
         return f"{actor} holds still. Breath only. The lantern holds."
-    deed = table_deed(raw_notes)
-    if deed and deed[-1] not in ".!?":
-        deed = deed + "."
-    if stay_put_deed(raw_notes):
-        if loc == "tr":
-            if success is True:
-                return f"{actor} hamleyi yerinde tutar. Sayı {total}. Gitmediği yer açık kalmaz."
-            return f"{actor} hamleyi kaçırır. Sayı {total}. Taş susar; uzaktan bir ses sahneyi sürdürür."
-        if success is True:
-            return f"{actor} holds the beat. The count is {total}. The place they refused stays unentered."
-        return f"{actor} misses. The count is {total}. The stone stays mute, and a farther sound takes the next beat."
-    if loc == "tr":
-        if success is True:
-            if deed:
-                return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
-            return f"{actor} hamleyi tamamlar. Taş cevap verir. Sayı {total}; yol açılır."
-        if deed:
-            return f"{actor} hamleyi kaçırır: {deed} Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
-        return f"{actor} hamleyi kaçırır. Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
+    hits = HIT_TR if loc == "tr" else HIT_EN
+    misses = MISS_TR if loc == "tr" else MISS_EN
     if success is True:
-        if deed:
-            return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
-        return f"{actor} follows through. The stone answers. The count is {total}; the way opens."
-    if deed:
-        return f"{actor} misses. {deed} The stone stays mute. The count is {total}; a farther sound takes the next beat."
-    return f"{actor} misses. The stone stays mute. The count is {total}; a farther sound takes the next beat."
+        shift = unused_line(hits, prior, total)
+        held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
+        if loc == "tr":
+            body = f"{actor} yerinde kalır. {shift}" if stay_put_deed(raw_notes) else f"{actor}. {shift}"
+        else:
+            body = f"{actor} holds the beat. {shift}" if stay_put_deed(raw_notes) else f"{actor} follows through. {shift}"
+        if stay_put_deed(raw_notes):
+            return body + held
+        return body
+    shift = unused_line(misses, prior, total)
+    held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
+    if loc == "tr":
+        body = f"{actor} hamleyi kaçırır. {shift}"
+    else:
+        body = f"{actor} misses. {shift}"
+    if stay_put_deed(raw_notes):
+        return body + held
+    return body
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:
@@ -568,12 +845,22 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
     kind = payload["kind"]
     total = int(payload.get("total") or 0)
     success = payload.get("success")
+    prior = payload.get("prior") if isinstance(payload.get("prior"), list) else []
 
     if kind == "story":
         return {"locale": locale, "prose": redact(fallback_opening(locale, payload)), "npc_lines": []}
 
     use_kind = "say" if say else kind
-    prose = literary_action(locale, use_kind, actor, room, notes, success if use_kind == "action" else None, total)
+    prose = literary_action(
+        locale,
+        use_kind,
+        actor,
+        room,
+        notes,
+        success if use_kind == "action" else None,
+        total,
+        prior,
+    )
     return {"locale": locale, "prose": redact(prose), "npc_lines": []}
 
 
@@ -589,13 +876,10 @@ def parse_storyteller_response(
     notes: str = "",
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
-    prose = ""
     npc_raw: Any = []
     if parsed:
-        prose = redact(str(parsed.get("prose") or "").strip())
         npc_raw = parsed.get("npc_lines")
-    elif raw and not raw.lstrip().startswith("{"):
-        prose = redact(raw.strip().split("\n\n")[0][:800])
+    prose = recover_prose(raw)
     if not prose_looks_valid(
         prose,
         locale,
@@ -683,7 +967,7 @@ def load_pipeline(model_id: str, token: str | None, *, apply_adapter: bool = Tru
         )
     tok_id = model_id
     files = set(list_repo_files(model_id, token=token))
-    if "adapter_config.json" in files:
+    if hub_has_adapter_weights(files):
         from peft import PeftConfig, PeftModel
 
         cfg = PeftConfig.from_pretrained(model_id, token=token)
@@ -699,16 +983,34 @@ def load_pipeline(model_id: str, token: str | None, *, apply_adapter: bool = Tru
             quantization_config=quant,
         )
         if apply_adapter:
-            model = PeftModel.from_pretrained(base, model_id, token=token)
+            try:
+                patch_torchao_for_peft()
+                # Pass config so PEFT skips _get_peft_type (0.15.2 raises
+                # "Can't find adapter_config.json" after a hub download hiccup).
+                model = PeftModel.from_pretrained(base, model_id, config=cfg, token=token)
+                print(f"lora attached from {model_id}", flush=True)
+            except Exception as exc:
+                print(f"lora attach failed ({exc}); using base instruct", flush=True)
+                model = base
         else:
             model = base
         return pipeline("text-generation", model=model, tokenizer=tok, return_full_text=False)
+
+    if "adapter_config.json" in {path.rsplit("/", 1)[-1] for path in files}:
+        if hub_has_full_weights(files):
+            print(f"{model_id}: merged checkpoint; ignoring leftover adapter_config.json", flush=True)
+        else:
+            from peft import PeftConfig
+
+            cfg = PeftConfig.from_pretrained(model_id, token=token)
+            tok_id = cfg.base_model_name_or_path or model_id
+            print(f"{model_id}: no LoRA weights; loading base {tok_id}", flush=True)
 
     tok = AutoTokenizer.from_pretrained(tok_id, token=token, trust_remote_code=True)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(
-        model_id,
+        tok_id,
         token=token,
         device_map="auto",
         trust_remote_code=True,
@@ -790,9 +1092,6 @@ class Handler(BaseHTTPRequestHandler):
     def narrate(self, req: dict) -> dict:
         locale, payload = storyteller_input(req)
         kind = payload["kind"]
-        say = kind == "say" or normalize_kind(str(req.get("kind") or "")) == "say"
-        if say:
-            return fallback_storyteller(locale, payload, say=True)
         prior = prior_list(req)
         opening = kind == "story"
 
@@ -800,10 +1099,17 @@ class Handler(BaseHTTPRequestHandler):
         tokenizer = getattr(_pipe, "tokenizer", None) if _pipe is not None else None
         parsed = None
         if tokenizer is not None:
-            system = storyteller_system(locale, opening=opening, prior=prior)
+            system = storyteller_system(
+                locale,
+                opening=opening,
+                prior=prior,
+                success=payload.get("success"),
+                notes=str(payload.get("notes") or ""),
+                kind=kind,
+            )
             user = storyteller_user(payload, opening=opening, locale=locale)
             prompt = chat_prompt(tokenizer, system, user)
-            raw = self.generate(prompt, max_new_tokens=320 if opening else 260)
+            raw = self.generate(prompt, max_new_tokens=400 if opening else 320)
             host = " ".join(
                 str(part) for part in (req.get("opening"), payload.get("notes")) if part
             )
@@ -828,7 +1134,7 @@ class Handler(BaseHTTPRequestHandler):
                             notes=str(payload.get("notes") or ""),
                         ),
                     ),
-                    max_new_tokens=260,
+                    max_new_tokens=320,
                 )
                 parsed = parse_storyteller_response(
                     raw,
@@ -841,6 +1147,9 @@ class Handler(BaseHTTPRequestHandler):
                     notes=str(payload.get("notes") or ""),
                 )
 
+        if parsed and is_salad(str(parsed.get("prose") or "")):
+            print("rejected salad", flush=True)
+            parsed = None
         if parsed:
             return {"locale": locale, "prose": parsed["prose"], "npc_lines": parsed["npc_lines"]}
         return fallback_storyteller(locale, payload, say=False)
