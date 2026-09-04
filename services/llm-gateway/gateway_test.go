@@ -363,6 +363,44 @@ func TestLiveBagSaladNeverReachesTable(t *testing.T) {
 	}
 }
 
+func TestLiteraryBagHitReachesTable(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Floc ayağa kalkar. Torbanın içinde, kumaş ve soğuk bir kenar fener ışığına çıkar. Tapınağın nefesi değişmez. Sıra yine masada, torba artık açık.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	ok := true
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Ayağa kalkarım ve torbanın içindekilere göz atarım.", Total: 14, Success: &ok,
+	})
+	if !strings.Contains(n.Prose, "Torbanın içinde") || strings.Contains(n.Prose, "Etki tutar") {
+		t.Fatalf("literary bag hit did not reach the table: %s", n.Prose)
+	}
+}
+
+func TestBagHitStubIsNotEtkiTutar(t *testing.T) {
+	ok := true
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Ayağa kalkarım ve torbanın içindekilere göz atarım.", Total: 14, Success: &ok,
+	})
+	if strings.Contains(n.Prose, "Etki tutar") || strings.Contains(n.Prose, "kalkarım") || strings.Contains(n.Prose, "Sayı") {
+		t.Fatalf("generic count stub: %s", n.Prose)
+	}
+	if !strings.Contains(strings.ToLower(n.Prose), "torba") {
+		t.Fatalf("bag hit stub missed the deed: %s", n.Prose)
+	}
+}
+
 func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {

@@ -56,7 +56,6 @@ STOCK = (
     "the way opens",
     "alet kayar",
     "zaman biter",
-    "direnir",
     "e-posta",
     "email address",
     "phone number",
@@ -359,10 +358,12 @@ def table_title_leak(prose: str, title: str, host: str) -> bool:
 
 def clause_salad(prose: str) -> bool:
     parts = [p.strip() for p in re.split(r"[.!?]", prose or "") if p.strip()]
-    if len(parts) < 4:
+    if len(parts) < 6:
         return False
-    words = sum(len(p.split()) for p in parts)
-    return words / len(parts) < 6
+    lengths = [len(p.split()) for p in parts]
+    if max(lengths) >= 10:
+        return False
+    return sum(lengths) / len(parts) < 4
 
 
 def pick_line(pool: tuple[str, ...], seed: str) -> str:
@@ -683,6 +684,25 @@ def player_deed(notes: str) -> str:
     return text.strip()
 
 
+def voice_deed(actor: str, notes: str) -> str:
+    deed = player_deed(notes)
+    if not deed or not first_person_notes(deed):
+        return ""
+    text = re.sub(r"(?i)^ben\s+", "", deed)
+    text = re.sub(r"(?i)^i['’]m\s+", "", text)
+    text = re.sub(r"(?i)^i\s+", "", text)
+    text = re.sub(r"yorum\b", "yor", text)
+    text = re.sub(r"mekteyim\b", "mekte", text)
+    text = re.sub(r"maktayım\b", "makta", text)
+    text = re.sub(r"(arım|erim|ırım|urum|ürüm)\b", lambda m: m.group(0)[:-2], text)
+    text = text.strip().rstrip(".")
+    if not text:
+        return ""
+    if text[0].isupper() and (len(text) == 1 or not text[1].isupper()):
+        text = text[0].lower() + text[1:]
+    return f"{actor} {text}"
+
+
 def strip_engine_leak(notes: str) -> str:
     text = redact(notes or "").strip()
     if not text:
@@ -755,9 +775,9 @@ def beat_rewrite_user(user: str, *, success: bool | None, notes: str) -> str:
 
 
 HIT_TR = (
-    "Hamle yerini bulur; oda buna göre kayar.",
-    "Dünya boyun eğer. Bir sonraki seçenek açık kalır.",
-    "Etki tutar. Sahne kapanmaz.",
+    "Fener hareketin üstüne düşer; görünen şey sahneyi değiştirir.",
+    "Oda boyun eğer. Bir sonraki seçenek açık kalır.",
+    "Parmakların altındaki dünya cevap verir; masa kapanmaz.",
 )
 MISS_TR = (
     "Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.",
@@ -768,9 +788,9 @@ MISS_TR = (
     "Taşın altından kısa bir tık gelir. Sıra yine oyuncuda.",
 )
 HIT_EN = (
-    "The deed lands; the room shifts to match it.",
+    "Light finds the motion; the room shifts to match what is now seen.",
     "The world yields. Another choice stays open.",
-    "The effect takes. The scene does not close.",
+    "The thing under the hand answers; the table does not close.",
 )
 MISS_EN = (
     "Down the corridor, metal drags one pace closer.",
@@ -789,6 +809,54 @@ def unused_line(lines: tuple[str, ...], prior: list[str] | None, total: int) -> 
     return pool[total % len(pool)]
 
 
+def follow_through(locale: str, notes: str, success: bool, prior: list[str] | None, total: int) -> str:
+    low = (notes or "").casefold()
+    bag = any(k in low for k in ("torba", "çanta", "kese", "pouch", "satchel", "bag"))
+    if locale == "tr":
+        if success:
+            if bag:
+                return unused_line(
+                    (
+                        "Torbanın ağzı açılır. Fener kumaşa, toza ve soğuk bir kenara düşer; adları henüz yok, ama artık görünürler.",
+                        "Ağız gevşer. İçeride kayış, katlanmış kumaş, parmak ucunda metal. Hiçbiri masayı kapatmaz.",
+                    ),
+                    prior,
+                    total,
+                )
+            return unused_line(HIT_TR, prior, total)
+        if bag:
+            return unused_line(
+                (
+                    "Torba kayar; ağız kapanır. İçeride bir şey kumaşa takılır ve karanlıkta kalır.",
+                    "Parmaklar kumaşı bulur ama ağız bir an önce kapanır. Torba sırrını tutar.",
+                ),
+                prior,
+                total,
+            )
+        return unused_line(MISS_TR, prior, total)
+    if success:
+        if bag:
+            return unused_line(
+                (
+                    "The bag's mouth opens. Cloth, dust, and a cold edge take the light; unnamed yet, but seen.",
+                    "The drawstring yields. A strap, folded cloth, metal under a fingertip. None of it closes the table.",
+                ),
+                prior,
+                total,
+            )
+        return unused_line(HIT_EN, prior, total)
+    if bag:
+        return unused_line(
+            (
+                "The bag slips; the mouth pinches shut. Something snags in the cloth and stays dark.",
+                "Fingers find fabric, then the mouth closes first. The bag keeps its secret.",
+            ),
+            prior,
+            total,
+        )
+    return unused_line(MISS_EN, prior, total)
+
+
 def literary_action(
     locale: str,
     kind: str,
@@ -800,7 +868,6 @@ def literary_action(
     prior: list[str] | None = None,
 ) -> str:
     loc = beat_locale(locale, notes)
-    place = scene_place(loc)
     _ = room
     raw_notes = (notes or "").strip()
     if kind == "say":
@@ -815,27 +882,26 @@ def literary_action(
         if loc == "tr":
             return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
         return f"{actor} holds still. Breath only. The lantern holds."
-    hits = HIT_TR if loc == "tr" else HIT_EN
-    misses = MISS_TR if loc == "tr" else MISS_EN
-    if success is True:
-        shift = unused_line(hits, prior, total)
-        held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
-        if loc == "tr":
-            body = f"{actor} yerinde kalır. {shift}" if stay_put_deed(raw_notes) else f"{actor}. {shift}"
-        else:
-            body = f"{actor} holds the beat. {shift}" if stay_put_deed(raw_notes) else f"{actor} follows through. {shift}"
-        if stay_put_deed(raw_notes):
-            return body + held
-        return body
-    shift = unused_line(misses, prior, total)
+    shift = follow_through(loc, raw_notes, success is True, prior, total)
     held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
-    if loc == "tr":
-        body = f"{actor} hamleyi kaçırır. {shift}"
-    else:
-        body = f"{actor} misses. {shift}"
     if stay_put_deed(raw_notes):
-        return body + held
-    return body
+        if loc == "tr":
+            lead = f"{actor} yerinde kalır" if success is True else f"{actor} hamleyi kaçırır"
+        else:
+            lead = f"{actor} holds the beat" if success is True else f"{actor} misses"
+        return f"{lead}. {shift}{held}"
+    voiced = voice_deed(actor, raw_notes)
+    if success is True:
+        if voiced:
+            return f"{voiced}. {shift}"
+        return f"{actor}. {shift}"
+    if loc == "tr":
+        if voiced:
+            return f"{voiced}. {actor} hamleyi kaçırır. {shift}"
+        return f"{actor} hamleyi kaçırır. {shift}"
+    if voiced:
+        return f"{voiced}. {actor} misses. {shift}"
+    return f"{actor} misses. {shift}"
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:

@@ -176,6 +176,50 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("kalkarım", out["prose"])
         self.assertIn("kaçırır", out["prose"])
 
+    def test_literary_train_voice_passes_the_gate(self):
+        prose = (
+            "Esin yerinden kıpırdamaz. Nağme avucunda netleşir, bir kelime kadar: uyan. "
+            "Koridor aynı karanlıkta bekler. O karanlığa girmez."
+        )
+        self.assertTrue(
+            prose_looks_valid(
+                prose,
+                "tr",
+                success=True,
+                notes="Yerimde kalıp taştaki nağmeyi dinlerim, koridora adım atmadan.",
+            )
+        )
+
+    def test_bag_hit_is_not_etki_tutar(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": "Ayağa kalkarım ve torbanın içindekilere göz atarım.",
+                "total": 14,
+                "success": True,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("Floc", out["prose"])
+        self.assertIn("torba", out["prose"].casefold())
+        self.assertNotIn("Etki tutar", out["prose"])
+        self.assertNotIn("kalkarım", out["prose"])
+        self.assertNotIn("Sayı", out["prose"])
+        bag = (
+            "Floc ayağa kalkar. Torbanın içinde, kumaş ve soğuk bir kenar fener ışığına çıkar. "
+            "Tapınağın nefesi değişmez. Sıra yine masada, torba artık açık."
+        )
+        self.assertTrue(
+            prose_looks_valid(
+                bag,
+                "tr",
+                success=True,
+                notes="Ayağa kalkarım ve torbanın içindekilere göz atarım.",
+            )
+        )
+
     def test_miss_prompt_still_forbids_success(self):
         sys = storyteller_system(
             "en",
