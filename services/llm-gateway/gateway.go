@@ -33,20 +33,29 @@ type MechanicIntent struct {
 }
 
 type NarrateRequest struct {
-	Locale        string   `json:"locale"`
-	RoomID        string   `json:"room_id"`
-	RoomName      string   `json:"room_name"`
-	ActorName     string   `json:"actor_name"`
-	Kind          string   `json:"kind"`
-	Notes         string   `json:"notes"`
-	DiceSystem    string   `json:"dice_system"`
-	Rolls         []int    `json:"rolls"`
-	Total         int      `json:"total"`
-	Success       *bool    `json:"success"`
-	PresenceNames []string `json:"presence_names"`
-	Prior         []string `json:"prior,omitempty"`
-	Opening       string   `json:"opening,omitempty"`
-	ThemeID       string   `json:"theme_id,omitempty"`
+	Locale        string       `json:"locale"`
+	RoomID        string       `json:"room_id"`
+	RoomName      string       `json:"room_name"`
+	ActorName     string       `json:"actor_name"`
+	Kind          string       `json:"kind"`
+	Notes         string       `json:"notes"`
+	DiceSystem    string       `json:"dice_system"`
+	Rolls         []int        `json:"rolls"`
+	Total         int          `json:"total"`
+	Success       *bool        `json:"success"`
+	PresenceNames []string     `json:"presence_names"`
+	Prior         []string     `json:"prior,omitempty"`
+	Opening       string       `json:"opening,omitempty"`
+	ThemeID       string       `json:"theme_id,omitempty"`
+	WorldBrief    string       `json:"world_brief,omitempty"`
+	Cast          []CastMember `json:"cast,omitempty"`
+}
+
+type CastMember struct {
+	Name      string `json:"name"`
+	Species   string `json:"species,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Backstory string `json:"backstory,omitempty"`
 }
 
 type IntentRequest struct {
@@ -202,19 +211,20 @@ func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 }
 
 func (s *Service) Narrate(req NarrateRequest) Narrative {
-	locale := req.Locale
-	if locale != "tr" {
-		locale = "en"
-	}
-	pack := s.currentPack()
 	notes := pii.Redact(req.Notes)
 	req.Notes = notes
+	req.Opening = pii.Redact(req.Opening)
+	req.WorldBrief = pii.Redact(req.WorldBrief)
+	req.Cast = redactCast(req.Cast)
+	locale := taleLocale(req.Locale, req.Opening, notes)
+	pack := s.currentPack()
 	actor := req.ActorName
 	if actor == "" {
 		actor = "Someone"
 	}
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
+	req.Locale = locale
 	var remote Narrative
 	host := strings.TrimSpace(req.Opening + " " + notes)
 	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host) {
@@ -445,6 +455,52 @@ func outcomeText(locale, kind string, success *bool) string {
 		return "gölgede kalır"
 	}
 	return "falters"
+}
+
+func taleLocale(ui, opening, notes string) string {
+	for _, t := range []string{strings.TrimSpace(opening), strings.TrimSpace(notes)} {
+		if utf8.RuneCountInString(t) < 12 {
+			continue
+		}
+		if strings.ContainsAny(t, "çğıöşüÇĞİÖŞÜ") {
+			return "tr"
+		}
+		low := " " + strings.ToLower(t) + " "
+		if strings.Contains(low, " the ") || strings.Contains(low, " you ") || strings.Contains(low, " and ") {
+			return "en"
+		}
+	}
+	if ui == "tr" {
+		return "tr"
+	}
+	return "en"
+}
+
+func redactCast(in []CastMember) []CastMember {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]CastMember, 0, len(in))
+	for _, row := range in {
+		name := strings.TrimSpace(pii.Redact(row.Name))
+		if name == "" || name == "system_admin" {
+			continue
+		}
+		if len(out) >= 8 {
+			break
+		}
+		back := pii.Redact(row.Backstory)
+		if len(back) > 300 {
+			back = strings.TrimSpace(back[:300])
+		}
+		out = append(out, CastMember{
+			Name:      name,
+			Species:   strings.TrimSpace(pii.Redact(row.Species)),
+			Path:      strings.TrimSpace(pii.Redact(row.Path)),
+			Backstory: strings.TrimSpace(back),
+		})
+	}
+	return out
 }
 
 func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string) string {

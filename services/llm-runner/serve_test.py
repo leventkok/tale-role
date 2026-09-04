@@ -11,6 +11,7 @@ from serve import (
     parse_storyteller_response,
     prose_looks_valid,
     storyteller_input,
+    storyteller_user,
 )
 
 
@@ -43,6 +44,31 @@ class ServeFormatTests(unittest.TestCase):
         self.assertEqual(payload["rolls"], [])
         self.assertEqual(payload["total"], 0)
         self.assertIsNone(payload["success"])
+
+    def test_action_prompt_carries_world_and_cast(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Luther",
+                "room_name": "Friday night",
+                "opening": "You wake on the cold stone floor of an abandoned Shaper temple.",
+                "notes": "Examine the humming carvings",
+                "world_brief": "Age: first winter\nMood: wary\nLook: high fantasy\nOpening scene:\nPale blue light.",
+                "cast": [{"name": "Luther", "species": "human", "path": "ranger", "backstory": "A scout of the Shapers"}],
+                "rolls": [8],
+                "total": 10,
+                "success": False,
+            }
+        )
+        self.assertEqual(locale, "en")
+        user = storyteller_user(payload, opening=False, locale=locale)
+        self.assertIn("Age: first winter", user)
+        self.assertIn("Luther", user)
+        self.assertIn("ranger", user)
+        self.assertIn("Examine the humming carvings", user)
+        self.assertNotIn("Friday night", user)
+        self.assertNotIn("high-fantasy", user)
 
     def test_chat_prompt_uses_template(self):
         prompt = chat_prompt(StubTokenizer(), "sys", '{"actor":"Iri"}')
@@ -130,7 +156,7 @@ class ServeFormatTests(unittest.TestCase):
         )
         out = fallback_storyteller(locale, payload, say=False)
         self.assertNotIn("Star Wars", out["prose"])
-        self.assertEqual(payload["room"], "salon")
+        self.assertEqual(payload["room"], "the hall")
 
     def test_staccato_title_salad_rejected(self):
         raw = (

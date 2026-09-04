@@ -203,6 +203,7 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 		}
 	}
 	opening := ""
+	worldBrief := ""
 	if pub.UniverseID != "" {
 		seedOpening, seedDesc, _, _, ok := s.worlds.SceneSeed(pub.UniverseID)
 		if ok {
@@ -211,7 +212,11 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 				opening = strings.TrimSpace(seedDesc)
 			}
 		}
+		if brief, ok := s.worlds.TableBrief(pub.UniverseID); ok {
+			worldBrief = brief
+		}
 	}
+	cast := tableCast(pub.Characters)
 	if turn.Kind == "story" {
 		if locale == "tr" {
 			actorName = "Anlatıcı"
@@ -250,6 +255,8 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 		ThemeID:       pub.ThemeID,
 		Opening:       opening,
 		Prior:         prior,
+		WorldBrief:    worldBrief,
+		Cast:          cast,
 	})
 	narr := game.Narrative{Locale: n.Locale, Prose: n.Prose, NPCLines: []game.NPCLine{}}
 	for _, line := range n.NPCLines {
@@ -259,6 +266,30 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 	turn.Narrative = &narr
 	go s.paintScene(roomID, pub.ThemeID, pub.Name, notes, n.Prose)
 	return turn
+}
+
+func tableCast(chars []game.Character) []gateway.CastMember {
+	out := make([]gateway.CastMember, 0, len(chars))
+	for _, ch := range chars {
+		name := strings.TrimSpace(ch.Name)
+		if name == "" || name == "system_admin" {
+			continue
+		}
+		if len(out) >= 8 {
+			break
+		}
+		back := strings.TrimSpace(ch.Backstory)
+		if len(back) > 300 {
+			back = strings.TrimSpace(back[:300])
+		}
+		out = append(out, gateway.CastMember{
+			Name:      name,
+			Species:   strings.TrimSpace(ch.Species),
+			Path:      strings.TrimSpace(ch.Path),
+			Backstory: back,
+		})
+	}
+	return out
 }
 
 func (s *Server) paintScene(roomID, themeID, roomName, notes, prose string) {

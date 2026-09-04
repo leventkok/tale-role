@@ -232,19 +232,56 @@ def apply_storyteller_adapter() -> bool:
     return os.environ.get("TALEROLE_STORYTELLER_ADAPTER", "").strip() == "1"
 
 
+def tale_locale(ui: Any, opening: str, notes: str) -> str:
+    for text in (opening, notes):
+        t = (text or "").strip()
+        if len(t) < 12:
+            continue
+        if any(ch in TR_LETTERS for ch in t):
+            return "tr"
+        if locale_matches(t, "en"):
+            return "en"
+    return "tr" if ui == "tr" else "en"
+
+
+def format_cast(raw: Any) -> str:
+    if not isinstance(raw, list):
+        return ""
+    lines: list[str] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        name = redact(str(row.get("name") or "")).strip()
+        if not name or name == "system_admin":
+            continue
+        if len(lines) >= 8:
+            break
+        bits = [name]
+        for key in ("species", "path"):
+            val = redact(str(row.get(key) or "")).strip()
+            if val:
+                bits.append(val)
+        line = ", ".join(bits)
+        back = redact(str(row.get("backstory") or "")).strip()
+        if back:
+            line += f": {back[:300]}"
+        lines.append(f"- {line}")
+    return "\n".join(lines)
+
+
 def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     lang = "Turkish" if locale == "tr" else "English"
     body = (
-        f"You are a tabletop storyteller. Write 4 to 6 vivid literary sentences in {lang} only. "
-        "Describe light, sound, and what the named people do. "
-        "Never mention dice, HP, UI, JSON, or training. Never mix languages. "
-        "Never use a table, lobby, or product title as a place name. Place comes only from the opening. "
+        f"You are the Storyteller at this table. Write 4 to 6 vivid literary sentences in {lang} only. "
+        "Stay inside the world brief. Name the people at the table. Continue from the player's deed. "
+        "Never invent dice, HP, or turn order. Never mix languages. "
+        "Never use a table, lobby, or product title as a place name. Place comes from the opening and the world brief. "
         'Return only JSON {"prose":"...","npc_lines":[]}.'
     )
     if opening:
-        body += " Open the tale. If a host opening is given, keep it and extend it; do not replace it."
+        body += " Open the tale. If a host opening is given, keep it; you may add at most two sentences after it."
     else:
-        body += " On a successful action, mention the count number naturally. Do not say you rolled."
+        body += " Continue the scene. Do not restart the tale. If the deed succeeded, you may mention the count naturally."
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
         if clipped:
@@ -253,31 +290,46 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
 
 
 def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> str:
-    present = ", ".join(payload.get("presence") or []) or "the company"
-    place = scene_place(locale)
+    brief = redact(str(payload.get("world_brief") or "")).strip()[:2500]
+    cast = format_cast(payload.get("cast"))
+    prior = payload.get("prior") or []
+    if not isinstance(prior, list):
+        prior = []
+    happened = "\n".join(redact(str(p)).strip() for p in prior[:3] if str(p).strip())
+    parts = [f"language={locale}"]
+    if brief:
+        parts.append("WORLD\n" + brief)
+    if cast:
+        parts.append("PEOPLE AT THIS TABLE\n" + cast)
     if opening:
-        seed = payload.get("notes") or "(none — invent a full opening scene)"
-        return (
-            f"language={locale}\nplace={place}\n"
-            f"theme={payload.get('theme') or ''}\npresent={present}\n"
-            f"host_opening={seed}\nWrite the opening now."
-        )
-    return (
-        f"language={locale}\nactor={payload.get('actor')}\nplace={place}\n"
-        f"kind={payload.get('kind')}\nnotes={payload.get('notes')}\n"
-        f"count={payload.get('total')}\nsuccess={payload.get('success')}\n"
-        f"present={present}\nNarrate this beat."
+        seed = payload.get("notes") or "(none — invent a full opening scene from the world)"
+        parts.append("HOST OPENING\n" + str(seed))
+        parts.append("Write the opening now.")
+        return "\n\n".join(parts)
+    if happened:
+        parts.append("WHAT ALREADY HAPPENED\n" + happened)
+    actor = payload.get("actor") or "Someone"
+    notes = payload.get("notes") or ""
+    parts.append(
+        "THIS BEAT\n"
+        f"actor={actor}\n"
+        f"deed={notes}\n"
+        f"kind={payload.get('kind')}\n"
+        f"count={payload.get('total')}\n"
+        f"success={payload.get('success')}\n"
+        "Continue the scene from the world, the people, and this deed."
     )
+    return "\n\n".join(parts)
 
 
 def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    locale = "tr" if req.get("locale") == "tr" else "en"
     kind = normalize_kind(str(req.get("kind") or "action"))
     actor = str(req.get("actor_name") or "Someone")
     table_title = str(req.get("room_name") or "")
     notes = redact(str(req.get("notes") or req.get("opening") or ""))
+    opening_text = redact(str(req.get("opening") or ""))
+    locale = tale_locale(req.get("locale"), opening_text, notes)
     dice = str(req.get("dice_system") or "d20")
-    theme = redact(str(req.get("theme_id") or ""))
     presence = req.get("presence_names") or []
     if not isinstance(presence, list):
         presence = [actor]
@@ -314,8 +366,10 @@ def storyteller_input(req: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         "success": success,
         "notes": notes,
         "presence": presence,
-        "theme": theme,
-        "opening": redact(str(req.get("opening") or "")),
+        "opening": opening_text,
+        "world_brief": redact(str(req.get("world_brief") or ""))[:2500],
+        "cast": req.get("cast") if isinstance(req.get("cast"), list) else [],
+        "prior": prior_list(req),
     }
     return locale, payload
 
