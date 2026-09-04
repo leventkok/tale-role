@@ -18,4 +18,4 @@ Train later from `llm/notebooks/qlora_storyteller_7b.ipynb` using this folder, n
 Batches:
 
 - `storyteller.jsonl` — hand-written seed
-- `generated-01.jsonl` — 40 literary action rows (en/tr, hit/miss, stay-put). Do not merge into `synthetic/storyteller.jsonl`.
+- `train.jsonl` — seed + generated-01, this is what Colab uploads (46 rows)
