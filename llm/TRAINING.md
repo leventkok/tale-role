@@ -22,8 +22,8 @@ Open `llm/notebooks/qlora_mechanics_7b.ipynb` or `llm/notebooks/qlora_storytelle
 
 ## Recipe (live)
 
-1. Grow `llm/datasets/synthetic/`. Keep `locale` `en` or `tr`.
-2. `npm test -w @tale-role/game-schema` — eval rejects PII, `system_admin`, and mechanics rows that invent dice.
+1. Grow `llm/datasets/literary/` by hand. Keep `locale` `en` or `tr`. Never train the live storyteller on `synthetic/storyteller.jsonl`.
+2. `npm test -w @tale-role/game-schema` — eval still guards the synthetic contract set (PII, `system_admin`, mechanics dice).
 3. Fine-tune QLoRA. Constrained decoding for mechanics JSON.
 4. Upload adapters to private Hub repos (`your-org/talerole-storyteller`, `your-org/talerole-mechanics`).
 5. Deploy `services/llm-runner` on a GPU host with `HF_MODEL_ID` + `HF_TOKEN`.
