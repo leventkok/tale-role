@@ -334,6 +334,78 @@ func (c *Catalog) ForgetOwner(ownerID string) {
 	}
 }
 
+var lookName = map[string]string{
+	"high-fantasy":     "high fantasy",
+	"gothic-horror":    "gothic horror",
+	"space-opera":      "space opera",
+	"cyber-noir":       "cyber noir",
+	"post-apocalyptic": "a ruined world",
+	"fairytale":        "fairytale",
+}
+
+func (c *Catalog) TableBrief(id string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, ok := c.items[id]
+	if !ok {
+		return "", false
+	}
+	return NarrationBrief(*u), true
+}
+
+func clipBrief(s string, n int) string {
+	s = strings.TrimSpace(s)
+	r := []rune(s)
+	if n <= 0 || len(r) <= n {
+		return s
+	}
+	return strings.TrimSpace(string(r[:n]))
+}
+
+func NarrationBrief(u Universe) string {
+	var b strings.Builder
+	name := strings.TrimSpace(u.NameEN)
+	if name != "" {
+		fmt.Fprintf(&b, "World: %s\n", name)
+	}
+	if look := lookName[u.ThemeID]; look != "" {
+		fmt.Fprintf(&b, "Look: %s\n", look)
+	}
+	if u.Era != "" {
+		fmt.Fprintf(&b, "Age: %s\n", clipBrief(u.Era, 200))
+	}
+	if u.Tone != "" {
+		fmt.Fprintf(&b, "Mood: %s\n", clipBrief(u.Tone, 200))
+	}
+	if u.Description != "" {
+		fmt.Fprintf(&b, "The tale of this place:\n%s\n", clipBrief(u.Description, 1200))
+	}
+	if u.Opening != "" {
+		fmt.Fprintf(&b, "Opening scene:\n%s\n", clipBrief(u.Opening, 1200))
+	}
+	if u.Taboos != "" {
+		fmt.Fprintf(&b, "Do not depict: %s\n", clipBrief(u.Taboos, 400))
+	}
+	if len(u.NPCs) > 0 {
+		b.WriteString("People of this place:\n")
+		for i, n := range u.NPCs {
+			if i >= 8 {
+				break
+			}
+			label := n.NameEN
+			if n.NameTR != "" && n.NameTR != n.NameEN {
+				label = n.NameEN + " / " + n.NameTR
+			}
+			fmt.Fprintf(&b, "- %s (%s)", label, n.Alignment)
+			if n.Voice != "" {
+				fmt.Fprintf(&b, ": %s", clipBrief(n.Voice, 240))
+			}
+			b.WriteByte('\n')
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
 func Compile(u Universe) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "World %s. Mood %s.\n", u.NameEN, u.ThemeID)

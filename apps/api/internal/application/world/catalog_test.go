@@ -31,6 +31,13 @@ func TestCreateCompilesPromptPack(t *testing.T) {
 	if strings.Contains(u.CompiledPrompt, "system_admin") {
 		t.Fatal("compiled pack must not name system_admin")
 	}
+	brief, ok := cat.TableBrief(u.ID)
+	if !ok || !strings.Contains(brief, "late autumn") || !strings.Contains(brief, "wary") || !strings.Contains(brief, "The Warden") || !strings.Contains(brief, "Ashwood road") {
+		t.Fatalf("table brief missed world fields: %s", brief)
+	}
+	if strings.Contains(brief, "high-fantasy") || strings.Contains(brief, "system_admin") {
+		t.Fatalf("table brief must not leak theme ids: %s", brief)
+	}
 	list := cat.List("host")
 	if len(list) != 1 || list[0].ID != u.ID {
 		t.Fatalf("list: %+v", list)

@@ -300,6 +300,97 @@ func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
 	}
 }
 
+func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "World Of Warcraft",
+		Notes: "Examine the humming carvings", Total: 10, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "direnir") || strings.Contains(n.Prose, "World Of Warcraft") || strings.Contains(n.Prose, "Alet kayar") {
+		t.Fatalf("mixed stub: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "carvings") || !strings.Contains(n.Prose, "10") {
+		t.Fatalf("expected english literary beat: %s", n.Prose)
+	}
+}
+
+func TestTableTitleNeverBecomesPlace(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	for _, title := range []string{"Star Wars", "Dragon Age", "Harry Potter"} {
+		n := svc.Narrate(gateway.NarrateRequest{
+			Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: title,
+			Notes: "Examine the humming carvings", Total: 10, Success: &fail,
+		})
+		if strings.Contains(n.Prose, title) {
+			t.Fatalf("lobby title leaked into beat (%s): %s", title, n.Prose)
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "tr",
+			Prose:  "Luther looks. Star Wars resists. Number 10. The tool slips. Time ends.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	opening := "You wake on the cold stone floor of an abandoned Shaper temple."
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "Star Wars",
+		Notes: "Examine the humming carvings", Opening: opening, Total: 10, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "Star Wars") || strings.Contains(n.Prose, "The tool slips") {
+		t.Fatalf("table title or staccato salad reached the table: %s", n.Prose)
+	}
+}
+
+func TestTaleFollowsEnglishOpening(t *testing.T) {
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "wait",
+		Opening: "You wake on the cold stone floor of an abandoned Shaper temple.",
+	})
+	if n.Locale != "en" || strings.Contains(n.Prose, "nefesini") {
+		t.Fatalf("english opening must keep english tale voice: locale=%s prose=%s", n.Locale, n.Prose)
+	}
+}
+
+func TestNarrateForwardsWorldAndCast(t *testing.T) {
+	var got gateway.NarrateRequest
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose:  "Pale blue light finds Luther at the carvings. The stone keeps its secret. Dust hangs in the nave. The ranger lowers his hand. Nothing yields yet.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	fail := false
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Luther", Kind: "action", RoomName: "Friday night",
+		Opening:    "You wake on the cold stone floor of an abandoned Shaper temple.",
+		Notes:      "Examine the humming carvings",
+		WorldBrief: "Age: first winter\nMood: wary\nLook: high fantasy",
+		Cast:       []gateway.CastMember{{Name: "Luther", Species: "human", Path: "ranger"}},
+		Total:      10, Success: &fail,
+	})
+	if !strings.Contains(got.WorldBrief, "first winter") || len(got.Cast) != 1 || got.Cast[0].Path != "ranger" {
+		t.Fatalf("world/cast not forwarded: %+v", got)
+	}
+	if strings.Contains(n.Prose, "Friday night") {
+		t.Fatalf("lobby title in runner prose: %s", n.Prose)
+	}
+}
+
 func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
 	opening := "You wake on the cold stone floor of an abandoned Shaper temple. Pale blue light leaks through the cracks."
 	mux := http.NewServeMux()

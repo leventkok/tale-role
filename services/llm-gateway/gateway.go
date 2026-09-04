@@ -33,20 +33,29 @@ type MechanicIntent struct {
 }
 
 type NarrateRequest struct {
-	Locale        string   `json:"locale"`
-	RoomID        string   `json:"room_id"`
-	RoomName      string   `json:"room_name"`
-	ActorName     string   `json:"actor_name"`
-	Kind          string   `json:"kind"`
-	Notes         string   `json:"notes"`
-	DiceSystem    string   `json:"dice_system"`
-	Rolls         []int    `json:"rolls"`
-	Total         int      `json:"total"`
-	Success       *bool    `json:"success"`
-	PresenceNames []string `json:"presence_names"`
-	Prior         []string `json:"prior,omitempty"`
-	Opening       string   `json:"opening,omitempty"`
-	ThemeID       string   `json:"theme_id,omitempty"`
+	Locale        string       `json:"locale"`
+	RoomID        string       `json:"room_id"`
+	RoomName      string       `json:"room_name"`
+	ActorName     string       `json:"actor_name"`
+	Kind          string       `json:"kind"`
+	Notes         string       `json:"notes"`
+	DiceSystem    string       `json:"dice_system"`
+	Rolls         []int        `json:"rolls"`
+	Total         int          `json:"total"`
+	Success       *bool        `json:"success"`
+	PresenceNames []string     `json:"presence_names"`
+	Prior         []string     `json:"prior,omitempty"`
+	Opening       string       `json:"opening,omitempty"`
+	ThemeID       string       `json:"theme_id,omitempty"`
+	WorldBrief    string       `json:"world_brief,omitempty"`
+	Cast          []CastMember `json:"cast,omitempty"`
+}
+
+type CastMember struct {
+	Name      string `json:"name"`
+	Species   string `json:"species,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Backstory string `json:"backstory,omitempty"`
 }
 
 type IntentRequest struct {
@@ -202,21 +211,23 @@ func (s *Service) ProposeIntent(req IntentRequest) MechanicIntent {
 }
 
 func (s *Service) Narrate(req NarrateRequest) Narrative {
-	locale := req.Locale
-	if locale != "tr" {
-		locale = "en"
-	}
-	pack := s.currentPack()
 	notes := pii.Redact(req.Notes)
 	req.Notes = notes
+	req.Opening = pii.Redact(req.Opening)
+	req.WorldBrief = pii.Redact(req.WorldBrief)
+	req.Cast = redactCast(req.Cast)
+	locale := taleLocale(req.Locale, req.Opening, notes)
+	pack := s.currentPack()
 	actor := req.ActorName
 	if actor == "" {
 		actor = "Someone"
 	}
 	outcome := outcomeText(locale, req.Kind, req.Success)
 	voice := s.voice(pack, locale)
+	req.Locale = locale
 	var remote Narrative
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind) {
+	host := strings.TrimSpace(req.Opening + " " + notes)
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -305,7 +316,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose, locale, kind string) bool {
+func runnerProseOK(prose, locale, kind, tableTitle, host string) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -321,6 +332,12 @@ func runnerProseOK(prose, locale, kind string) bool {
 		return false
 	}
 	if trainingSalad(lower) {
+		return false
+	}
+	if tableTitleLeak(p, tableTitle, host) {
+		return false
+	}
+	if kind != "story" && clauseSalad(p) {
 		return false
 	}
 	if kind == "story" && utf8.RuneCountInString(p) < 90 {
@@ -349,6 +366,7 @@ func trainingSalad(lower string) bool {
 		"nöbet dönmez", "nöbet dönüyor", "rün karanlık", "kilit durur", "pim kopar",
 		"kahkaha bitince", "kahkaha kopar", "menteşe", "zar ", " der.",
 		"çandan önce", "gelene dek", "bir sonraki çan",
+		"alet kayar", "zaman biter", " direnir.",
 		"motorun", "içinde,", "hold the line", "the watch is unblinded",
 		"the bar splinters", "the die reads", "the engine's", "the rune stays dark",
 		"the latch yields", "a pin snaps", "what will you do",
@@ -360,6 +378,40 @@ func trainingSalad(lower string) bool {
 		}
 	}
 	return hits >= 1
+}
+
+func tableTitleLeak(prose, title, host string) bool {
+	t := strings.TrimSpace(title)
+	if t == "" {
+		return false
+	}
+	if utf8.RuneCountInString(t) < 6 && !strings.ContainsAny(t, " \t-") {
+		return false
+	}
+	tl := strings.ToLower(t)
+	if strings.Contains(strings.ToLower(host), tl) {
+		return false
+	}
+	return strings.Contains(strings.ToLower(prose), tl)
+}
+
+func clauseSalad(p string) bool {
+	clauses := strings.FieldsFunc(p, func(r rune) bool {
+		return r == '.' || r == '!' || r == '?'
+	})
+	n, words := 0, 0
+	for _, c := range clauses {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		n++
+		words += len(strings.Fields(c))
+	}
+	if n < 4 || words == 0 {
+		return false
+	}
+	return words/n < 6
 }
 
 func outcomeText(locale, kind string, success *bool) string {
@@ -405,11 +457,57 @@ func outcomeText(locale, kind string, success *bool) string {
 	return "falters"
 }
 
+func taleLocale(ui, opening, notes string) string {
+	for _, t := range []string{strings.TrimSpace(opening), strings.TrimSpace(notes)} {
+		if utf8.RuneCountInString(t) < 12 {
+			continue
+		}
+		if strings.ContainsAny(t, "çğıöşüÇĞİÖŞÜ") {
+			return "tr"
+		}
+		low := " " + strings.ToLower(t) + " "
+		if strings.Contains(low, " the ") || strings.Contains(low, " you ") || strings.Contains(low, " and ") {
+			return "en"
+		}
+	}
+	if ui == "tr" {
+		return "tr"
+	}
+	return "en"
+}
+
+func redactCast(in []CastMember) []CastMember {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]CastMember, 0, len(in))
+	for _, row := range in {
+		name := strings.TrimSpace(pii.Redact(row.Name))
+		if name == "" || name == "system_admin" {
+			continue
+		}
+		if len(out) >= 8 {
+			break
+		}
+		back := pii.Redact(row.Backstory)
+		if len(back) > 300 {
+			back = strings.TrimSpace(back[:300])
+		}
+		out = append(out, CastMember{
+			Name:      name,
+			Species:   strings.TrimSpace(pii.Redact(row.Species)),
+			Path:      strings.TrimSpace(pii.Redact(row.Path)),
+			Backstory: strings.TrimSpace(back),
+		})
+	}
+	return out
+}
+
 func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string) string {
 	_ = dice
 	_ = rolls
 	_ = theme
-	place := strings.TrimSpace(room)
+	_ = room
 	if pack == packs.V1Terse {
 		return fmt.Sprintf("[v1-terse] %s %s.", actor, outcome)
 	}
@@ -419,20 +517,41 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 			return deed
 		}
 		if locale == "tr" {
-			if place != "" {
-				return fmt.Sprintf("%s taş gibi soğuk. Bir fener titrer. Uzak bir metal sesi sürter. Anlatıcı sahneyi açar.", place)
-			}
 			return "Fener yanar. Eşikte bir duraklama var. Uzak bir ses gelir. Anlatıcı sözü alır."
-		}
-		if place != "" {
-			return fmt.Sprintf("Night holds %s. The storyteller takes the floor.", place)
 		}
 		return "A hush. Lanternlight. The storyteller takes the floor."
 	}
-	if locale == "tr" {
+	loc := beatLocale(locale, deed)
+	place := scenePlace(loc)
+	if loc == "tr" {
 		return literaryTR(kind, actor, place, deed, outcome, total)
 	}
 	return literaryEN(kind, actor, place, deed, outcome, total)
+}
+
+func beatLocale(locale, notes string) string {
+	if locale != "tr" {
+		return "en"
+	}
+	n := strings.TrimSpace(notes)
+	if n == "" {
+		return "tr"
+	}
+	if strings.ContainsAny(n, "çğıöşüÇĞİÖŞÜ") {
+		return "tr"
+	}
+	low := " " + strings.ToLower(n) + " "
+	if strings.Contains(low, " the ") || strings.Contains(low, " and ") || strings.Contains(low, " examine ") {
+		return "en"
+	}
+	return "tr"
+}
+
+func scenePlace(locale string) string {
+	if locale == "tr" {
+		return "salon"
+	}
+	return "the hall"
 }
 
 func literaryTR(kind, actor, place, deed, outcome string, total int) string {
@@ -453,10 +572,13 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	if deed == "" {
 		deed = outcome
 	}
-	if strings.Contains(outcome, "yolu açar") {
-		return fmt.Sprintf("%s %s. %s cevap verir. Sayı %d; yol açılır.", actor, deed, place, total)
+	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+		deed = deed + "."
 	}
-	return fmt.Sprintf("%s %s. %s direnir. Sayı %d. Bir şey yerinden oynamaz.", actor, deed, place, total)
+	if strings.Contains(outcome, "yolu açar") {
+		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
+	}
+	return fmt.Sprintf("%s hamleyi dener: %s Taş susar. Sayı %d; koridor aynı kalır.", actor, deed, total)
 }
 
 func literaryEN(kind, actor, place, deed, outcome string, total int) string {
@@ -477,10 +599,13 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	if deed == "" {
 		deed = outcome
 	}
-	if strings.Contains(outcome, "finds the way") {
-		return fmt.Sprintf("%s %s. %s answers. The count is %d; the way opens.", actor, deed, place, total)
+	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+		deed = deed + "."
 	}
-	return fmt.Sprintf("%s %s. %s holds. The count is %d. Nothing yields yet.", actor, deed, place, total)
+	if strings.Contains(outcome, "finds the way") {
+		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
+	}
+	return fmt.Sprintf("%s follows through: %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
 }
 
 func excerpt(s string) string {
