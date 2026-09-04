@@ -227,7 +227,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	req.Locale = locale
 	var remote Narrative
 	host := strings.TrimSpace(req.Opening + " " + notes)
-	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host) {
+	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host, req.Success) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
@@ -316,7 +316,7 @@ func (s *Service) record(roomID, prompt string, intent MechanicIntent, excerptTe
 	}
 }
 
-func runnerProseOK(prose, locale, kind, tableTitle, host string) bool {
+func runnerProseOK(prose, locale, kind, tableTitle, host string, success *bool) bool {
 	p := strings.TrimSpace(prose)
 	if len(p) < 12 {
 		return false
@@ -335,6 +335,9 @@ func runnerProseOK(prose, locale, kind, tableTitle, host string) bool {
 		return false
 	}
 	if tableTitleLeak(p, tableTitle, host) {
+		return false
+	}
+	if missLooksLikeHit(lower, success) {
 		return false
 	}
 	if kind != "story" && clauseSalad(p) {
@@ -359,6 +362,26 @@ func runnerProseOK(prose, locale, kind, tableTitle, host string) bool {
 		return false
 	}
 	return true
+}
+
+func missLooksLikeHit(lower string, success *bool) bool {
+	if success == nil || *success {
+		return false
+	}
+	tells := []string{
+		"without hesitation",
+		"recognizing the",
+		"the way opens",
+		"follows through",
+		"tereddüt etmeden",
+		"çekinmeden",
+	}
+	for _, tell := range tells {
+		if strings.Contains(lower, tell) {
+			return true
+		}
+	}
+	return false
 }
 
 func trainingSalad(lower string) bool {

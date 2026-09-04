@@ -161,6 +161,7 @@ def prose_looks_valid(
     opening: bool = False,
     table_title: str = "",
     host: str = "",
+    success: bool | None = None,
 ) -> bool:
     text = (prose or "").strip()
     if len(text) < 12:
@@ -186,8 +187,27 @@ def prose_looks_valid(
         return False
     if opening:
         return True
+    if not engine_outcome_ok(text, success):
+        return False
     if not locale_matches(text, locale):
         return False
+    return True
+
+
+def engine_outcome_ok(prose: str, success: bool | None) -> bool:
+    if success is not False:
+        return True
+    low = (prose or "").casefold()
+    for tell in (
+        "without hesitation",
+        "recognizing the",
+        "the way opens",
+        "follows through",
+        "tereddüt etmeden",
+        "çekinmeden",
+    ):
+        if tell in low:
+            return False
     return True
 
 
@@ -313,14 +333,28 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
         parts.append("WHAT ALREADY HAPPENED\n" + happened)
     actor = payload.get("actor") or "Someone"
     notes = payload.get("notes") or ""
+    success = payload.get("success")
+    if success is False:
+        result = (
+            "RESULT: MISS. The rules engine already ruled this attempt failed. "
+            "Narrate the miss in the room. The actor learns nothing useful, maps nothing, "
+            "and does not succeed. Do not write hesitation-free competence."
+        )
+    elif success is True:
+        result = (
+            "RESULT: HIT. The rules engine already ruled this attempt succeeded. "
+            "Narrate the success without inventing dice, HP, or turn order."
+        )
+    else:
+        result = "Continue the scene from the world, the people, and this deed."
     parts.append(
         "THIS BEAT\n"
         f"actor={actor}\n"
         f"deed={notes}\n"
         f"kind={payload.get('kind')}\n"
         f"count={payload.get('total')}\n"
-        f"success={payload.get('success')}\n"
-        "Continue the scene from the world, the people, and this deed."
+        f"success={success}\n"
+        + result
     )
     return "\n\n".join(parts)
 
@@ -453,6 +487,7 @@ def parse_storyteller_response(
     opening: bool = False,
     table_title: str = "",
     host: str = "",
+    success: bool | None = None,
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
     prose = ""
@@ -463,7 +498,13 @@ def parse_storyteller_response(
     elif raw and not raw.lstrip().startswith("{"):
         prose = redact(raw.strip().split("\n\n")[0][:800])
     if not prose_looks_valid(
-        prose, locale, prior, opening=opening, table_title=table_title, host=host
+        prose,
+        locale,
+        prior,
+        opening=opening,
+        table_title=table_title,
+        host=host,
+        success=success,
     ):
         return None
     npc_lines: list[dict[str, str]] = []
@@ -673,6 +714,7 @@ class Handler(BaseHTTPRequestHandler):
                 opening=opening,
                 table_title=str(payload.get("table_title") or ""),
                 host=host,
+                success=payload.get("success"),
             )
 
         if parsed:
