@@ -12,6 +12,7 @@ import json
 import os
 import re
 import threading
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
@@ -387,6 +388,17 @@ def apply_storyteller_adapter() -> bool:
     return os.environ.get("TALEROLE_STORYTELLER_ADAPTER", "").strip() == "1"
 
 
+def use_storyteller_adapter(kind: str) -> bool:
+    """LoRA is opening-only until a live-prompt SFT eval passes.
+
+    Action cards infer from WORLD + deed on base instruct. Set
+    TALEROLE_STORYTELLER_ADAPTER_ACTIONS=1 only after that eval.
+    """
+    if normalize_kind(kind) == "story":
+        return apply_storyteller_adapter()
+    return os.environ.get("TALEROLE_STORYTELLER_ADAPTER_ACTIONS", "").strip() == "1"
+
+
 ADAPTER_WEIGHT_NAMES = (
     "adapter_model.safetensors",
     "adapter_model.bin",
@@ -479,6 +491,8 @@ def storyteller_system(
         "Never paste the player's deed. Name the concrete result in the scene. "
         "Never use a table, lobby, or product title as a place name. Place comes from the opening and the world brief. "
         "Write in third person. Do not write as the player. "
+        "Infer sensory specifics from WORLD, PEOPLE, WHAT ALREADY HAPPENED, and this deed. "
+        "You do not need to have seen this object in training. "
         'Return only JSON {"prose":"...","npc_lines":[]}.'
     )
     if opening:
@@ -515,6 +529,15 @@ def storyteller_system(
             "Add a new complication the table has not heard yet and keep the scene playable. "
             "Never write the attempt as a success. Never stall."
         )
+    body += (
+        " Voice to copy, not facts to copy — "
+        "HIT/tr WORLD=soğuk tapınak, uğuldayan taş deed=Yerimde kalıp nağmeyi dinlerim "
+        "→ Esin yerinden kıpırdamaz. Nağme avucunda netleşir, bir kelime kadar: uyan. "
+        "Koridor aynı karanlıkta bekler. O karanlığa girmez. "
+        "MISS/tr WORLD=bataklık, sis deed=Kütükte kalıp ışığı yakalamaya çalışıyorum "
+        "→ Derya kütükte kalır. İlmek dumandan geçer gibi ışığın içinden kayar. "
+        "Sazlar kımıldar. Su yaklaşır; sahne kapanmaz."
+    )
     if stay_put_deed(notes):
         body += " The player stays put: they do not walk, step, or enter a new place."
     if prior:
@@ -1138,7 +1161,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send(404, {"error": "not found"})
 
-    def generate(self, prompt: str, *, max_new_tokens: int = 240, sample: bool = True) -> str:
+    def generate(
+        self, prompt: str, *, max_new_tokens: int = 240, sample: bool = True, adapter: bool = True
+    ) -> str:
         global _pipe
         if _pipe is None:
             return ""
@@ -1151,7 +1176,11 @@ class Handler(BaseHTTPRequestHandler):
             kwargs.update(do_sample=True, temperature=0.82, top_p=0.92)
         else:
             kwargs["do_sample"] = False
-        out = _pipe(prompt, **kwargs)
+        model = getattr(_pipe, "model", None)
+        disable = getattr(model, "disable_adapter", None) if model is not None and not adapter else None
+        ctx = disable() if callable(disable) else nullcontext()
+        with ctx:
+            out = _pipe(prompt, **kwargs)
         text = out[0]["generated_text"] if out else ""
         return redact(str(text).strip())
 
@@ -1175,7 +1204,10 @@ class Handler(BaseHTTPRequestHandler):
             )
             user = storyteller_user(payload, opening=opening, locale=locale)
             prompt = chat_prompt(tokenizer, system, user)
-            raw = self.generate(prompt, max_new_tokens=400 if opening else 320)
+            adapter = use_storyteller_adapter(kind)
+            raw = self.generate(
+                prompt, max_new_tokens=400 if opening else 320, adapter=adapter
+            )
             host = " ".join(
                 str(part) for part in (req.get("opening"), payload.get("notes")) if part
             )
@@ -1201,6 +1233,7 @@ class Handler(BaseHTTPRequestHandler):
                         ),
                     ),
                     max_new_tokens=320,
+                    adapter=adapter,
                 )
                 parsed = parse_storyteller_response(
                     raw,

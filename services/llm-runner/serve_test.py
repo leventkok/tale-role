@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 
 from serve import (
@@ -21,6 +22,7 @@ from serve import (
     storyteller_user,
     strip_engine_leak,
     table_deed,
+    use_storyteller_adapter,
 )
 
 
@@ -268,6 +270,44 @@ class ServeFormatTests(unittest.TestCase):
 
     def test_base_instruct_by_default(self):
         self.assertFalse(apply_storyteller_adapter())
+        self.assertFalse(use_storyteller_adapter("action"))
+        self.assertFalse(use_storyteller_adapter("story"))
+
+    def test_action_infers_from_live_parameters(self):
+        sys = storyteller_system(
+            "tr",
+            opening=False,
+            prior=[],
+            success=True,
+            notes="Ayağa kalkarım ve torbanın içindekilere göz atarım.",
+            kind="action",
+        )
+        self.assertIn("You do not need to have seen this object in training", sys)
+        self.assertIn("Esin yerinden kıpırdamaz", sys)
+        self.assertIn("Voice to copy, not facts to copy", sys)
+        opening = storyteller_system("tr", opening=True, prior=[], kind="story")
+        self.assertIn("You do not need to have seen this object in training", opening)
+        self.assertNotIn("Esin yerinden kıpırdamaz", opening)
+
+    def test_adapter_actions_opt_in(self):
+        old = os.environ.get("TALEROLE_STORYTELLER_ADAPTER_ACTIONS")
+        old_story = os.environ.get("TALEROLE_STORYTELLER_ADAPTER")
+        try:
+            os.environ["TALEROLE_STORYTELLER_ADAPTER"] = "1"
+            os.environ.pop("TALEROLE_STORYTELLER_ADAPTER_ACTIONS", None)
+            self.assertTrue(use_storyteller_adapter("story"))
+            self.assertFalse(use_storyteller_adapter("action"))
+            os.environ["TALEROLE_STORYTELLER_ADAPTER_ACTIONS"] = "1"
+            self.assertTrue(use_storyteller_adapter("action"))
+        finally:
+            if old is None:
+                os.environ.pop("TALEROLE_STORYTELLER_ADAPTER_ACTIONS", None)
+            else:
+                os.environ["TALEROLE_STORYTELLER_ADAPTER_ACTIONS"] = old
+            if old_story is None:
+                os.environ.pop("TALEROLE_STORYTELLER_ADAPTER", None)
+            else:
+                os.environ["TALEROLE_STORYTELLER_ADAPTER"] = old_story
 
     def test_hub_adapter_needs_weight_file(self):
         self.assertFalse(hub_has_adapter_weights({"adapter_config.json", "README.md"}))
