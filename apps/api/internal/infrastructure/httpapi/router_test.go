@@ -415,8 +415,17 @@ func TestUniverseWizardBindsThemeToRoom(t *testing.T) {
 	if bytes.Contains(turn.Body.Bytes(), []byte("[gothic-horror]")) {
 		t.Fatal("theme id must not leak into narrator prose")
 	}
-	if !bytes.Contains(turn.Body.Bytes(), []byte("Iri")) || !bytes.Contains(turn.Body.Bytes(), []byte("[redacted]")) {
+	var beat struct {
+		Narrative struct {
+			Prose string `json:"prose"`
+		} `json:"narrative"`
+	}
+	_ = json.Unmarshal(turn.Body.Bytes(), &beat)
+	if !strings.Contains(beat.Narrative.Prose, "Iri") {
 		t.Fatalf("stub narrator missing: %s", turn.Body.String())
+	}
+	if strings.Contains(beat.Narrative.Prose, "spy@tale.role") || strings.Contains(beat.Narrative.Prose, "The count is") {
+		t.Fatalf("email or dice count reached narrator prose: %s", beat.Narrative.Prose)
 	}
 	if bytes.Contains(turn.Body.Bytes(), []byte("image_svg")) {
 		t.Fatal("scene art must not inline in the chronicle turn")

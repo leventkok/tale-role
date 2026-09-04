@@ -21,3 +21,10 @@ func Redact(s string) string {
 func ContainsLeak(s string) bool {
 	return emailRe.MatchString(s) || digitsRe.MatchString(s)
 }
+
+var askRe = regexp.MustCompile(`(?i)(e-?mail|e-?posta|telefon numar|phone number|cep telefon|tc kimlik|kredi kart|credit card|social security)`)
+
+// AsksPersonal is true when the narrator tries to collect real-world identity.
+func AsksPersonal(s string) bool {
+	return askRe.MatchString(s)
+}
