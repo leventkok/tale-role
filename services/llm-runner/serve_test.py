@@ -69,6 +69,10 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("Examine the humming carvings", user)
         self.assertNotIn("Friday night", user)
         self.assertNotIn("high-fantasy", user)
+        self.assertIn("RESULT: MISS", user)
+        self.assertIn("success=False", user)
+        self.assertIn("Fail forward", user)
+        self.assertNotIn("learns nothing useful", user)
 
     def test_chat_prompt_uses_template(self):
         prompt = chat_prompt(StubTokenizer(), "sys", '{"actor":"Iri"}')
@@ -142,6 +146,8 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("Examine the humming carvings", out["prose"])
         self.assertNotIn("follows through", out["prose"])
         self.assertIn("misses", out["prose"])
+        self.assertIn("next beat", out["prose"])
+        self.assertNotIn("nothing shifts", out["prose"])
 
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(
@@ -232,6 +238,22 @@ class ServeFormatTests(unittest.TestCase):
         )
         parsed = parse_storyteller_response(raw, "en", [opening])
         self.assertIsNotNone(parsed)
+
+    def test_reject_hit_voice_on_failed_roll(self):
+        prose = (
+            "Luther picks up the medallion and studies it for a moment, feeling the subtle "
+            "vibrations emanating from the carvings grow stronger. He lets out a low whistle, "
+            "recognizing the power at work here. 'Interesting,' he murmurs. Without hesitation, "
+            "he begins to trace a complex pattern along the wall with his finger, following the "
+            "hum like a map. The others watch warily as the temperature drops slightly, making "
+            "the hairs on their arms stand on end. Metal clatters against stone somewhere deeper "
+            "within the temple, growing louder. 'We should move quickly,' Luther says, voice "
+            "steady despite the creeping unease in the air. 'Whatever made these carvings is "
+            "still awake, and I have a bad feeling about that.'"
+        )
+        raw = json.dumps({"prose": prose, "npc_lines": []})
+        self.assertIsNone(parse_storyteller_response(raw, "en", success=False))
+        self.assertIsNotNone(parse_storyteller_response(raw, "en", success=True))
 
     def test_fallback_say_tr(self):
         locale, payload = storyteller_input(

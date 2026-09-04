@@ -300,6 +300,36 @@ func TestRunnerSaladFallsBackToLiterary(t *testing.T) {
 	}
 }
 
+func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(gateway.Narrative{
+			Locale: "en",
+			Prose: "Luther picks up the medallion and studies it for a moment, feeling the subtle vibrations emanating from the carvings grow stronger. He lets out a low whistle, recognizing the power at work here. Without hesitation, he begins to trace a complex pattern along the wall with his finger, following the hum like a map. The others watch warily as the temperature drops slightly.",
+		})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	fail := false
+	svc := gateway.New()
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.SetRunners(srv.URL, "")
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "en", ActorName: "Luther", Kind: "action", RoomName: "Friday night",
+		Notes: "I pick up the medallion and listen to the humming carvings, without going down the corridor.",
+		Total: 5, Success: &fail,
+	})
+	if strings.Contains(strings.ToLower(n.Prose), "without hesitation") || strings.Contains(n.Prose, "recognizing the") {
+		t.Fatalf("hit voice on a miss reached the table: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Luther") || !strings.Contains(n.Prose, "misses") || !strings.Contains(n.Prose, "5") {
+		t.Fatalf("expected honest miss stub: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "next beat") || strings.Contains(n.Prose, "nothing shifts") {
+		t.Fatalf("miss must fail forward, not freeze: %s", n.Prose)
+	}
+}
+
 func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {
 	fail := false
 	svc := gateway.New()

@@ -161,6 +161,7 @@ def prose_looks_valid(
     opening: bool = False,
     table_title: str = "",
     host: str = "",
+    success: bool | None = None,
 ) -> bool:
     text = (prose or "").strip()
     if len(text) < 12:
@@ -186,8 +187,27 @@ def prose_looks_valid(
         return False
     if opening:
         return True
+    if not engine_outcome_ok(text, success):
+        return False
     if not locale_matches(text, locale):
         return False
+    return True
+
+
+def engine_outcome_ok(prose: str, success: bool | None) -> bool:
+    if success is not False:
+        return True
+    low = (prose or "").casefold()
+    for tell in (
+        "without hesitation",
+        "recognizing the",
+        "the way opens",
+        "follows through",
+        "tereddüt etmeden",
+        "çekinmeden",
+    ):
+        if tell in low:
+            return False
     return True
 
 
@@ -283,7 +303,9 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     else:
         body += (
             " Continue the scene with the people already present. Do not restart the tale. "
-            "Do not quote the player's deed as a header. If the deed failed, show the miss in the room; never say the attempt succeeded."
+            "Do not quote the player's deed as a header. "
+            "If the deed failed, do not grant the goal; the world answers with a complication and play continues. "
+            "Never freeze the table. Never write the attempt as a success."
         )
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
@@ -313,14 +335,28 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
         parts.append("WHAT ALREADY HAPPENED\n" + happened)
     actor = payload.get("actor") or "Someone"
     notes = payload.get("notes") or ""
+    success = payload.get("success")
+    if success is False:
+        result = (
+            "RESULT: MISS. The rules engine already ruled this attempt failed. "
+            "Do not grant the deed. Fail forward: the world answers with new pressure, sound, "
+            "or danger, and the scene continues. Do not write hesitation-free competence."
+        )
+    elif success is True:
+        result = (
+            "RESULT: HIT. The rules engine already ruled this attempt succeeded. "
+            "Narrate the success without inventing dice, HP, or turn order."
+        )
+    else:
+        result = "Continue the scene from the world, the people, and this deed."
     parts.append(
         "THIS BEAT\n"
         f"actor={actor}\n"
         f"deed={notes}\n"
         f"kind={payload.get('kind')}\n"
         f"count={payload.get('total')}\n"
-        f"success={payload.get('success')}\n"
-        "Continue the scene from the world, the people, and this deed."
+        f"success={success}\n"
+        + result
     )
     return "\n\n".join(parts)
 
@@ -423,10 +459,10 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
     if loc == "tr":
         if success is True:
             return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
-        return f"{actor} hamleyi dener: {deed} Taş susar. Sayı {total}; koridor aynı kalır."
+        return f"{actor} hamleyi kaçırır: {deed} Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
     if success is True:
         return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
-    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; nothing shifts yet."
+    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; a farther sound takes the next beat."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:
@@ -453,6 +489,7 @@ def parse_storyteller_response(
     opening: bool = False,
     table_title: str = "",
     host: str = "",
+    success: bool | None = None,
 ) -> dict[str, Any] | None:
     parsed = extract_json_object(raw)
     prose = ""
@@ -463,7 +500,13 @@ def parse_storyteller_response(
     elif raw and not raw.lstrip().startswith("{"):
         prose = redact(raw.strip().split("\n\n")[0][:800])
     if not prose_looks_valid(
-        prose, locale, prior, opening=opening, table_title=table_title, host=host
+        prose,
+        locale,
+        prior,
+        opening=opening,
+        table_title=table_title,
+        host=host,
+        success=success,
     ):
         return None
     npc_lines: list[dict[str, str]] = []
@@ -673,6 +716,7 @@ class Handler(BaseHTTPRequestHandler):
                 opening=opening,
                 table_title=str(payload.get("table_title") or ""),
                 host=host,
+                success=payload.get("success"),
             )
 
         if parsed:
