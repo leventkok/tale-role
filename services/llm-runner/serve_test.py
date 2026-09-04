@@ -7,11 +7,13 @@ from serve import (
     extract_json_object,
     fallback_storyteller,
     mechanics_input,
+    miss_rewrite_user,
     parse_mechanics_response,
     parse_storyteller_response,
     prose_looks_valid,
     storyteller_input,
     storyteller_user,
+    table_deed,
 )
 
 
@@ -148,6 +150,27 @@ class ServeFormatTests(unittest.TestCase):
         self.assertIn("misses", out["prose"])
         self.assertIn("next beat", out["prose"])
         self.assertNotIn("nothing shifts", out["prose"])
+
+    def test_fallback_miss_does_not_echo_first_person(self):
+        locale, payload = storyteller_input(
+            {
+                "locale": "en",
+                "kind": "action",
+                "actor_name": "Luther",
+                "room_name": "Friday night",
+                "notes": "I pick up the medallion and listen to the humming carvings, without going down the corridor.",
+                "rolls": [2],
+                "total": 7,
+                "success": False,
+            }
+        )
+        out = fallback_storyteller(locale, payload, say=False)
+        self.assertIn("Luther", out["prose"])
+        self.assertIn("misses", out["prose"])
+        self.assertIn("next beat", out["prose"])
+        self.assertNotIn("I pick up", out["prose"])
+        self.assertEqual(table_deed(payload["notes"]), "")
+        self.assertIn("Rewrite", miss_rewrite_user("THIS BEAT"))
 
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(
