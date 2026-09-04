@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -458,7 +459,7 @@ func trainingSalad(lower string) bool {
 		"sayı ", "the count is", "uzaktan bir ses sahneyi",
 		"çandan önce", "gelene dek", "bir sonraki çan",
 		"alet kayar", "zaman biter", " direnir.",
-		"motorun", "içinde,", "hold the line", "the watch is unblinded",
+		"motorun", "hold the line", "the watch is unblinded",
 		"the bar splinters", "the die reads", "the engine's", "the rune stays dark",
 		"the latch yields", "a pin snaps", "what will you do",
 	}
@@ -490,19 +491,26 @@ func clauseSalad(p string) bool {
 	clauses := strings.FieldsFunc(p, func(r rune) bool {
 		return r == '.' || r == '!' || r == '?'
 	})
-	n, words := 0, 0
+	n, words, longest := 0, 0, 0
 	for _, c := range clauses {
 		c = strings.TrimSpace(c)
 		if c == "" {
 			continue
 		}
 		n++
-		words += len(strings.Fields(c))
+		w := len(strings.Fields(c))
+		words += w
+		if w > longest {
+			longest = w
+		}
 	}
-	if n < 4 || words == 0 {
+	if n < 6 || words == 0 {
 		return false
 	}
-	return words/n < 6
+	if longest >= 10 {
+		return false
+	}
+	return words/n < 4
 }
 
 func outcomeText(locale, kind string, success *bool) string {
@@ -672,6 +680,140 @@ func pickUnused(lines []string, prior []string, total int) string {
 	return unused[i]
 }
 
+var (
+	firstPersonRe = regexp.MustCompile(`(?i)(yorum|mekteyim|maktayım|arım|erim|ırım|urum|ürüm)(\s|[.!?:]|$)`)
+	benPrefix     = regexp.MustCompile(`(?i)^ben\s+`)
+	imPrefix      = regexp.MustCompile(`(?i)^i['’]m\s+`)
+	iPrefix       = regexp.MustCompile(`(?i)^i\s+`)
+	yorumRe       = regexp.MustCompile(`yorum\b`)
+	mekteyimRe    = regexp.MustCompile(`mekteyim\b`)
+	maktayimRe    = regexp.MustCompile(`maktayım\b`)
+	aoristMeRe    = regexp.MustCompile(`(arım|erim|ırım|urum|ürüm)\b`)
+)
+
+func playerDeed(notes string) string {
+	text := strings.TrimSpace(notes)
+	low := strings.ToLower(text)
+	if i := strings.Index(low, "deed:"); i >= 0 {
+		text = strings.TrimSpace(text[i+len("deed:"):])
+		if j := strings.Index(strings.ToLower(text), "narrate this"); j >= 0 {
+			text = strings.TrimSpace(text[:j])
+		}
+		text = strings.Trim(text, ".")
+	}
+	return strings.TrimSpace(text)
+}
+
+func firstPerson(notes string) bool {
+	low := strings.ToLower(strings.TrimSpace(notes))
+	if strings.HasPrefix(low, "i ") || strings.HasPrefix(low, "i'm ") || strings.HasPrefix(low, "i’m ") || strings.HasPrefix(low, "ben ") {
+		return true
+	}
+	return firstPersonRe.MatchString(low)
+}
+
+func voiceDeed(actor, notes string) string {
+	deed := playerDeed(notes)
+	if deed == "" || !firstPerson(deed) {
+		return ""
+	}
+	text := benPrefix.ReplaceAllString(deed, "")
+	text = imPrefix.ReplaceAllString(text, "")
+	text = iPrefix.ReplaceAllString(text, "")
+	text = yorumRe.ReplaceAllString(text, "yor")
+	text = mekteyimRe.ReplaceAllString(text, "mekte")
+	text = maktayimRe.ReplaceAllString(text, "makta")
+	text = aoristMeRe.ReplaceAllStringFunc(text, func(m string) string {
+		r := []rune(m)
+		if len(r) <= 2 {
+			return m
+		}
+		return string(r[:len(r)-2])
+	})
+	text = strings.Trim(strings.TrimSpace(text), ".")
+	if text == "" {
+		return ""
+	}
+	runes := []rune(text)
+	if len(runes) > 1 {
+		runes[0] = []rune(strings.ToLower(string(runes[0])))[0]
+		text = string(runes)
+	}
+	return strings.TrimSpace(actor + " " + text)
+}
+
+func bagDeed(notes string) bool {
+	low := strings.ToLower(notes)
+	for _, k := range []string{"torba", "çanta", "kese", "pouch", "satchel"} {
+		if strings.Contains(low, k) {
+			return true
+		}
+	}
+	return strings.Contains(low, "bag")
+}
+
+func hitLinesTR(deed string) []string {
+	if bagDeed(deed) {
+		return []string{
+			"Torbanın ağzı açılır. Fener kumaşa, toza ve soğuk bir kenara düşer; adları henüz yok, ama artık görünürler.",
+			"Ağız gevşer. İçeride kayış, katlanmış kumaş, parmak ucunda metal. Hiçbiri masayı kapatmaz.",
+		}
+	}
+	return []string{
+		"Fener hareketin üstüne düşer; görünen şey sahneyi değiştirir.",
+		"Oda boyun eğer. Bir sonraki seçenek açık kalır.",
+		"Parmakların altındaki dünya cevap verir; masa kapanmaz.",
+	}
+}
+
+func missLinesTR(deed string) []string {
+	if bagDeed(deed) {
+		return []string{
+			"Torba kayar; ağız kapanır. İçeride bir şey kumaşa takılır ve karanlıkta kalır.",
+			"Parmaklar kumaşı bulur ama ağız bir an önce kapanır. Torba sırrını tutar.",
+		}
+	}
+	return []string{
+		"Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.",
+		"Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
+		"Karanlıkta bir nefes tutulur. Cevap gelmez; sahne kapanmaz.",
+		"Madalyon soğur. Kazınmış yazı yerinde kalır.",
+		"Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.",
+		"Taşın altından kısa bir tık gelir. Sıra yine oyuncuda.",
+	}
+}
+
+func hitLinesEN(deed string) []string {
+	if bagDeed(deed) {
+		return []string{
+			"The bag's mouth opens. Cloth, dust, and a cold edge take the light; unnamed yet, but seen.",
+			"The drawstring yields. A strap, folded cloth, metal under a fingertip. None of it closes the table.",
+		}
+	}
+	return []string{
+		"Light finds the motion; the room shifts to match what is now seen.",
+		"The world yields. Another choice stays open.",
+		"The thing under the hand answers; the table does not close.",
+	}
+}
+
+func missLinesEN(deed string) []string {
+	if bagDeed(deed) {
+		return []string{
+			"The bag slips; the mouth pinches shut. Something snags in the cloth and stays dark.",
+			"Fingers find fabric, then the mouth closes first. The bag keeps its secret.",
+		}
+	}
+	return []string{
+		"Down the corridor, metal drags one pace closer.",
+		"The carvings drop a note, then return lower.",
+		"A breath holds in the dark. No answer yet.",
+		"The medallion goes cold. The scratched word stays.",
+		"Pale ceiling light dies for a beat, then returns.",
+		"Stone ticks once underfoot. The next move is still yours.",
+	}
+}
+
 func literaryTR(kind, actor, place, deed, outcome string, total int, prior []string) string {
 	if place == "" {
 		place = "salon"
@@ -687,29 +829,22 @@ func literaryTR(kind, actor, place, deed, outcome string, total int, prior []str
 	case "wait":
 		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
-	hits := []string{
-		"Hamle yerini bulur; oda buna göre kayar.",
-		"Dünya boyun eğer. Bir sonraki seçenek açık kalır.",
-		"Etki tutar. Sahne kapanmaz.",
-	}
-	misses := []string{
-		"Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.",
-		"Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
-		"Karanlıkta bir nefes tutulur. Cevap gelmez; sahne kapanmaz.",
-		"Madalyon soğur. Kazınmış yazı yerinde kalır.",
-		"Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.",
-		"Taşın altından kısa bir tık gelir. Sıra yine oyuncuda.",
-	}
 	if strings.Contains(outcome, "yolu açar") {
-		shift := pickUnused(hits, prior, total)
+		shift := pickUnused(hitLinesTR(deed), prior, total)
 		if stayPut(deed) {
 			return fmt.Sprintf("%s hamleyi yerinde tutar. %s Gitmediği yer açık kalmaz.", actor, shift)
 		}
+		if v := voiceDeed(actor, deed); v != "" {
+			return fmt.Sprintf("%s. %s", v, shift)
+		}
 		return fmt.Sprintf("%s. %s", actor, shift)
 	}
-	shift := pickUnused(misses, prior, total)
+	shift := pickUnused(missLinesTR(deed), prior, total)
 	if stayPut(deed) {
 		return fmt.Sprintf("%s hamleyi kaçırır. %s Gitmediği yer açık kalmaz.", actor, shift)
+	}
+	if v := voiceDeed(actor, deed); v != "" {
+		return fmt.Sprintf("%s. %s hamleyi kaçırır. %s", v, actor, shift)
 	}
 	return fmt.Sprintf("%s hamleyi kaçırır. %s", actor, shift)
 }
@@ -729,29 +864,22 @@ func literaryEN(kind, actor, place, deed, outcome string, total int, prior []str
 	case "wait":
 		return fmt.Sprintf("%s holds still in %s. Breath only. The lantern holds.", actor, place)
 	}
-	hits := []string{
-		"The deed lands; the room shifts to match it.",
-		"The world yields. Another choice stays open.",
-		"The effect takes. The scene does not close.",
-	}
-	misses := []string{
-		"Down the corridor, metal drags one pace closer.",
-		"The carvings drop a note, then return lower.",
-		"A breath holds in the dark. No answer yet.",
-		"The medallion goes cold. The scratched word stays.",
-		"Pale ceiling light dies for a beat, then returns.",
-		"Stone ticks once underfoot. The next move is still yours.",
-	}
 	if strings.Contains(outcome, "finds the way") {
-		shift := pickUnused(hits, prior, total)
+		shift := pickUnused(hitLinesEN(deed), prior, total)
 		if stayPut(deed) {
 			return fmt.Sprintf("%s holds the beat. %s The place they refused stays unentered.", actor, shift)
 		}
+		if v := voiceDeed(actor, deed); v != "" {
+			return fmt.Sprintf("%s. %s", v, shift)
+		}
 		return fmt.Sprintf("%s follows through. %s", actor, shift)
 	}
-	shift := pickUnused(misses, prior, total)
+	shift := pickUnused(missLinesEN(deed), prior, total)
 	if stayPut(deed) {
 		return fmt.Sprintf("%s misses. %s The place they refused stays unentered.", actor, shift)
+	}
+	if v := voiceDeed(actor, deed); v != "" {
+		return fmt.Sprintf("%s. %s misses. %s", v, actor, shift)
 	}
 	return fmt.Sprintf("%s misses. %s", actor, shift)
 }
