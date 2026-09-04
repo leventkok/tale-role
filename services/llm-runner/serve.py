@@ -123,17 +123,17 @@ def prior_list(req: dict[str, Any]) -> list[str]:
 
 
 def too_similar(prose: str, prior: list[str]) -> bool:
-    p = prose.casefold()
+    p = prose.casefold().strip()
+    if len(p) < 40:
+        return False
     for old in prior:
         o = (old or "").casefold().strip()
-        if len(o) < 16:
+        if len(o) < 40:
             continue
-        if o[:40] in p:
+        if o[:80] in p or p[:80] in o:
             return True
-        for sent in re.split(r"[.!?]", o):
-            sent = sent.strip()
-            if len(sent) >= 24 and sent in p:
-                return True
+        if p in o:
+            return True
     return False
 
 
@@ -281,7 +281,10 @@ def storyteller_system(locale: str, *, opening: bool, prior: list[str]) -> str:
     if opening:
         body += " Open the tale. If a host opening is given, keep it; you may add at most two sentences after it."
     else:
-        body += " Continue the scene. Do not restart the tale. If the deed succeeded, you may mention the count naturally."
+        body += (
+            " Continue the scene with the people already present. Do not restart the tale. "
+            "Do not quote the player's deed as a header. If the deed failed, show the miss in the room; never say the attempt succeeded."
+        )
     if prior:
         clipped = " | ".join(p[:120] for p in prior if p)
         if clipped:
@@ -423,7 +426,7 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
         return f"{actor} hamleyi dener: {deed} Taş susar. Sayı {total}; koridor aynı kalır."
     if success is True:
         return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
-    return f"{actor} follows through: {deed} The stone stays mute. The count is {total}; nothing shifts yet."
+    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; nothing shifts yet."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:

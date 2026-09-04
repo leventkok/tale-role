@@ -605,7 +605,7 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	if strings.Contains(outcome, "finds the way") {
 		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
 	}
-	return fmt.Sprintf("%s follows through: %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
+	return fmt.Sprintf("%s misses. %s The stone stays mute. The count is %d; nothing shifts yet.", actor, deed, total)
 }
 
 func excerpt(s string) string {
