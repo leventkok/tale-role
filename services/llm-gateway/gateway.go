@@ -577,6 +577,18 @@ func scenePlace(locale string) string {
 	return "the hall"
 }
 
+func tableDeed(notes string) string {
+	d := strings.TrimSpace(notes)
+	if d == "" {
+		return ""
+	}
+	low := strings.ToLower(d)
+	if strings.HasPrefix(low, "i ") || strings.HasPrefix(low, "i'm ") || strings.HasPrefix(low, "i’m ") || strings.HasPrefix(low, "ben ") {
+		return ""
+	}
+	return d
+}
+
 func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	if place == "" {
 		place = "salon"
@@ -592,14 +604,21 @@ func literaryTR(kind, actor, place, deed, outcome string, total int) string {
 	case "wait":
 		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
+	deed = tableDeed(deed)
+	if strings.Contains(outcome, "yolu açar") {
+		if deed == "" {
+			return fmt.Sprintf("%s hamleyi tamamlar. Taş cevap verir. Sayı %d; yol açılır.", actor, total)
+		}
+		if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+			deed = deed + "."
+		}
+		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
+	}
 	if deed == "" {
-		deed = outcome
+		return fmt.Sprintf("%s hamleyi kaçırır. Taş susar. Sayı %d; uzaktan bir ses sahneyi sürdürür.", actor, total)
 	}
 	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
 		deed = deed + "."
-	}
-	if strings.Contains(outcome, "yolu açar") {
-		return fmt.Sprintf("%s hamleyi tamamlar: %s Taş cevap verir. Sayı %d; yol açılır.", actor, deed, total)
 	}
 	return fmt.Sprintf("%s hamleyi kaçırır: %s Taş susar. Sayı %d; uzaktan bir ses sahneyi sürdürür.", actor, deed, total)
 }
@@ -619,14 +638,21 @@ func literaryEN(kind, actor, place, deed, outcome string, total int) string {
 	case "wait":
 		return fmt.Sprintf("%s holds still in %s. Breath only. The lantern holds.", actor, place)
 	}
+	deed = tableDeed(deed)
+	if strings.Contains(outcome, "finds the way") {
+		if deed == "" {
+			return fmt.Sprintf("%s follows through. The stone answers. The count is %d; the way opens.", actor, total)
+		}
+		if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
+			deed = deed + "."
+		}
+		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
+	}
 	if deed == "" {
-		deed = outcome
+		return fmt.Sprintf("%s misses. The stone stays mute. The count is %d; a farther sound takes the next beat.", actor, total)
 	}
 	if !strings.HasSuffix(deed, ".") && !strings.HasSuffix(deed, "!") && !strings.HasSuffix(deed, "?") {
 		deed = deed + "."
-	}
-	if strings.Contains(outcome, "finds the way") {
-		return fmt.Sprintf("%s follows through: %s The stone answers. The count is %d; the way opens.", actor, deed, total)
 	}
 	return fmt.Sprintf("%s misses. %s The stone stays mute. The count is %d; a farther sound takes the next beat.", actor, deed, total)
 }

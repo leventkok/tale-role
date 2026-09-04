@@ -328,6 +328,9 @@ func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	if !strings.Contains(n.Prose, "next beat") || strings.Contains(n.Prose, "nothing shifts") {
 		t.Fatalf("miss must fail forward, not freeze: %s", n.Prose)
 	}
+	if strings.Contains(n.Prose, "I pick up") {
+		t.Fatalf("stub must not echo the player's first-person line: %s", n.Prose)
+	}
 }
 
 func TestEnglishDeedKeepsEnglishBeat(t *testing.T) {

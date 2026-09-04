@@ -437,15 +437,33 @@ def beat_locale(locale: str, notes: str) -> str:
     return "tr"
 
 
+def table_deed(notes: str) -> str:
+    text = (notes or "").strip()
+    if not text:
+        return ""
+    low = text.casefold()
+    if low.startswith(("i ", "i'm ", "i’m ", "ben ")):
+        return ""
+    return text
+
+
+def miss_rewrite_user(user: str) -> str:
+    return (
+        user
+        + "\n\nThe first draft failed the table. Rewrite. The attempt does not succeed. "
+        "The world complicates and play continues. No competence, no recognition, no unhesitating action."
+    )
+
+
 def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, success: bool | None, total: int) -> str:
     loc = beat_locale(locale, notes)
     place = scene_place(loc)
     _ = room
-    deed = (notes or "").strip()
+    raw_notes = (notes or "").strip()
     if kind == "say":
         if loc == "tr":
-            return f"{actor} sözü salona bırakır: {deed} Fener sönmez." if deed else f"{actor} sessizliği kırar. Fener sönmez."
-        return f'{actor} speaks. "{deed}" The lantern holds.' if deed else f"{actor} breaks the hush. The lantern holds."
+            return f"{actor} sözü salona bırakır: {raw_notes} Fener sönmez." if raw_notes else f"{actor} sessizliği kırar. Fener sönmez."
+        return f'{actor} speaks. "{raw_notes}" The lantern holds.' if raw_notes else f"{actor} breaks the hush. The lantern holds."
     if kind == "pass":
         if loc == "tr":
             return f"{actor} bu eli bırakır. Salon bekler. Fener sönmez."
@@ -454,15 +472,24 @@ def literary_action(locale: str, kind: str, actor: str, room: str, notes: str, s
         if loc == "tr":
             return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
         return f"{actor} holds still. Breath only. The lantern holds."
+    deed = table_deed(raw_notes)
     if deed and deed[-1] not in ".!?":
         deed = deed + "."
     if loc == "tr":
         if success is True:
-            return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
-        return f"{actor} hamleyi kaçırır: {deed} Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
+            if deed:
+                return f"{actor} hamleyi tamamlar: {deed} Taş cevap verir. Sayı {total}; yol açılır."
+            return f"{actor} hamleyi tamamlar. Taş cevap verir. Sayı {total}; yol açılır."
+        if deed:
+            return f"{actor} hamleyi kaçırır: {deed} Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
+        return f"{actor} hamleyi kaçırır. Taş susar. Sayı {total}; uzaktan bir ses sahneyi sürdürür."
     if success is True:
-        return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
-    return f"{actor} misses. {deed} The stone stays mute. The count is {total}; a farther sound takes the next beat."
+        if deed:
+            return f"{actor} follows through: {deed} The stone answers. The count is {total}; the way opens."
+        return f"{actor} follows through. The stone answers. The count is {total}; the way opens."
+    if deed:
+        return f"{actor} misses. {deed} The stone stays mute. The count is {total}; a farther sound takes the next beat."
+    return f"{actor} misses. The stone stays mute. The count is {total}; a farther sound takes the next beat."
 
 
 def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> dict[str, Any]:
@@ -718,6 +745,20 @@ class Handler(BaseHTTPRequestHandler):
                 host=host,
                 success=payload.get("success"),
             )
+            if parsed is None and payload.get("success") is False and not opening:
+                raw = self.generate(
+                    chat_prompt(tokenizer, system, miss_rewrite_user(user)),
+                    max_new_tokens=260,
+                )
+                parsed = parse_storyteller_response(
+                    raw,
+                    locale,
+                    prior,
+                    opening=opening,
+                    table_title=str(payload.get("table_title") or ""),
+                    host=host,
+                    success=payload.get("success"),
+                )
 
         if parsed:
             return {"locale": locale, "prose": parsed["prose"], "npc_lines": parsed["npc_lines"]}
