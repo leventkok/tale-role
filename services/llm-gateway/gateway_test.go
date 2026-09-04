@@ -358,7 +358,7 @@ func TestLiveBagSaladNeverReachesTable(t *testing.T) {
 	if strings.Contains(n.Prose, "Taş susar") || strings.Contains(n.Prose, "Sayı") || strings.Contains(n.Prose, "kalkarım") || strings.Contains(n.Prose, "kaçırır:") {
 		t.Fatalf("live bag salad reached the table: %s", n.Prose)
 	}
-	if !strings.Contains(n.Prose, "Floc") || !strings.Contains(n.Prose, "kaçırır") {
+	if !strings.Contains(n.Prose, "Floc") || strings.Contains(n.Prose, "kaçırır:") {
 		t.Fatalf("expected literary miss fallback: %s", n.Prose)
 	}
 }
@@ -398,6 +398,26 @@ func TestBagHitStubIsNotEtkiTutar(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(n.Prose), "torba") {
 		t.Fatalf("bag hit stub missed the deed: %s", n.Prose)
+	}
+}
+
+func TestCloseBagKeepsTemple(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes:   "Tekrar torbanın ağzını kapatıyorum çevremi gözlemliyorum",
+		Opening: "Duvarları kaplayan oymalar uğuldamaktadır. Karanlık koridorun bir yerinde metal sürtünür.",
+		Total:   8, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "Parmaklar kumaşı") || strings.Contains(n.Prose, "çevremi") || strings.Contains(n.Prose, "kaçırır") {
+		t.Fatalf("close-bag stub drifted: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Ağız kapanır") || !strings.Contains(n.Prose, "çevresini") {
+		t.Fatalf("close-bag stub missed the deed: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "oym") && !strings.Contains(n.Prose, "koridor") && !strings.Contains(n.Prose, "metal") {
+		t.Fatalf("close-bag stub left the temple: %s", n.Prose)
 	}
 }
 
@@ -495,7 +515,7 @@ func TestTurkishMissStubsDoNotStall(t *testing.T) {
 	if strings.Contains(first.Prose, "ilerliyorum") || strings.Contains(first.Prose, "Taş susar") || strings.Contains(first.Prose, "yol açılır") {
 		t.Fatalf("miss stub stalled or echoed: %s", first.Prose)
 	}
-	if !strings.Contains(first.Prose, "kaçırır") || !strings.Contains(second.Prose, "kaçırır") {
+	if strings.Contains(first.Prose, "kaçırır:") {
 		t.Fatalf("expected miss voice: %s / %s", first.Prose, second.Prose)
 	}
 	if strings.Contains(first.Prose, "Sayı") || strings.Contains(second.Prose, "Sayı") {

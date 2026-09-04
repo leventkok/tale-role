@@ -718,6 +718,20 @@ def voice_deed(actor: str, notes: str) -> str:
     text = re.sub(r"mekteyim\b", "mekte", text)
     text = re.sub(r"maktayım\b", "makta", text)
     text = re.sub(r"(arım|erim|ırım|urum|ürüm)\b", lambda m: m.group(0)[:-2], text)
+    for mine, theirs in (
+        ("çevremi", "çevresini"),
+        ("etrafımı", "etrafını"),
+        ("kılıncımı", "kılıcını"),
+        ("kılıcımı", "kılıcını"),
+        ("torbamı", "torbasını"),
+        ("yanımı", "yanını"),
+        ("önümü", "önünü"),
+        ("elimi", "elini"),
+        ("başımı", "başını"),
+        ("sesimi", "sesini"),
+        ("gözlerimi", "gözlerini"),
+    ):
+        text = re.sub(rf"\b{mine}\b", theirs, text)
     text = text.strip().rstrip(".")
     if not text:
         return ""
@@ -832,12 +846,89 @@ def unused_line(lines: tuple[str, ...], prior: list[str] | None, total: int) -> 
     return pool[total % len(pool)]
 
 
-def follow_through(locale: str, notes: str, success: bool, prior: list[str] | None, total: int) -> str:
+def looking_in_bag(notes: str) -> bool:
     low = (notes or "").casefold()
-    bag = any(k in low for k in ("torba", "çanta", "kese", "pouch", "satchel", "bag"))
-    if locale == "tr":
-        if success:
-            if bag:
+    if any(k in low for k in ("kapat", "bağla")):
+        return False
+    return any(
+        k in low
+        for k in (
+            "içindekilere",
+            "içine bak",
+            "göz at",
+            "torbaya bak",
+            "çantaya bak",
+            "look in",
+            "inside the bag",
+            "inside the pouch",
+        )
+    )
+
+
+def closing_bag(notes: str) -> bool:
+    low = (notes or "").casefold()
+    return "kapat" in low and any(k in low for k in ("torba", "çanta", "ağz", "bag", "pouch"))
+
+
+def shout_deed(notes: str) -> bool:
+    low = (notes or "").casefold()
+    return any(k in low for k in ("bağır", "kim var", "seslen", "shout", "call out", "who's there"))
+
+
+def walk_deed(notes: str) -> bool:
+    low = (notes or "").casefold()
+    return any(k in low for k in ("yürü", "koridor", "ilerle", "walk", "corridor"))
+
+
+def ground_line(
+    locale: str,
+    success: bool,
+    prior: list[str] | None,
+    total: int,
+    opening: str = "",
+    world_brief: str = "",
+) -> str:
+    if locale != "tr":
+        return unused_line(HIT_EN if success else MISS_EN, prior, total)
+    blob = f"{opening} {world_brief}".casefold()
+    hits: list[str] = []
+    misses: list[str] = []
+    if "oym" in blob:
+        hits.append("Duvarlardaki oymalar uğuldar; taşın altındaki nefes kesilmez.")
+        misses.append("Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.")
+    if "koridor" in blob:
+        hits.append("Karanlık koridor aynı ağızla açık kalır.")
+        misses.append("Koridorun dibinde metal bir karış daha sürtünür.")
+    if "metal" in blob:
+        hits.append("Sürtünen metal yerini değiştirmez; henüz görünmez.")
+        misses.append("Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.")
+    if "madalyon" in blob:
+        hits.append("Madalyondaki yazı yerinde kalır.")
+        misses.append("Madalyon soğur. Kazınmış yazı yerinde kalır.")
+    if "mavi" in blob:
+        hits.append("Tavandan sızan mavi ışık oymaları tutmaya devam eder.")
+        misses.append("Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.")
+    pool = tuple(hits if success else misses)
+    if pool:
+        return unused_line(pool, prior, total)
+    return unused_line(HIT_TR if success else MISS_TR, prior, total) if locale == "tr" else unused_line(
+        HIT_EN if success else MISS_EN, prior, total
+    )
+
+
+def follow_through(
+    locale: str,
+    notes: str,
+    success: bool,
+    prior: list[str] | None,
+    total: int,
+    opening: str = "",
+    world_brief: str = "",
+) -> str:
+    ground = ground_line(locale, success, prior, total, opening, world_brief)
+    if looking_in_bag(notes):
+        if locale == "tr":
+            if success:
                 return unused_line(
                     (
                         "Torbanın ağzı açılır. Fener kumaşa, toza ve soğuk bir kenara düşer; adları henüz yok, ama artık görünürler.",
@@ -846,8 +937,6 @@ def follow_through(locale: str, notes: str, success: bool, prior: list[str] | No
                     prior,
                     total,
                 )
-            return unused_line(HIT_TR, prior, total)
-        if bag:
             return unused_line(
                 (
                     "Torba kayar; ağız kapanır. İçeride bir şey kumaşa takılır ve karanlıkta kalır.",
@@ -856,9 +945,7 @@ def follow_through(locale: str, notes: str, success: bool, prior: list[str] | No
                 prior,
                 total,
             )
-        return unused_line(MISS_TR, prior, total)
-    if success:
-        if bag:
+        if success:
             return unused_line(
                 (
                     "The bag's mouth opens. Cloth, dust, and a cold edge take the light; unnamed yet, but seen.",
@@ -867,8 +954,6 @@ def follow_through(locale: str, notes: str, success: bool, prior: list[str] | No
                 prior,
                 total,
             )
-        return unused_line(HIT_EN, prior, total)
-    if bag:
         return unused_line(
             (
                 "The bag slips; the mouth pinches shut. Something snags in the cloth and stays dark.",
@@ -877,7 +962,43 @@ def follow_through(locale: str, notes: str, success: bool, prior: list[str] | No
             prior,
             total,
         )
-    return unused_line(MISS_EN, prior, total)
+    if closing_bag(notes):
+        if locale == "tr":
+            return (
+                f"Ağız kapanır. Dikkat odaya döner. {ground}"
+                if success
+                else f"Ağız kapanır ama oda cevap vermez. {ground}"
+            )
+        return (
+            f"The mouth shuts. Attention returns to the room. {ground}"
+            if success
+            else f"The mouth shuts; the room does not answer. {ground}"
+        )
+    if shout_deed(notes):
+        if locale == "tr":
+            return (
+                f"Çağrı taşa çarpar. Bir şey kımıldar; henüz yüz göstermez. {ground}"
+                if success
+                else f"Ses koridorda kırılır. Cevap gelmez. {ground}"
+            )
+        return (
+            f"The call hits stone. Something shifts; no face yet. {ground}"
+            if success
+            else f"The voice breaks in the corridor. No answer. {ground}"
+        )
+    if walk_deed(notes):
+        if locale == "tr":
+            return (
+                f"Koridor bir adım alır; oymalar yanından geçer. {ground}"
+                if success
+                else f"Adım tamamlanmaz. {ground}"
+            )
+        return (
+            f"The corridor takes a step of them; the carvings pass at their shoulder. {ground}"
+            if success
+            else f"The step does not finish. {ground}"
+        )
+    return ground
 
 
 def literary_action(
@@ -889,6 +1010,8 @@ def literary_action(
     success: bool | None,
     total: int,
     prior: list[str] | None = None,
+    opening: str = "",
+    world_brief: str = "",
 ) -> str:
     loc = beat_locale(locale, notes)
     _ = room
@@ -905,7 +1028,9 @@ def literary_action(
         if loc == "tr":
             return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
         return f"{actor} holds still. Breath only. The lantern holds."
-    shift = follow_through(loc, raw_notes, success is True, prior, total)
+    shift = follow_through(
+        loc, raw_notes, success is True, prior, total, opening=opening, world_brief=world_brief
+    )
     held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
     if stay_put_deed(raw_notes):
         if loc == "tr":
@@ -914,16 +1039,12 @@ def literary_action(
             lead = f"{actor} holds the beat" if success is True else f"{actor} misses"
         return f"{lead}. {shift}{held}"
     voiced = voice_deed(actor, raw_notes)
+    if voiced:
+        return f"{voiced}. {shift}"
     if success is True:
-        if voiced:
-            return f"{voiced}. {shift}"
         return f"{actor}. {shift}"
     if loc == "tr":
-        if voiced:
-            return f"{voiced}. {actor} hamleyi kaçırır. {shift}"
         return f"{actor} hamleyi kaçırır. {shift}"
-    if voiced:
-        return f"{voiced}. {actor} misses. {shift}"
     return f"{actor} misses. {shift}"
 
 
@@ -949,6 +1070,8 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
         success if use_kind == "action" else None,
         total,
         prior,
+        opening=str(payload.get("opening") or ""),
+        world_brief=str(payload.get("world_brief") or ""),
     )
     return {"locale": locale, "prose": redact(prose), "npc_lines": []}
 

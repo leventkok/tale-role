@@ -176,7 +176,7 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("9", out["prose"])
         self.assertNotIn("Taş susar", out["prose"])
         self.assertNotIn("kalkarım", out["prose"])
-        self.assertIn("kaçırır", out["prose"])
+        self.assertNotIn("kaçırır:", out["prose"])
 
     def test_literary_train_voice_passes_the_gate(self):
         prose = (
@@ -221,6 +221,47 @@ class ServeFormatTests(unittest.TestCase):
                 notes="Ayağa kalkarım ve torbanın içindekilere göz atarım.",
             )
         )
+
+    def test_close_bag_and_shout_stay_in_the_temple(self):
+        opening = (
+            "Terk edilmiş bir tapınağın soğuk taş zemininde uyanırsın. "
+            "Duvarları kaplayan oymalar uğuldamaktadır. Karanlık koridorun bir yerinde metal sürtünür."
+        )
+        locale, close = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": "Tekrar torbanın ağzını kapatıyorum çevremi gözlemliyorum",
+                "opening": opening,
+                "prior": ["Floc ayağa kalkar. Torbanın ağzı açılır."],
+                "total": 8,
+                "success": False,
+            }
+        )
+        closed = fallback_storyteller(locale, close, say=False)["prose"]
+        self.assertIn("Ağız kapanır", closed)
+        self.assertIn("çevresini", closed)
+        self.assertNotIn("çevremi", closed)
+        self.assertNotIn("Parmaklar kumaşı", closed)
+        self.assertNotIn("kaçırır", closed)
+        self.assertTrue("oym" in closed.casefold() or "koridor" in closed.casefold() or "metal" in closed.casefold())
+        shout = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": 'Uğultuya dikkat kesiliyorum ve bağırarak "Kim var orada kendini göster" diyorum.',
+                "opening": opening,
+                "prior": [closed],
+                "total": 16,
+                "success": True,
+            }
+        )[1]
+        cried = fallback_storyteller(locale, shout, say=False)["prose"]
+        self.assertIn("Çağrı taşa çarpar", cried)
+        self.assertNotIn("görünen şey sahneyi değiştirir", cried)
+        self.assertNotIn("diyorum", cried)
 
     def test_miss_prompt_still_forbids_success(self):
         sys = storyteller_system(
@@ -484,8 +525,7 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("ilerliyorum", a)
         self.assertNotIn("Taş susar", a)
         self.assertNotIn("yol açılır", a)
-        self.assertIn("kaçırır", a)
-        self.assertIn("kaçırır", b)
+        self.assertNotIn("kaçırır:", a)
 
     def test_hit_stub_does_not_open_the_way(self):
         locale, payload = storyteller_input(

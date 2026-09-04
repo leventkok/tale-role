@@ -263,7 +263,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
 		return remote
 	}
-	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind, req.Prior)
+	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind, req.Prior, req.Opening)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
@@ -604,7 +604,7 @@ func redactCast(in []CastMember) []CastMember {
 	return out
 }
 
-func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string, prior []string) string {
+func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string, prior []string, opening string) string {
 	_ = dice
 	_ = rolls
 	_ = theme
@@ -625,7 +625,7 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 	loc := beatLocale(locale, deed)
 	place := scenePlace(loc)
 	if loc == "tr" {
-		return literaryTR(kind, actor, place, deed, outcome, total, prior)
+		return literaryTR(kind, actor, place, deed, outcome, total, prior, opening)
 	}
 	return literaryEN(kind, actor, place, deed, outcome, total, prior)
 }
@@ -730,6 +730,22 @@ func voiceDeed(actor, notes string) string {
 		}
 		return string(r[:len(r)-2])
 	})
+	repls := [][2]string{
+		{"çevremi", "çevresini"},
+		{"etrafımı", "etrafını"},
+		{"kılıncımı", "kılıcını"},
+		{"kılıcımı", "kılıcını"},
+		{"torbamı", "torbasını"},
+		{"yanımı", "yanını"},
+		{"önümü", "önünü"},
+		{"elimi", "elini"},
+		{"başımı", "başını"},
+		{"sesimi", "sesini"},
+		{"gözlerimi", "gözlerini"},
+	}
+	for _, pair := range repls {
+		text = strings.ReplaceAll(text, pair[0], pair[1])
+	}
 	text = strings.Trim(strings.TrimSpace(text), ".")
 	if text == "" {
 		return ""
@@ -742,14 +758,100 @@ func voiceDeed(actor, notes string) string {
 	return strings.TrimSpace(actor + " " + text)
 }
 
-func bagDeed(notes string) bool {
-	low := strings.ToLower(notes)
-	for _, k := range []string{"torba", "çanta", "kese", "pouch", "satchel"} {
+func containsAny(low string, keys ...string) bool {
+	for _, k := range keys {
 		if strings.Contains(low, k) {
 			return true
 		}
 	}
-	return strings.Contains(low, "bag")
+	return false
+}
+
+func lookingInBag(notes string) bool {
+	low := strings.ToLower(notes)
+	if containsAny(low, "kapat", "bağla") {
+		return false
+	}
+	return containsAny(low, "içindekilere", "içine bak", "göz at", "torbaya bak", "look in", "inside the bag")
+}
+
+func bagDeed(notes string) bool {
+	return lookingInBag(notes)
+}
+
+func groundTR(success bool, opening string, prior []string, total int) string {
+	blob := strings.ToLower(opening)
+	var lines []string
+	if success {
+		if strings.Contains(blob, "oym") {
+			lines = append(lines, "Duvarlardaki oymalar uğuldar; taşın altındaki nefes kesilmez.")
+		}
+		if strings.Contains(blob, "koridor") {
+			lines = append(lines, "Karanlık koridor aynı ağızla açık kalır.")
+		}
+		if strings.Contains(blob, "metal") {
+			lines = append(lines, "Sürtünen metal yerini değiştirmez; henüz görünmez.")
+		}
+		if strings.Contains(blob, "madalyon") {
+			lines = append(lines, "Madalyondaki yazı yerinde kalır.")
+		}
+		if strings.Contains(blob, "mavi") {
+			lines = append(lines, "Tavandan sızan mavi ışık oymaları tutmaya devam eder.")
+		}
+	} else {
+		if strings.Contains(blob, "oym") {
+			lines = append(lines, "Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.")
+		}
+		if strings.Contains(blob, "koridor") {
+			lines = append(lines, "Koridorun dibinde metal bir karış daha sürtünür.")
+		}
+		if strings.Contains(blob, "metal") {
+			lines = append(lines, "Koridordaki metal bir karış daha yaklaşır; kaynak hâlâ görünmez.")
+		}
+		if strings.Contains(blob, "madalyon") {
+			lines = append(lines, "Madalyon soğur. Kazınmış yazı yerinde kalır.")
+		}
+		if strings.Contains(blob, "mavi") {
+			lines = append(lines, "Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.")
+		}
+	}
+	if len(lines) == 0 {
+		if success {
+			return pickUnused(hitLinesTR(""), prior, total)
+		}
+		return pickUnused(missLinesTR(""), prior, total)
+	}
+	return pickUnused(lines, prior, total)
+}
+
+func followTR(deed string, success bool, opening string, prior []string, total int) string {
+	ground := groundTR(success, opening, prior, total)
+	low := strings.ToLower(deed)
+	if lookingInBag(deed) {
+		if success {
+			return pickUnused(hitLinesTR(deed), prior, total)
+		}
+		return pickUnused(missLinesTR(deed), prior, total)
+	}
+	if strings.Contains(low, "kapat") && containsAny(low, "torba", "çanta", "ağz", "bag") {
+		if success {
+			return "Ağız kapanır. Dikkat odaya döner. " + ground
+		}
+		return "Ağız kapanır ama oda cevap vermez. " + ground
+	}
+	if containsAny(low, "bağır", "kim var", "seslen") {
+		if success {
+			return "Çağrı taşa çarpar. Bir şey kımıldar; henüz yüz göstermez. " + ground
+		}
+		return "Ses koridorda kırılır. Cevap gelmez. " + ground
+	}
+	if containsAny(low, "yürü", "koridor", "ilerle") {
+		if success {
+			return "Koridor bir adım alır; oymalar yanından geçer. " + ground
+		}
+		return "Adım tamamlanmaz. " + ground
+	}
+	return ground
 }
 
 func hitLinesTR(deed string) []string {
@@ -814,7 +916,7 @@ func missLinesEN(deed string) []string {
 	}
 }
 
-func literaryTR(kind, actor, place, deed, outcome string, total int, prior []string) string {
+func literaryTR(kind, actor, place, deed, outcome string, total int, prior []string, opening string) string {
 	if place == "" {
 		place = "salon"
 	}
@@ -829,22 +931,19 @@ func literaryTR(kind, actor, place, deed, outcome string, total int, prior []str
 	case "wait":
 		return fmt.Sprintf("%s %s'de nefesini tutar. Henüz hamle yok. Fener sönmez.", actor, place)
 	}
-	if strings.Contains(outcome, "yolu açar") {
-		shift := pickUnused(hitLinesTR(deed), prior, total)
-		if stayPut(deed) {
+	success := strings.Contains(outcome, "yolu açar")
+	shift := followTR(deed, success, opening, prior, total)
+	if stayPut(deed) {
+		if success {
 			return fmt.Sprintf("%s hamleyi yerinde tutar. %s Gitmediği yer açık kalmaz.", actor, shift)
 		}
-		if v := voiceDeed(actor, deed); v != "" {
-			return fmt.Sprintf("%s. %s", v, shift)
-		}
-		return fmt.Sprintf("%s. %s", actor, shift)
-	}
-	shift := pickUnused(missLinesTR(deed), prior, total)
-	if stayPut(deed) {
 		return fmt.Sprintf("%s hamleyi kaçırır. %s Gitmediği yer açık kalmaz.", actor, shift)
 	}
 	if v := voiceDeed(actor, deed); v != "" {
-		return fmt.Sprintf("%s. %s hamleyi kaçırır. %s", v, actor, shift)
+		return fmt.Sprintf("%s. %s", v, shift)
+	}
+	if success {
+		return fmt.Sprintf("%s. %s", actor, shift)
 	}
 	return fmt.Sprintf("%s hamleyi kaçırır. %s", actor, shift)
 }
