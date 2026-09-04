@@ -14,3 +14,8 @@ Rules for new rows:
 - Match live ChatML: grow rows that `services/llm-runner/serve.py` `storyteller_user` can render.
 
 Train later from `llm/notebooks/qlora_storyteller_7b.ipynb` using this folder, not the salad JSONL.
+
+Batches:
+
+- `storyteller.jsonl` — hand-written seed
+- `generated-01.jsonl` — 40 literary action rows (en/tr, hit/miss, stay-put). Do not merge into `synthetic/storyteller.jsonl`.
