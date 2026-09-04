@@ -140,6 +140,8 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("Alet kayar", out["prose"])
         self.assertNotIn("World Of Warcraft", out["prose"])
         self.assertIn("Examine the humming carvings", out["prose"])
+        self.assertNotIn("follows through", out["prose"])
+        self.assertIn("misses", out["prose"])
 
     def test_fallback_action_does_not_name_any_lobby(self):
         locale, payload = storyteller_input(
@@ -217,6 +219,19 @@ class ServeFormatTests(unittest.TestCase):
         raw = '{"prose":"Night holds Kalekarga. Bram stands at the threshold. The tale begins before anyone moves.","npc_lines":[]}'
         prior = ["Night holds Kalekarga. Bram stands at the threshold. The tale begins before anyone moves."]
         self.assertIsNone(parse_storyteller_response(raw, "en", prior))
+
+    def test_continue_scene_is_not_prior_repeat(self):
+        opening = (
+            "You wake on the cold stone floor of an abandoned Shaper temple. "
+            "Pale blue light leaks through the cracks in the ceiling, catching the ancient carvings."
+        )
+        raw = (
+            '{"prose":"Luther keeps his distance as pale blue light slides over the stranger\'s runes. '
+            "The staff ticks once and goes dark. Wake stays cold in his palm. "
+            'He learns nothing more. The figure does not answer.","npc_lines":[]}'
+        )
+        parsed = parse_storyteller_response(raw, "en", [opening])
+        self.assertIsNotNone(parsed)
 
     def test_fallback_say_tr(self):
         locale, payload = storyteller_input(
