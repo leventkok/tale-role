@@ -156,6 +156,23 @@ func TestRegisterVerifyMeAndLicense(t *testing.T) {
 	if lic.Code != http.StatusCreated {
 		t.Fatalf("license: %d %s", lic.Code, lic.Body.String())
 	}
+	var first struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(lic.Body.Bytes(), &first)
+	again := authed(t, h, http.MethodPost, "/api/v1/licenses/register", tok.Token, map[string]string{
+		"device_id": "desk-1", "platform": "win32",
+	})
+	if again.Code != http.StatusCreated {
+		t.Fatalf("license again: %d %s", again.Code, again.Body.String())
+	}
+	var second struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(again.Body.Bytes(), &second)
+	if first.ID == "" || first.ID != second.ID {
+		t.Fatalf("license not idempotent: %s %s", first.ID, second.ID)
+	}
 }
 
 func TestLoginRequiresOTPUntilVerified(t *testing.T) {
@@ -489,6 +506,11 @@ func post(t *testing.T, h http.Handler, path string, body any) *httptest.Respons
 
 func authed(t *testing.T, h http.Handler, method, path, token string, body any) *httptest.ResponseRecorder {
 	t.Helper()
+	return authedDevice(t, h, method, path, token, "", body)
+}
+
+func authedDevice(t *testing.T, h http.Handler, method, path, token, device string, body any) *httptest.ResponseRecorder {
+	t.Helper()
 	var r io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
@@ -498,6 +520,9 @@ func authed(t *testing.T, h http.Handler, method, path, token string, body any) 
 	req.Header.Set("Authorization", "Bearer "+token)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if device != "" {
+		req.Header.Set("X-TaleRole-Device", device)
 	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

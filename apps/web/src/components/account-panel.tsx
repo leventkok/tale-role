@@ -294,6 +294,7 @@ export function AccountPanel() {
           {licenses.map((row) => (
             <li key={row.id}>
               {row.platform} · {row.device_id}
+              {desktop && row.device_id === desktop.deviceId ? ` · ${t("thisDevice")}` : ""}
             </li>
           ))}
         </ul>

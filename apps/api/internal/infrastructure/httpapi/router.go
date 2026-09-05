@@ -56,7 +56,7 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSAllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-TaleRole-Device", "X-TaleRole-Platform"},
 		AllowCredentials: allowCredentials(cfg.CORSAllowedOrigins),
 		MaxAge:           300,
 	}))
@@ -289,7 +289,7 @@ func (s *Server) auth(next http.Handler) http.Handler {
 			return
 		}
 		ctx := withUser(r.Context(), u)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, attachDevice(r.WithContext(ctx)))
 	})
 }
 
@@ -316,6 +316,8 @@ func (s *Server) writeAppError(w http.ResponseWriter, err error) {
 		httperr.Write(w, s.log, http.StatusServiceUnavailable, "mail delivery failed", err)
 	case errors.Is(err, app.ErrUnauthorized):
 		httperr.Write(w, s.log, http.StatusUnauthorized, "unauthorized", err)
+	case errors.Is(err, app.ErrLicenseRequired):
+		httperr.Write(w, s.log, http.StatusForbidden, "license required", err)
 	case errors.Is(err, game.ErrNotFound), errors.Is(err, world.ErrNotFound):
 		httperr.Write(w, s.log, http.StatusNotFound, "not found", err)
 	case errors.Is(err, game.ErrBadPassword), errors.Is(err, game.ErrForbidden), errors.Is(err, world.ErrForbidden):

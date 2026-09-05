@@ -24,6 +24,7 @@ var (
 	ErrTOTPPending        = errors.New("totp not started")
 	ErrEmailTaken         = errors.New("email taken")
 	ErrUnauthorized       = errors.New("unauthorized")
+	ErrLicenseRequired    = errors.New("license required")
 	ErrInvalid            = errors.New("invalid request")
 	ErrMailFailed         = errors.New("mail delivery failed")
 )
@@ -209,6 +210,15 @@ func (s *Service) RegisterLicense(userID, deviceID, platform string) (*license.P
 	if userID == "" || deviceID == "" {
 		return nil, ErrInvalidCredentials
 	}
+	for _, row := range s.store.LicensesForUser(userID) {
+		if row.DeviceID == deviceID {
+			if platform != "" && row.Platform != platform {
+				row.Platform = platform
+				s.store.PutLicense(row)
+			}
+			return row, nil
+		}
+	}
 	l := &license.ProductLicense{
 		ID:        uuid.NewString(),
 		UserID:    userID,
@@ -222,6 +232,28 @@ func (s *Service) RegisterLicense(userID, deviceID, platform string) (*license.P
 
 func (s *Service) Licenses(userID string) []*license.ProductLicense {
 	return s.store.LicensesForUser(userID)
+}
+
+func (s *Service) HasLicense(userID, deviceID string) bool {
+	if userID == "" || deviceID == "" {
+		return false
+	}
+	for _, row := range s.store.LicensesForUser(userID) {
+		if row.DeviceID == deviceID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) RequireDesktopLicense(userID, deviceID string) error {
+	if strings.TrimSpace(deviceID) == "" {
+		return nil
+	}
+	if s.HasLicense(userID, deviceID) {
+		return nil
+	}
+	return ErrLicenseRequired
 }
 
 func (s *Service) ExportSubject(userID string) (map[string]any, error) {

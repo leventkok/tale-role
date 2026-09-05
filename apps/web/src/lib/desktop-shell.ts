@@ -21,6 +21,21 @@ export function isDesktopShell(): boolean {
   return /\bTaleRoleDesktop\b/i.test(navigator.userAgent);
 }
 
+export function desktopDeviceHeaders(): Record<string, string> {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  const bridge = desktopWindow().taleRoleDesktop;
+  if (!bridge?.deviceId) {
+    return {};
+  }
+  const headers: Record<string, string> = { "X-TaleRole-Device": bridge.deviceId };
+  if (bridge.platform) {
+    headers["X-TaleRole-Platform"] = bridge.platform;
+  }
+  return headers;
+}
+
 /** Next.js hydrates `<html>` without this flag and would otherwise wipe the preload mark. */
 export function markDesktopShell(): void {
   if (typeof document === "undefined") {

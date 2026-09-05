@@ -353,6 +353,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
 					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
+					}
 					name, _ := p.Args["name"].(string)
 					join, _ := p.Args["joinMode"].(string)
 					pass, _ := p.Args["password"].(string)
@@ -393,6 +396,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
 					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
+					}
 					roomID, _ := p.Args["roomId"].(string)
 					pass, _ := p.Args["password"].(string)
 					role := "player"
@@ -417,6 +423,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
 					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
+					}
 					roomID, _ := p.Args["roomId"].(string)
 					if err := s.table.Start(roomID, u.ID); err != nil {
 						return nil, err
@@ -439,6 +448,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
 					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
+					}
 					roomID, _ := p.Args["roomId"].(string)
 					ids, err := s.table.Complete(roomID, u.ID)
 					if err != nil {
@@ -459,6 +471,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					u := gqlUser(p)
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
+					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
 					}
 					roomID, _ := p.Args["roomId"].(string)
 					n, err := s.table.RollInitiative(roomID, u.ID)
@@ -483,6 +498,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					u := gqlUser(p)
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
+					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
 					}
 					roomID, _ := p.Args["roomId"].(string)
 					if err := s.table.SetSheet(roomID, u.ID, game.Sheet{
@@ -513,6 +531,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					u := gqlUser(p)
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
+					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
 					}
 					roomID, _ := p.Args["roomId"].(string)
 					kind, _ := p.Args["kind"].(string)
@@ -558,6 +579,9 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					u := gqlUser(p)
 					if u == nil {
 						return nil, fmt.Errorf("unauthorized")
+					}
+					if err := s.denyUnlicensedPlay(u, deviceIDFromCtx(p.Context)); err != nil {
+						return nil, err
 					}
 					nameEn, _ := p.Args["nameEn"].(string)
 					themeID, _ := p.Args["themeId"].(string)
@@ -770,6 +794,7 @@ func npcsFromGQL(v any) []world.NPC {
 
 func (s *Server) optionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = attachDevice(r)
 		header := r.Header.Get("Authorization")
 		if header == "" {
 			next.ServeHTTP(w, r)

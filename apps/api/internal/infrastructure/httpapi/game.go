@@ -25,6 +25,9 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 		return
 	}
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	dice := body.DiceSystem
 	name := body.Name
@@ -61,6 +64,9 @@ func (s *Server) joinRoom(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	role := "player"
 	if u.Email != "" && s.adminEmail != "" && u.Email == s.adminEmail {
@@ -96,6 +102,9 @@ func (s *Server) setCharacter(w http.ResponseWriter, r *http.Request) {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 		return
 	}
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	if err := s.table.SetSheet(chi.URLParam(r, "roomID"), u.ID, game.Sheet{
 		Name: body.Name, Species: body.Species, Path: body.Path, Backstory: body.Backstory,
@@ -109,6 +118,9 @@ func (s *Server) setCharacter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) rollInitiative(w http.ResponseWriter, r *http.Request) {
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	n, err := s.table.RollInitiative(chi.URLParam(r, "roomID"), u.ID)
 	if err != nil {
@@ -119,6 +131,9 @@ func (s *Server) rollInitiative(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) startRoom(w http.ResponseWriter, r *http.Request) {
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	roomID := chi.URLParam(r, "roomID")
 	if err := s.table.Start(roomID, u.ID); err != nil {
@@ -134,6 +149,9 @@ func (s *Server) startRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) completeRoom(w http.ResponseWriter, r *http.Request) {
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	ids, err := s.table.Complete(chi.URLParam(r, "roomID"), u.ID)
 	if err != nil {
@@ -156,6 +174,9 @@ func (s *Server) actRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
+		return
+	}
+	if s.denyUnlicensedPlayHTTP(w, r) {
 		return
 	}
 	u := userFrom(r)
