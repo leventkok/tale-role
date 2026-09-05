@@ -336,6 +336,10 @@ func TestStorytellerAfterEngineAndAdminTrace(t *testing.T) {
 	if traces.Code != http.StatusOK {
 		t.Fatalf("admin traces: %d %s", traces.Code, traces.Body.String())
 	}
+	live := authed(t, h, http.MethodGet, "/api/v1/admin/live?room_id=missing", adminTok, nil)
+	if live.Code != http.StatusOK {
+		t.Fatalf("admin live: %d %s", live.Code, live.Body.String())
+	}
 	if bytes.Contains(traces.Body.Bytes(), []byte("player@tale.role")) {
 		t.Fatalf("pii in traces: %s", traces.Body.String())
 	}

@@ -1333,16 +1333,60 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
         path = urlparse(self.path).path
+        if path == "/v1/load":
+            self.load_model(body)
+            return
         if not self.ready():
             self._send(503, {"error": "model not loaded"})
             return
         if path == "/v1/narrate":
             self._send(200, self.narrate(body))
             return
+        if path == "/v1/narrate/stream":
+            self.stream_narrate(body)
+            return
         if path == "/v1/intent":
             self._send(200, self.intent(body))
             return
         self._send(404, {"error": "not found"})
+
+    def stream_narrate(self, body: dict) -> None:
+        result = self.narrate(body)
+        prose = str(result.get("prose") or "")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson")
+        self.end_headers()
+        words = prose.split()
+        if not words:
+            self.wfile.write(b'{"prose":"","done":true}\n')
+            return
+        acc: list[str] = []
+        for i, word in enumerate(words):
+            acc.append(word)
+            done = i == len(words) - 1
+            if done or (i + 1) % 4 == 0:
+                line = json.dumps({"prose": " ".join(acc), "done": done}, ensure_ascii=False) + "\n"
+                self.wfile.write(line.encode("utf-8"))
+
+    def load_model(self, body: dict) -> None:
+        global _pipe
+        model_id = str(body.get("model_id") or "").strip()
+        if not model_id:
+            self._send(400, {"error": "model_id required"})
+            return
+        if self.allow_unloaded:
+            Handler.model_id = model_id
+            self._send(200, {"ok": True, "model_id": model_id, "loaded": False})
+            return
+        token = os.environ.get("HF_TOKEN") or None
+        with _pipe_lock:
+            _pipe = load_pipeline(
+                model_id,
+                token,
+                apply_adapter=self.role != "storyteller" or apply_storyteller_adapter(),
+            )
+        Handler.model_id = model_id
+        self._send(200, {"ok": True, "model_id": model_id, "loaded": True})
 
     def generate(
         self, prompt: str, *, max_new_tokens: int = 240, sample: bool = True, adapter: bool = True

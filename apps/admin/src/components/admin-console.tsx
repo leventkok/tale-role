@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-type Runtime = { adapter_id?: string; prompt_pack?: string; inference?: string };
+type Runtime = {
+  adapter_id?: string;
+  prompt_pack?: string;
+  inference?: string;
+  candidate_ready?: boolean;
+  live_storyteller?: string;
+  candidate_storyteller?: string;
+};
+type Live = { room_id?: string; prose?: string; prompt_pack?: string; adapter_id?: string; streaming?: boolean };
 type Trace = {
   at?: string;
   room_id?: string;
@@ -45,6 +53,8 @@ export function AdminConsole() {
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [edit, setEdit] = useState<Pack | null>(null);
   const [busyRoom, setBusyRoom] = useState<string | null>(null);
+  const [watchId, setWatchId] = useState<string | null>(null);
+  const [live, setLive] = useState<Live | null>(null);
 
   async function load() {
     const rt = await fetch("/api/admin/runtime", { cache: "no-store" });
@@ -92,6 +102,29 @@ export function AdminConsole() {
     }, 4000);
     return () => window.clearInterval(id);
   }, [runtime]);
+
+  useEffect(() => {
+    if (!runtime || !watchId) {
+      setLive(null);
+      return;
+    }
+    let alive = true;
+    async function tick() {
+      const res = await fetch(`/api/admin/live?room_id=${encodeURIComponent(watchId ?? "")}`, { cache: "no-store" });
+      if (!alive || !res.ok) {
+        return;
+      }
+      setLive((await res.json()) as Live);
+    }
+    void tick();
+    const id = window.setInterval(() => {
+      void tick();
+    }, 500);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [runtime, watchId]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -237,6 +270,11 @@ export function AdminConsole() {
           <button type="button" onClick={() => void swap(pack, "stub")}>
             Adapter stub
           </button>
+          {runtime.candidate_ready ? (
+            <button type="button" onClick={() => void swap(pack, "candidate")}>
+              Adapter candidate
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -261,14 +299,19 @@ export function AdminConsole() {
                       </span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="danger"
-                    disabled={busyRoom === lobby.id}
-                    onClick={() => void closeLobby(lobby)}
-                  >
-                    End lobby
-                  </button>
+                  <div className="row">
+                    <button type="button" className="ghost" onClick={() => setWatchId(lobby.id)}>
+                      Watch reply
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={busyRoom === lobby.id}
+                      onClick={() => void closeLobby(lobby)}
+                    >
+                      End lobby
+                    </button>
+                  </div>
                 </div>
               </li>
             );
@@ -296,6 +339,25 @@ export function AdminConsole() {
             </ul>
           </details>
         ) : null}
+      </section>
+
+      <section className="panel">
+        <h2>Player reply</h2>
+        <p className="hint">Same prose the table shows. Next turn uses the pack you save below.</p>
+        {watchId ? (
+          <p className="lobby-meta">
+            Watching <code>{watchId}</code>
+            {live?.streaming ? <span className="status live">Writing</span> : null}
+            {live?.prompt_pack ? (
+              <span>
+                {live.prompt_pack} / {live.adapter_id}
+              </span>
+            ) : null}
+          </p>
+        ) : (
+          <p className="empty">Pick Watch reply on a lobby.</p>
+        )}
+        {live?.prose ? <pre className="live-prose">{live.prose}</pre> : null}
       </section>
 
       <section className="panel">

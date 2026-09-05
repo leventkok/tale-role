@@ -20,6 +20,7 @@ type Store struct {
 	licenses  *mongo.Collection
 	rooms     *mongo.Collection
 	universes *mongo.Collection
+	packs     *mongo.Collection
 }
 
 func Connect(ctx context.Context, uri, dbName string) (*Store, error) {
@@ -41,6 +42,7 @@ func Connect(ctx context.Context, uri, dbName string) (*Store, error) {
 		licenses:  db.Collection("licenses"),
 		rooms:     db.Collection("rooms"),
 		universes: db.Collection("universes"),
+		packs:     db.Collection("prompt_packs"),
 	}
 	_, _ = s.users.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "email", Value: 1}},
@@ -208,4 +210,42 @@ func (s *Store) LoadUniverses(ctx context.Context) ([]*world.Universe, error) {
 		out = append(out, &cp)
 	}
 	return out, nil
+}
+
+type PromptPack struct {
+	ID string `bson:"_id"`
+	EN string `bson:"en"`
+	TR string `bson:"tr"`
+}
+
+func (s *Store) SavePromptPack(id, en, tr string) error {
+	if s == nil || s.packs == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := s.packs.ReplaceOne(ctx, bson.M{"_id": id}, PromptPack{ID: id, EN: en, TR: tr}, options.Replace().SetUpsert(true))
+	return err
+}
+
+func (s *Store) LoadPromptPacks() []PromptPack {
+	if s == nil || s.packs == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cur, err := s.packs.Find(ctx, bson.M{})
+	if err != nil {
+		return nil
+	}
+	defer cur.Close(ctx)
+	out := []PromptPack{}
+	for cur.Next(ctx) {
+		var d PromptPack
+		if cur.Decode(&d) != nil {
+			continue
+		}
+		out = append(out, d)
+	}
+	return out
 }

@@ -445,3 +445,7 @@ func (s *Server) adminCloseRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	httperr.JSON(w, http.StatusOK, map[string]any{"closed": true})
 }
+
+func (s *Server) adminLive(w http.ResponseWriter, r *http.Request) {
+	httperr.JSON(w, http.StatusOK, s.llm.Live(strings.TrimSpace(r.URL.Query().Get("room_id"))))
+}

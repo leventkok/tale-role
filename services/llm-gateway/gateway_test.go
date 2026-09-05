@@ -481,7 +481,7 @@ func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(gateway.Narrative{
 			Locale: "en",
-			Prose: "Luther picks up the medallion and studies it for a moment, feeling the subtle vibrations emanating from the carvings grow stronger. He lets out a low whistle, recognizing the power at work here. Without hesitation, he begins to trace a complex pattern along the wall with his finger, following the hum like a map. The others watch warily as the temperature drops slightly.",
+			Prose:  "Luther picks up the medallion and studies it for a moment, feeling the subtle vibrations emanating from the carvings grow stronger. He lets out a low whistle, recognizing the power at work here. Without hesitation, he begins to trace a complex pattern along the wall with his finger, following the hum like a map. The others watch warily as the temperature drops slightly.",
 		})
 	})
 	srv := httptest.NewServer(mux)
@@ -525,8 +525,8 @@ func TestRunnerStayPutHitDoesNotWalk(t *testing.T) {
 	svc.SetRunners(srv.URL, "")
 	n := svc.Narrate(gateway.NarrateRequest{
 		Locale: "en", ActorName: "Luther", Kind: "action",
-		Notes:   "I stay where I am and try to remember the star-path, without taking a step toward the corridor.",
-		Total:   12, Success: &ok,
+		Notes: "I stay where I am and try to remember the star-path, without taking a step toward the corridor.",
+		Total: 12, Success: &ok,
 	})
 	if strings.Contains(strings.ToLower(n.Prose), "steps into") || strings.Contains(strings.ToLower(n.Prose), "he walks") {
 		t.Fatalf("stay-put hit walked the actor: %s", n.Prose)
@@ -541,8 +541,8 @@ func TestTurkishStayPutHitDoesNotEchoOrOpen(t *testing.T) {
 	svc := gateway.New()
 	n := svc.Narrate(gateway.NarrateRequest{
 		Locale: "tr", ActorName: "Floc", Kind: "action",
-		Notes:   "Madolyonu alığ oymaların uğultusunu dinliyorum. Olduğum yerde kalıyorum",
-		Total:   19, Success: &ok,
+		Notes: "Madolyonu alığ oymaların uğultusunu dinliyorum. Olduğum yerde kalıyorum",
+		Total: 19, Success: &ok,
 	})
 	if strings.Contains(n.Prose, "yol açılır") || strings.Contains(n.Prose, "Madolyonu") || strings.Contains(n.Prose, "dinliyorum") {
 		t.Fatalf("stay-put hit echoed deed or opened the way: %s", n.Prose)
@@ -686,5 +686,49 @@ func TestStoryRunnerEnglishOpeningAccepted(t *testing.T) {
 	n := svc.Narrate(gateway.NarrateRequest{Locale: "tr", Kind: "story", Notes: opening, Opening: opening, RoomName: "World Of Warcraft", ThemeID: "high-fantasy"})
 	if n.Prose != opening {
 		t.Fatalf("runner opening rewritten: %s", n.Prose)
+	}
+}
+
+type memPacks struct {
+	saved map[string][2]string
+}
+
+func (m *memPacks) SavePromptPack(id, en, tr string) error {
+	if m.saved == nil {
+		m.saved = map[string][2]string{}
+	}
+	m.saved[id] = [2]string{en, tr}
+	return nil
+}
+
+func TestPackStoreAndLiveAndCandidate(t *testing.T) {
+	svc := gateway.New()
+	store := &memPacks{}
+	svc.SetPackStore(store)
+	if err := svc.PutPack("v1", "custom-en", "özel-tr"); err != nil {
+		t.Fatal(err)
+	}
+	if store.saved["v1"][0] != "custom-en" {
+		t.Fatalf("pack not persisted: %#v", store.saved)
+	}
+	n := svc.Narrate(gateway.NarrateRequest{Locale: "en", RoomID: "live-1", Kind: "wait", ActorName: "Iri", RoomName: "Ashwood"})
+	if strings.TrimSpace(n.Prose) == "" {
+		t.Fatal("empty stub")
+	}
+	live := svc.Live("live-1")
+	if live.Prose != n.Prose || live.Streaming {
+		t.Fatalf("live: %+v", live)
+	}
+	if err := svc.Swap("v1", "candidate"); err == nil {
+		t.Fatal("candidate without env should fail")
+	}
+	svc.ConfigureHub("your-org/talerole-storyteller", "")
+	svc.ConfigureCandidate("your-org/talerole-storyteller-night", "")
+	if err := svc.Swap("v1", "candidate"); err != nil {
+		t.Fatal(err)
+	}
+	rt := svc.Runtime()
+	if rt.AdapterID != "candidate" || !rt.CandidateReady {
+		t.Fatalf("runtime: %+v", rt)
 	}
 }

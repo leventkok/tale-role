@@ -280,6 +280,12 @@ button.danger {
   overflow: auto;
 }
 
+.live-prose {
+  white-space: pre-wrap;
+  min-height: 6rem;
+  margin: 0.75rem 0 0;
+}
+
 .pack-actions {
   margin-bottom: 0.45rem;
 }

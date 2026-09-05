@@ -81,7 +81,7 @@ export function TableClient({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => void refresh(), 2500);
+    const id = setInterval(() => void refresh(), 1000);
     return () => clearInterval(id);
   }, [roomId]);
 

@@ -42,6 +42,9 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 		worlds = world.NewCatalog()
 	}
 	s := &Server{svc: svc, table: table, worlds: worlds, llm: llm, images: worker.New(), log: log, cfg: cfg, adminEmail: adminEmail}
+	s.llm.WatchProse(func(roomID, prose string, done bool) {
+		_ = s.table.PatchNarrative(roomID, prose, done)
+	})
 	schema, err := s.graphQLSchema()
 	if err != nil {
 		panic(err)
@@ -101,6 +104,7 @@ func New(svc *app.Service, table *game.Table, worlds *world.Catalog, llm *gatewa
 				r.Get("/admin/packs", s.adminPacks)
 				r.Put("/admin/packs", s.adminPutPack)
 				r.Get("/admin/lobbies", s.adminLobbies)
+				r.Get("/admin/live", s.adminLive)
 				r.Post("/admin/rooms/{roomID}/close", s.adminCloseRoom)
 			})
 		})

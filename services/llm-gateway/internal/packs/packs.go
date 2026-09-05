@@ -1,11 +1,12 @@
 package packs
 
 const (
-	V1      = "v1"
-	V1Terse = "v1-terse"
-	Stub    = "stub"
-	Hub     = "hub"
-	Local   = "local" // accepted alias of Hub
+	V1        = "v1"
+	V1Terse   = "v1-terse"
+	Stub      = "stub"
+	Hub       = "hub"
+	Local     = "local" // accepted alias of Hub
+	Candidate = "candidate"
 )
 
 func Known(id string) bool {
