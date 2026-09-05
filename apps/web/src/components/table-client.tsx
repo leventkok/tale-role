@@ -172,7 +172,8 @@ export function TableClient({ roomId }: { roomId: string }) {
     const raw = (message ?? "").toLowerCase();
     if (raw.includes("invalid stats")) return t("saveBadStats");
     if (raw.includes("character exists")) return t("saveAlreadySeated");
-    if (raw.includes("forbidden") || raw.includes("unauthorized")) return t("joinForbidden");
+    if (raw.includes("forbidden")) return t("saveSpectator");
+    if (raw.includes("unauthorized")) return t("saveNeedLogin");
     return t("saveFailed");
   }
 
@@ -244,8 +245,7 @@ export function TableClient({ roomId }: { roomId: string }) {
 
   async function copyId() {
     const web = `${window.location.origin}/${locale}/join/${roomId}`;
-    const app = `talerole://join/${roomId}`;
-    await navigator.clipboard.writeText(`${web}\n${app}`);
+    await navigator.clipboard.writeText(web);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   }

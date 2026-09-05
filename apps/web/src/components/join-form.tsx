@@ -41,6 +41,11 @@ export function JoinForm({ initialRoomId = "" }: { initialRoomId?: string }) {
         </p>
       ) : null}
       <button type="submit">{t("join")}</button>
+      {roomId ? (
+        <a className="ghost" href={`talerole://join/${roomId}`}>
+          {t("openInApp")}
+        </a>
+      ) : null}
     </form>
   );
 }

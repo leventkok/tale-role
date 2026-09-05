@@ -275,8 +275,11 @@ export function AdminConsole() {
           })}
         </ul>
         {endedLobbies.length > 0 ? (
-          <>
-            <h2 style={{ marginTop: "1rem", fontSize: "0.92rem" }}>Recently ended</h2>
+          <details className="ended-fold">
+            <summary>
+              Recently ended
+              <span className="ended-count">{endedLobbies.length}</span>
+            </summary>
             <ul className="lobby-list">
               {endedLobbies.map((lobby) => (
                 <li key={lobby.id}>
@@ -291,7 +294,7 @@ export function AdminConsole() {
                 </li>
               ))}
             </ul>
-          </>
+          </details>
         ) : null}
       </section>
 
