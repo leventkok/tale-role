@@ -6,6 +6,7 @@ import { isLocale, locales } from "@tale-role/i18n";
 import { getSessionToken, gqlUpstream } from "@/lib/session";
 import { SiteHeader } from "@/components/site-header";
 import { DesktopShellMark } from "@/components/desktop-shell-mark";
+import { DesktopLicenseGate } from "@/components/desktop-license-gate";
 import { Link } from "@/i18n/routing";
 import "../globals.css";
 
@@ -50,7 +51,7 @@ export default async function LocaleLayout({
         <DesktopShellMark />
         <NextIntlClientProvider messages={messages}>
           <SiteHeader email={email} />
-          {children}
+          <DesktopLicenseGate signedIn={Boolean(email)}>{children}</DesktopLicenseGate>
           <footer className="site-foot">
             <Link href="/privacy">{t("nav.privacy")}</Link>
           </footer>

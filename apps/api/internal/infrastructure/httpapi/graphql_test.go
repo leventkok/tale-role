@@ -265,3 +265,38 @@ func TestGraphQLTableAndAccountMutations(t *testing.T) {
 		t.Fatalf("me after erase: %d %s", after.Code, after.Body.String())
 	}
 }
+
+func TestDesktopLicenseRequired(t *testing.T) {
+	h, _ := setup(t)
+	token := registerAndVerify(t, h, "host@tale.role")
+	blocked := authedDevice(t, h, http.MethodPost, "/graphql", token, "desk-unlicensed", map[string]any{
+		"query": `mutation { createRoom(name: "Ashwood", joinMode: "link") { id } }`,
+	})
+	if !bytes.Contains(blocked.Body.Bytes(), []byte("license required")) {
+		t.Fatalf("unlicensed desktop: %s", blocked.Body.String())
+	}
+	restBlocked := authedDevice(t, h, http.MethodPost, "/api/v1/rooms", token, "desk-unlicensed", map[string]string{
+		"name": "Ashwood", "join_mode": "link",
+	})
+	if restBlocked.Code != http.StatusForbidden || !bytes.Contains(restBlocked.Body.Bytes(), []byte("license required")) {
+		t.Fatalf("unlicensed rest: %d %s", restBlocked.Code, restBlocked.Body.String())
+	}
+	browser := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { createRoom(name: "Ashwood", joinMode: "link") { id } }`,
+	})
+	if bytes.Contains(browser.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("browser createRoom: %s", browser.Body.String())
+	}
+	reg := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query": `mutation { registerLicense(deviceId: "desk-1", platform: "win32") { id } }`,
+	})
+	if bytes.Contains(reg.Body.Bytes(), []byte(`"errors"`)) {
+		t.Fatalf("registerLicense: %s", reg.Body.String())
+	}
+	play := authedDevice(t, h, http.MethodPost, "/graphql", token, "desk-1", map[string]any{
+		"query": `mutation { createRoom(name: "Desk", joinMode: "link") { id } }`,
+	})
+	if bytes.Contains(play.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(play.Body.Bytes(), []byte(`"id"`)) {
+		t.Fatalf("licensed desktop: %s", play.Body.String())
+	}
+}

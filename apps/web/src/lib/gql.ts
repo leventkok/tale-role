@@ -1,3 +1,5 @@
+import { desktopDeviceHeaders } from "@/lib/desktop-shell";
+
 export type GqlError = { message: string };
 export type GqlResult<T> = { data?: T; errors?: GqlError[] };
 
@@ -149,7 +151,7 @@ export function mapRoom(row: GqlRoom): TableRoom {
 export async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<GqlResult<T>> {
   const res = await fetch("/api/graphql", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...desktopDeviceHeaders() },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",
   });

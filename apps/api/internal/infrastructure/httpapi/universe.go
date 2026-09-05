@@ -42,6 +42,9 @@ func (s *Server) createUniverse(w http.ResponseWriter, r *http.Request) {
 		httperr.Write(w, s.log, http.StatusBadRequest, "invalid request", err)
 		return
 	}
+	if s.denyUnlicensedPlayHTTP(w, r) {
+		return
+	}
 	u := userFrom(r)
 	doc, err := s.worlds.Create(u.ID, world.Draft{
 		NameEN:        body.NameEN,
