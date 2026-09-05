@@ -61,6 +61,7 @@ type roomDoc struct {
 	ThemeID    string           `bson:"theme_id,omitempty"`
 	PromptPack string           `bson:"prompt_pack_version,omitempty"`
 	Scene      *game.Scene      `bson:"scene,omitempty"`
+	Chronicle  []string         `bson:"chronicle,omitempty"`
 	CreatedAt  time.Time        `bson:"created_at"`
 }
 
@@ -80,7 +81,7 @@ func encodeRoom(r *game.Room) roomDoc {
 		Password: r.Password, Members: members, Characters: chars, TurnOrder: r.TurnOrder,
 		Turns: r.Turns, Started: r.Started, Completed: r.Completed, StartedAt: r.StartedAt,
 		UniverseID: r.UniverseID, ThemeID: r.ThemeID,
-		PromptPack: r.PromptPack, Scene: r.Scene, CreatedAt: r.CreatedAt,
+		PromptPack: r.PromptPack, Scene: r.Scene, Chronicle: r.Chronicle, CreatedAt: r.CreatedAt,
 	}
 }
 
@@ -90,7 +91,7 @@ func decodeRoom(d roomDoc) *game.Room {
 		Password: d.Password, Members: map[string]game.Member{}, Characters: map[string]*game.Character{},
 		TurnOrder: d.TurnOrder, Turns: d.Turns, Started: d.Started, Completed: d.Completed, StartedAt: d.StartedAt,
 		UniverseID: d.UniverseID,
-		ThemeID: d.ThemeID, PromptPack: d.PromptPack, Scene: d.Scene, CreatedAt: d.CreatedAt,
+		ThemeID: d.ThemeID, PromptPack: d.PromptPack, Scene: d.Scene, Chronicle: d.Chronicle, CreatedAt: d.CreatedAt,
 	}
 	for _, m := range d.Members {
 		r.Members[m.UserID] = m

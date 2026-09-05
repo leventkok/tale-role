@@ -28,6 +28,7 @@ func CloneRoom(r *Room) *Room {
 		sc := *r.Scene
 		cp.Scene = &sc
 	}
+	cp.Chronicle = append([]string{}, r.Chronicle...)
 	return &cp
 }
 

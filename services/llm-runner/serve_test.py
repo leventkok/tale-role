@@ -263,6 +263,63 @@ class ServeFormatTests(unittest.TestCase):
         self.assertNotIn("görünen şey sahneyi değiştirir", cried)
         self.assertNotIn("diyorum", cried)
 
+    def test_table_memory_keeps_later_beats_in_the_temple(self):
+        facts = [
+            "Duvarlardaki oymalar uğulduyor; taşın altında bir nefes var.",
+            "Karanlık bir koridor açık; bir yerde metal yere sürtünüyor.",
+            "Yerinde bir torba duruyor.",
+            "Floc: Ayağa kalkar ve torbanın içindekilere göz atar (kaçırdı).",
+        ]
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": "Torbayı tekrar sırtıma alıp etrafı incelemeye başlar",
+                "facts": facts,
+                "total": 6,
+                "success": False,
+            }
+        )
+        user = storyteller_user(payload, opening=False, locale=locale)
+        self.assertIn("TABLE MEMORY", user)
+        self.assertIn("Stay in this room", user)
+        self.assertIn("oymalar", user)
+        prose = fallback_storyteller(locale, payload, say=False)["prose"]
+        self.assertIn("Floc torbayı", prose)
+        self.assertIn("sırtına", prose)
+        self.assertNotIn("sırtıma", prose)
+        self.assertNotIn("Parmaklar kumaşı", prose)
+        self.assertTrue("oym" in prose.casefold() or "koridor" in prose.casefold() or "metal" in prose.casefold())
+
+    def test_third_person_walk_stays_on_the_crack(self):
+        opening = (
+            "Terk edilmiş bir tapınağın soğuk taş zemininde uyanırsın. "
+            "Tavan çatlaklarından sızan soluk mavi ışık oymaları yakalar. "
+            "Karanlık koridorun bir yerinde metal sürtünür. Bir madalyonda Uyan yazar."
+        )
+        locale, payload = storyteller_input(
+            {
+                "locale": "tr",
+                "kind": "action",
+                "actor_name": "Floc",
+                "notes": "Çatlağın sesine doğru karanlıkta ilerler",
+                "opening": opening,
+                "prior": [
+                    "Floc ayağa kalkar. Torba kayar; ağız kapanır.",
+                    "Floc torbayı sırta alır. Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
+                ],
+                "total": 8,
+                "success": True,
+            }
+        )
+        prose = fallback_storyteller(locale, payload, say=False)["prose"]
+        self.assertTrue(prose.startswith("Floc çatlağın"))
+        self.assertNotIn("Madalyondaki yazı", prose)
+        self.assertTrue(
+            "çatlak" in prose.casefold() or "koridor" in prose.casefold() or "mavi" in prose.casefold()
+        )
+
     def test_miss_prompt_still_forbids_success(self):
         sys = storyteller_system(
             "en",
