@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tale Role lantern">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="44%" r="52%">
+      <stop offset="0%" stop-color="#e2c07a" stop-opacity="0.42" />
+      <stop offset="72%" stop-color="#e2c07a" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#e2c07a" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="flame" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#e2c07a" />
+      <stop offset="100%" stop-color="#f3eadc" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#120e0a" />
+  <circle cx="256" cy="228" r="196" fill="url(#glow)" />
+  <g transform="translate(96 88) scale(10)">
+    <line x1="16" y1="2" x2="16" y2="7" stroke="#e2c07a" stroke-width="1.6" />
+    <path d="M16 2 l3.2 4.2 h-6.4 z" fill="#e2c07a" />
+    <path d="M11.2 8.4 l4.8-3.4 4.8 3.4 v2.6 H11.2z" fill="#e2c07a" />
+    <path
+      d="M10.2 11 h11.6 l2.2 12.4 H8z"
+      fill="#5d4d34"
+      stroke="#e2c07a"
+      stroke-width="1.3"
+      stroke-linejoin="round"
+    />
+    <path d="M12.4 13.2 h7.2 l1.3 8.2 H11.1z" fill="#1a1410" opacity="0.72" />
+    <ellipse cx="16" cy="18" rx="3.2" ry="4.2" fill="#e2c07a" opacity="0.72" />
+    <path d="M16 22.2c-1.6-2.2-1.2-4.4 0-6.4 1.4 1.6 1.8 3.8 0 6.4z" fill="url(#flame)" />
+    <rect x="9.2" y="23.2" width="13.6" height="2.1" rx="0.6" fill="#e2c07a" />
+  </g>
+</svg>
