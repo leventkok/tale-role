@@ -248,9 +248,18 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 			notes = opening
 		}
 	}
+	for _, prev := range pub.Turns {
+		if prev.Kind != "story" || prev.Narrative == nil {
+			continue
+		}
+		if live := strings.TrimSpace(prev.Narrative.Prose); live != "" {
+			opening = live
+			break
+		}
+	}
 	prior := make([]string, 0, 3)
 	for _, prev := range pub.Turns {
-		if prev.Narrative == nil {
+		if prev.Narrative == nil || prev.Kind == "story" {
 			continue
 		}
 		p := strings.TrimSpace(prev.Narrative.Prose)
@@ -260,6 +269,10 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 	}
 	if len(prior) > 3 {
 		prior = prior[len(prior)-3:]
+	}
+	facts := s.table.Chronicle(roomID)
+	if len(facts) == 0 && opening != "" {
+		facts = game.SceneMemory(opening)
 	}
 	beat := packBeat(actorName, turn, notes)
 	n := s.llm.Narrate(gateway.NarrateRequest{
@@ -279,12 +292,18 @@ func (s *Server) narrateTurn(roomID, userID, locale, notes string, turn game.Tur
 		Prior:         prior,
 		WorldBrief:    worldBrief,
 		Cast:          cast,
+		Facts:         facts,
 	})
 	narr := game.Narrative{Locale: n.Locale, Prose: n.Prose, NPCLines: []game.NPCLine{}}
 	for _, line := range n.NPCLines {
 		narr.NPCLines = append(narr.NPCLines, game.NPCLine{NPCID: line.NPCID, Text: line.Text})
 	}
 	_ = s.table.AttachNarrative(roomID, narr)
+	if turn.Kind == "story" {
+		s.table.Remember(roomID, game.SceneMemory(n.Prose)...)
+	} else if turn.Kind == "action" {
+		s.table.Remember(roomID, game.BeatMemory(actorName, notes, turn.Success))
+	}
 	turn.Narrative = &narr
 	go s.paintScene(roomID, pub.ThemeID, pub.Name, notes, n.Prose)
 	return turn

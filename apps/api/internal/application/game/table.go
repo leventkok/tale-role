@@ -154,6 +154,7 @@ type Room struct {
 	ThemeID    string                `json:"theme_id,omitempty"`
 	PromptPack string                `json:"prompt_pack_version,omitempty"`
 	Scene      *Scene                `json:"-"`
+	Chronicle  []string              `json:"-" bson:"chronicle,omitempty"`
 	CreatedAt  time.Time             `json:"created_at"`
 }
 

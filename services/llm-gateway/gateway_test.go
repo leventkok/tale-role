@@ -421,6 +421,61 @@ func TestCloseBagKeepsTemple(t *testing.T) {
 	}
 }
 
+func TestFactsKeepTempleOnCarryBag(t *testing.T) {
+	fail := false
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Torbayı tekrar sırtıma alıp etrafı incelemeye başlar",
+		Facts: []string{
+			"Duvarlardaki oymalar uğulduyor; taşın altında bir nefes var.",
+			"Karanlık bir koridor açık; bir yerde metal yere sürtünüyor.",
+			"Floc: Ayağa kalkar ve torbanın içindekilere göz atar (kaçırdı).",
+		},
+		Total: 6, Success: &fail,
+	})
+	if strings.Contains(n.Prose, "sırtıma") || strings.Contains(n.Prose, "Parmaklar kumaşı") {
+		t.Fatalf("carry-bag stub drifted: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Floc torbayı") || !strings.Contains(n.Prose, "sırtına") {
+		t.Fatalf("carry-bag stub missed the deed: %s", n.Prose)
+	}
+	low := strings.ToLower(n.Prose)
+	if !strings.Contains(low, "oym") && !strings.Contains(low, "koridor") && !strings.Contains(low, "metal") {
+		t.Fatalf("carry-bag stub left the temple: %s", n.Prose)
+	}
+}
+
+func TestThirdPersonWalkStaysOnTheCrack(t *testing.T) {
+	ok := true
+	svc := gateway.New()
+	n := svc.Narrate(gateway.NarrateRequest{
+		Locale: "tr", ActorName: "Floc", Kind: "action",
+		Notes: "Çatlağın sesine doğru karanlıkta ilerler",
+		Opening: "Terk edilmiş bir tapınağın soğuk taş zemininde uyanırsın. " +
+			"Tavan çatlaklarından sızan soluk mavi ışık oymaları yakalar. " +
+			"Karanlık koridorun bir yerinde metal sürtünür. Bir madalyonda Uyan yazar.",
+		Prior: []string{
+			"Floc ayağa kalkar. Torba kayar; ağız kapanır.",
+			"Floc torbayı sırta alır. Oymaların uğultusu düşer, sonra daha alçak bir tondan döner.",
+		},
+		Total: 8, Success: &ok,
+	})
+	if strings.HasPrefix(strings.TrimSpace(n.Prose), "Floc.") {
+		t.Fatalf("bare name lead: %s", n.Prose)
+	}
+	if !strings.Contains(n.Prose, "Floc çatlağın") {
+		t.Fatalf("walk stub missed the deed: %s", n.Prose)
+	}
+	low := strings.ToLower(n.Prose)
+	if strings.Contains(n.Prose, "Madalyondaki yazı") {
+		t.Fatalf("walk toward the crack grounded on the medallion: %s", n.Prose)
+	}
+	if !strings.Contains(low, "çatlak") && !strings.Contains(low, "koridor") && !strings.Contains(low, "metal") && !strings.Contains(low, "mavi") {
+		t.Fatalf("walk stub left the crack: %s", n.Prose)
+	}
+}
+
 func TestRunnerHitVoiceOnMissFallsBack(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/narrate", func(w http.ResponseWriter, r *http.Request) {

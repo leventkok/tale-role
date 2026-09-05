@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/leventkok/tale-role/services/llm-gateway/internal/packs"
@@ -263,7 +264,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
 		return remote
 	}
-	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind, req.Prior, req.Opening)
+	prose := stubProse(locale, pack, actor, req.RoomName, req.ThemeID, outcome, req.DiceSystem, req.Rolls, req.Total, notes, req.Kind, req.Prior, req.Opening, req.WorldBrief, req.Facts)
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
@@ -604,7 +605,7 @@ func redactCast(in []CastMember) []CastMember {
 	return out
 }
 
-func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string, prior []string, opening string) string {
+func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []int, total int, notes, kind string, prior []string, opening, worldBrief string, facts []string) string {
 	_ = dice
 	_ = rolls
 	_ = theme
@@ -624,8 +625,9 @@ func stubProse(locale, pack, actor, room, theme, outcome, dice string, rolls []i
 	}
 	loc := beatLocale(locale, deed)
 	place := scenePlace(loc)
+	ground := strings.TrimSpace(opening + " " + worldBrief + " " + strings.Join(facts, " "))
 	if loc == "tr" {
-		return literaryTR(kind, actor, place, deed, outcome, total, prior, opening)
+		return literaryTR(kind, actor, place, deed, outcome, total, prior, ground)
 	}
 	return literaryEN(kind, actor, place, deed, outcome, total, prior)
 }
@@ -714,28 +716,33 @@ func firstPerson(notes string) bool {
 
 func voiceDeed(actor, notes string) string {
 	deed := playerDeed(notes)
-	if deed == "" || !firstPerson(deed) {
+	if deed == "" {
 		return ""
 	}
-	text := benPrefix.ReplaceAllString(deed, "")
-	text = imPrefix.ReplaceAllString(text, "")
-	text = iPrefix.ReplaceAllString(text, "")
-	text = yorumRe.ReplaceAllString(text, "yor")
-	text = mekteyimRe.ReplaceAllString(text, "mekte")
-	text = maktayimRe.ReplaceAllString(text, "makta")
-	text = aoristMeRe.ReplaceAllStringFunc(text, func(m string) string {
-		r := []rune(m)
-		if len(r) <= 2 {
-			return m
-		}
-		return string(r[:len(r)-2])
-	})
+	text := deed
+	if firstPerson(deed) {
+		text = benPrefix.ReplaceAllString(deed, "")
+		text = imPrefix.ReplaceAllString(text, "")
+		text = iPrefix.ReplaceAllString(text, "")
+		text = yorumRe.ReplaceAllString(text, "yor")
+		text = mekteyimRe.ReplaceAllString(text, "mekte")
+		text = maktayimRe.ReplaceAllString(text, "makta")
+		text = aoristMeRe.ReplaceAllStringFunc(text, func(m string) string {
+			r := []rune(m)
+			if len(r) <= 2 {
+				return m
+			}
+			return string(r[:len(r)-2])
+		})
+	}
 	repls := [][2]string{
 		{"çevremi", "çevresini"},
 		{"etrafımı", "etrafını"},
 		{"kılıncımı", "kılıcını"},
 		{"kılıcımı", "kılıcını"},
 		{"torbamı", "torbasını"},
+		{"sırtıma", "sırtına"},
+		{"sirtima", "sırtına"},
 		{"yanımı", "yanını"},
 		{"önümü", "önünü"},
 		{"elimi", "elini"},
@@ -750,10 +757,17 @@ func voiceDeed(actor, notes string) string {
 	if text == "" {
 		return ""
 	}
+	lowActor := strings.ToLower(strings.TrimSpace(actor))
+	if lowActor != "" && strings.HasPrefix(strings.ToLower(text), lowActor) {
+		return text
+	}
 	runes := []rune(text)
-	if len(runes) > 1 {
-		runes[0] = []rune(strings.ToLower(string(runes[0])))[0]
-		text = string(runes)
+	if len(runes) > 0 {
+		lowered := []rune(strings.ToLower(string(runes[0])))
+		if len(lowered) == 1 && (len(runes) == 1 || !unicode.IsUpper(runes[1])) {
+			runes[0] = lowered[0]
+			text = string(runes)
+		}
 	}
 	return strings.TrimSpace(actor + " " + text)
 }
@@ -779,7 +793,16 @@ func bagDeed(notes string) bool {
 	return lookingInBag(notes)
 }
 
-func groundTR(success bool, opening string, prior []string, total int) string {
+func carryingBag(notes string) bool {
+	low := strings.ToLower(notes)
+	if lookingInBag(notes) {
+		return false
+	}
+	hasBag := containsAny(low, "torba", "çanta", "bag", "pouch")
+	return hasBag && containsAny(low, "sırt", "sirt", "omuz", "pick up", "alip", "alıp")
+}
+
+func groundTR(success bool, opening string, prior []string, total int, notes string) string {
 	blob := strings.ToLower(opening)
 	var lines []string
 	if success {
@@ -795,8 +818,8 @@ func groundTR(success bool, opening string, prior []string, total int) string {
 		if strings.Contains(blob, "madalyon") {
 			lines = append(lines, "Madalyondaki yazı yerinde kalır.")
 		}
-		if strings.Contains(blob, "mavi") {
-			lines = append(lines, "Tavandan sızan mavi ışık oymaları tutmaya devam eder.")
+		if strings.Contains(blob, "mavi") || strings.Contains(blob, "çatlak") {
+			lines = append(lines, "Tavandan sızan mavi ışık çatlağı tutmaya devam eder.")
 		}
 	} else {
 		if strings.Contains(blob, "oym") {
@@ -811,7 +834,7 @@ func groundTR(success bool, opening string, prior []string, total int) string {
 		if strings.Contains(blob, "madalyon") {
 			lines = append(lines, "Madalyon soğur. Kazınmış yazı yerinde kalır.")
 		}
-		if strings.Contains(blob, "mavi") {
+		if strings.Contains(blob, "mavi") || strings.Contains(blob, "çatlak") {
 			lines = append(lines, "Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.")
 		}
 	}
@@ -821,11 +844,45 @@ func groundTR(success bool, opening string, prior []string, total int) string {
 		}
 		return pickUnused(missLinesTR(""), prior, total)
 	}
-	return pickUnused(lines, prior, total)
+	return pickUnused(preferGround(lines, notes), prior, total)
+}
+
+func preferGround(lines []string, notes string) []string {
+	deed := strings.ToLower(notes)
+	var keys []string
+	if containsAny(deed, "çatla", "mavi") {
+		keys = append(keys, "çatlak", "mavi")
+	}
+	if strings.Contains(deed, "oym") {
+		keys = append(keys, "oym")
+	}
+	if containsAny(deed, "koridor", "ilerle", "yürü", "walk") {
+		keys = append(keys, "koridor", "metal")
+	}
+	if containsAny(deed, "madalyon", "medallion") {
+		keys = append(keys, "madalyon")
+	}
+	if len(keys) == 0 {
+		return lines
+	}
+	picked := make([]string, 0, len(lines))
+	for _, ln := range lines {
+		low := strings.ToLower(ln)
+		for _, k := range keys {
+			if strings.Contains(low, k) {
+				picked = append(picked, ln)
+				break
+			}
+		}
+	}
+	if len(picked) == 0 {
+		return lines
+	}
+	return picked
 }
 
 func followTR(deed string, success bool, opening string, prior []string, total int) string {
-	ground := groundTR(success, opening, prior, total)
+	ground := groundTR(success, opening, prior, total, deed)
 	low := strings.ToLower(deed)
 	if lookingInBag(deed) {
 		if success {
@@ -839,13 +896,19 @@ func followTR(deed string, success bool, opening string, prior []string, total i
 		}
 		return "Ağız kapanır ama oda cevap vermez. " + ground
 	}
+	if carryingBag(deed) {
+		if success {
+			return "Torba sırta oturur. Dikkat odaya döner. " + ground
+		}
+		return "Torba omza kayar ama oda cevap vermez. " + ground
+	}
 	if containsAny(low, "bağır", "kim var", "seslen") {
 		if success {
 			return "Çağrı taşa çarpar. Bir şey kımıldar; henüz yüz göstermez. " + ground
 		}
 		return "Ses koridorda kırılır. Cevap gelmez. " + ground
 	}
-	if containsAny(low, "yürü", "koridor", "ilerle") {
+	if containsAny(low, "yürü", "koridor", "ilerle", "çatla") {
 		if success {
 			return "Koridor bir adım alır; oymalar yanından geçer. " + ground
 		}

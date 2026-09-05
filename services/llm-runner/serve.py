@@ -570,7 +570,10 @@ def storyteller_user(payload: dict[str, Any], *, opening: bool, locale: str) -> 
     if isinstance(facts, list):
         traces = "\n".join(redact(str(p)).strip() for p in facts[:8] if str(p).strip())
         if traces:
-            parts.append("TABLE MEMORY (short; do not invent beyond this)\n" + traces)
+            parts.append(
+                "TABLE MEMORY (short; do not invent beyond this. "
+                "Stay in this room and keep these objects in play.)\n" + traces
+            )
     actor = payload.get("actor") or "Someone"
     notes = payload.get("notes") or ""
     success = payload.get("success")
@@ -709,21 +712,25 @@ def player_deed(notes: str) -> str:
 
 def voice_deed(actor: str, notes: str) -> str:
     deed = player_deed(notes)
-    if not deed or not first_person_notes(deed):
+    if not deed:
         return ""
-    text = re.sub(r"(?i)^ben\s+", "", deed)
-    text = re.sub(r"(?i)^i['’]m\s+", "", text)
-    text = re.sub(r"(?i)^i\s+", "", text)
-    text = re.sub(r"yorum\b", "yor", text)
-    text = re.sub(r"mekteyim\b", "mekte", text)
-    text = re.sub(r"maktayım\b", "makta", text)
-    text = re.sub(r"(arım|erim|ırım|urum|ürüm)\b", lambda m: m.group(0)[:-2], text)
+    text = deed
+    if first_person_notes(deed):
+        text = re.sub(r"(?i)^ben\s+", "", deed)
+        text = re.sub(r"(?i)^i['’]m\s+", "", text)
+        text = re.sub(r"(?i)^i\s+", "", text)
+        text = re.sub(r"yorum\b", "yor", text)
+        text = re.sub(r"mekteyim\b", "mekte", text)
+        text = re.sub(r"maktayım\b", "makta", text)
+        text = re.sub(r"(arım|erim|ırım|urum|ürüm)\b", lambda m: m.group(0)[:-2], text)
     for mine, theirs in (
         ("çevremi", "çevresini"),
         ("etrafımı", "etrafını"),
         ("kılıncımı", "kılıcını"),
         ("kılıcımı", "kılıcını"),
         ("torbamı", "torbasını"),
+        ("sırtıma", "sırtına"),
+        ("sirtima", "sırtına"),
         ("yanımı", "yanını"),
         ("önümü", "önünü"),
         ("elimi", "elini"),
@@ -735,6 +742,8 @@ def voice_deed(actor: str, notes: str) -> str:
     text = text.strip().rstrip(".")
     if not text:
         return ""
+    if text.casefold().startswith((actor or "").casefold()):
+        return text
     if text[0].isupper() and (len(text) == 1 or not text[1].isupper()):
         text = text[0].lower() + text[1:]
     return f"{actor} {text}"
@@ -877,7 +886,15 @@ def shout_deed(notes: str) -> bool:
 
 def walk_deed(notes: str) -> bool:
     low = (notes or "").casefold()
-    return any(k in low for k in ("yürü", "koridor", "ilerle", "walk", "corridor"))
+    return any(k in low for k in ("yürü", "koridor", "ilerle", "walk", "corridor", "çatla"))
+
+
+def carrying_bag(notes: str) -> bool:
+    low = (notes or "").casefold()
+    if looking_in_bag(notes):
+        return False
+    has_bag = any(k in low for k in ("torba", "çanta", "bag", "pouch"))
+    return has_bag and any(k in low for k in ("sırt", "sirt", "omuz", "pick up", "alip", "alıp"))
 
 
 def ground_line(
@@ -887,10 +904,12 @@ def ground_line(
     total: int,
     opening: str = "",
     world_brief: str = "",
+    facts: list[str] | None = None,
+    notes: str = "",
 ) -> str:
     if locale != "tr":
         return unused_line(HIT_EN if success else MISS_EN, prior, total)
-    blob = f"{opening} {world_brief}".casefold()
+    blob = f"{opening} {world_brief} {' '.join(facts or [])}".casefold()
     hits: list[str] = []
     misses: list[str] = []
     if "oym" in blob:
@@ -905,15 +924,32 @@ def ground_line(
     if "madalyon" in blob:
         hits.append("Madalyondaki yazı yerinde kalır.")
         misses.append("Madalyon soğur. Kazınmış yazı yerinde kalır.")
-    if "mavi" in blob:
-        hits.append("Tavandan sızan mavi ışık oymaları tutmaya devam eder.")
+    if "mavi" in blob or "çatlak" in blob:
+        hits.append("Tavandan sızan mavi ışık çatlağı tutmaya devam eder.")
         misses.append("Tavandaki mavi ışık bir an kesilir, çatlak yine nefes alır.")
-    pool = tuple(hits if success else misses)
+    pool = tuple(prefer_ground(hits if success else misses, notes))
     if pool:
         return unused_line(pool, prior, total)
     return unused_line(HIT_TR if success else MISS_TR, prior, total) if locale == "tr" else unused_line(
         HIT_EN if success else MISS_EN, prior, total
     )
+
+
+def prefer_ground(lines: list[str], notes: str) -> list[str]:
+    deed = (notes or "").casefold()
+    keys: list[str] = []
+    if "çatla" in deed or "mavi" in deed:
+        keys.extend(("çatlak", "mavi"))
+    if "oym" in deed:
+        keys.append("oym")
+    if any(k in deed for k in ("koridor", "ilerle", "yürü", "walk")):
+        keys.extend(("koridor", "metal"))
+    if "madalyon" in deed or "medallion" in deed:
+        keys.append("madalyon")
+    if not keys:
+        return lines
+    picked = [ln for ln in lines if any(k in ln.casefold() for k in keys)]
+    return picked or lines
 
 
 def follow_through(
@@ -924,8 +960,9 @@ def follow_through(
     total: int,
     opening: str = "",
     world_brief: str = "",
+    facts: list[str] | None = None,
 ) -> str:
-    ground = ground_line(locale, success, prior, total, opening, world_brief)
+    ground = ground_line(locale, success, prior, total, opening, world_brief, facts, notes)
     if looking_in_bag(notes):
         if locale == "tr":
             if success:
@@ -974,6 +1011,18 @@ def follow_through(
             if success
             else f"The mouth shuts; the room does not answer. {ground}"
         )
+    if carrying_bag(notes):
+        if locale == "tr":
+            return (
+                f"Torba sırta oturur. Dikkat odaya döner. {ground}"
+                if success
+                else f"Torba omza kayar ama oda cevap vermez. {ground}"
+            )
+        return (
+            f"The bag settles on the back. Attention returns to the room. {ground}"
+            if success
+            else f"The bag slips on the shoulder; the room does not answer. {ground}"
+        )
     if shout_deed(notes):
         if locale == "tr":
             return (
@@ -1012,6 +1061,7 @@ def literary_action(
     prior: list[str] | None = None,
     opening: str = "",
     world_brief: str = "",
+    facts: list[str] | None = None,
 ) -> str:
     loc = beat_locale(locale, notes)
     _ = room
@@ -1029,7 +1079,14 @@ def literary_action(
             return f"{actor} nefesini tutar. Henüz hamle yok. Fener sönmez."
         return f"{actor} holds still. Breath only. The lantern holds."
     shift = follow_through(
-        loc, raw_notes, success is True, prior, total, opening=opening, world_brief=world_brief
+        loc,
+        raw_notes,
+        success is True,
+        prior,
+        total,
+        opening=opening,
+        world_brief=world_brief,
+        facts=facts,
     )
     held = " Gitmediği yer açık kalmaz." if loc == "tr" else " The place they refused stays unentered."
     if stay_put_deed(raw_notes):
@@ -1040,6 +1097,8 @@ def literary_action(
         return f"{lead}. {shift}{held}"
     voiced = voice_deed(actor, raw_notes)
     if voiced:
+        if success is not True and loc != "tr":
+            return f"{voiced}. {actor} misses. {shift}"
         return f"{voiced}. {shift}"
     if success is True:
         return f"{actor}. {shift}"
@@ -1072,6 +1131,7 @@ def fallback_storyteller(locale: str, payload: dict[str, Any], *, say: bool) -> 
         prior,
         opening=str(payload.get("opening") or ""),
         world_brief=str(payload.get("world_brief") or ""),
+        facts=payload.get("facts") if isinstance(payload.get("facts"), list) else None,
     )
     return {"locale": locale, "prose": redact(prose), "npc_lines": []}
 
