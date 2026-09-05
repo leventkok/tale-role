@@ -48,6 +48,11 @@ func Connect(ctx context.Context, uri, dbName string) (*Store, error) {
 		Keys:    bson.D{{Key: "email", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	})
+	s.compactLicenses(ctx)
+	_, _ = s.licenses.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "device_id", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
 	return s, nil
 }
 
@@ -112,7 +117,13 @@ func (s *Store) DeleteOTP(email string) {
 func (s *Store) PutLicense(l *license.ProductLicense) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, _ = s.licenses.ReplaceOne(ctx, bson.M{"_id": l.ID}, licDoc{
+	filter := bson.M{"user_id": l.UserID, "device_id": l.DeviceID}
+	var existing licDoc
+	if s.licenses.FindOne(ctx, filter).Decode(&existing) == nil {
+		l.ID = existing.ID
+		l.CreatedAt = existing.CreatedAt
+	}
+	_, _ = s.licenses.ReplaceOne(ctx, filter, licDoc{
 		ID: l.ID, UserID: l.UserID, DeviceID: l.DeviceID, Platform: l.Platform, CreatedAt: l.CreatedAt,
 	}, options.Replace().SetUpsert(true))
 }
@@ -121,6 +132,39 @@ func (s *Store) DeleteLicense(id string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, _ = s.licenses.DeleteOne(ctx, bson.M{"_id": id})
+}
+
+func (s *Store) DeleteLicensesForDevice(userID, deviceID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _ = s.licenses.DeleteMany(ctx, bson.M{"user_id": userID, "device_id": deviceID})
+}
+
+func (s *Store) compactLicenses(ctx context.Context) {
+	cur, err := s.licenses.Find(ctx, bson.M{})
+	if err != nil {
+		return
+	}
+	defer cur.Close(ctx)
+	type pair struct{ user, device string }
+	keep := map[pair]string{}
+	drop := make([]string, 0)
+	for cur.Next(ctx) {
+		var d licDoc
+		if cur.Decode(&d) != nil {
+			continue
+		}
+		key := pair{d.UserID, d.DeviceID}
+		if _, ok := keep[key]; ok {
+			drop = append(drop, d.ID)
+			continue
+		}
+		keep[key] = d.ID
+	}
+	if len(drop) == 0 {
+		return
+	}
+	_, _ = s.licenses.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": drop}})
 }
 
 func (s *Store) LicensesForUser(userID string) []*license.ProductLicense {

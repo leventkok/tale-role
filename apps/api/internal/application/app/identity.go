@@ -16,5 +16,6 @@ type Identity interface {
 	PutLicense(*license.ProductLicense)
 	LicensesForUser(userID string) []*license.ProductLicense
 	DeleteLicense(id string)
+	DeleteLicensesForDevice(userID, deviceID string)
 	DeleteUserByID(id string)
 }
