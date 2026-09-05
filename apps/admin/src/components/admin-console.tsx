@@ -40,6 +40,26 @@ function lobbyStatus(lobby: Lobby) {
   return { label: "Waiting", className: "status waiting" };
 }
 
+function modelLabel(id?: string) {
+  if (id === "candidate") {
+    return "Spare";
+  }
+  if (id === "hub") {
+    return "Live model";
+  }
+  if (id === "stub") {
+    return "Stub";
+  }
+  return id || "—";
+}
+
+function hubLabel(id?: string) {
+  if (!id) {
+    return "";
+  }
+  return id.replace(/-night\b/gi, "-spare");
+}
+
 export function AdminConsole() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -238,7 +258,8 @@ export function AdminConsole() {
   }
 
   const pack = runtime.prompt_pack || "v1";
-  const adapter = runtime.adapter_id === "hub" ? "hub" : "stub";
+  const adapter =
+    runtime.adapter_id === "stub" || runtime.adapter_id === "candidate" ? runtime.adapter_id : "hub";
   const openLobbies = lobbies.filter((lobby) => !lobby.completed);
   const endedLobbies = lobbies.filter((lobby) => lobby.completed);
 
@@ -248,7 +269,7 @@ export function AdminConsole() {
         <h2>Runtime</h2>
         <div className="runtime-bar">
           <span>
-            Adapter <code>{runtime.adapter_id}</code>
+            Model <code>{modelLabel(runtime.adapter_id)}</code>
           </span>
           <span>
             Pack <code>{runtime.prompt_pack}</code>
@@ -256,6 +277,16 @@ export function AdminConsole() {
           <span>
             Inference <code>{runtime.inference}</code>
           </span>
+          {runtime.live_storyteller ? (
+            <span>
+              Live <code>{hubLabel(runtime.live_storyteller)}</code>
+            </span>
+          ) : null}
+          {runtime.candidate_storyteller ? (
+            <span>
+              Spare <code>{hubLabel(runtime.candidate_storyteller)}</code>
+            </span>
+          ) : null}
         </div>
         <div className="row">
           <button type="button" onClick={() => void swap("v1", adapter)}>
@@ -265,14 +296,14 @@ export function AdminConsole() {
             Use v1-terse
           </button>
           <button type="button" onClick={() => void swap(pack, "hub")}>
-            Adapter hub
+            Live model
           </button>
           <button type="button" onClick={() => void swap(pack, "stub")}>
-            Adapter stub
+            Stub
           </button>
           {runtime.candidate_ready ? (
             <button type="button" onClick={() => void swap(pack, "candidate")}>
-              Adapter candidate
+              Spare
             </button>
           ) : null}
         </div>
@@ -350,7 +381,7 @@ export function AdminConsole() {
             {live?.streaming ? <span className="status live">Writing</span> : null}
             {live?.prompt_pack ? (
               <span>
-                {live.prompt_pack} / {live.adapter_id}
+                {live.prompt_pack} / {modelLabel(live.adapter_id)}
               </span>
             ) : null}
           </p>
@@ -371,7 +402,7 @@ export function AdminConsole() {
             .map((tr, idx) => (
               <li key={`${tr.at}-${idx}`}>
                 <strong>
-                  {tr.prompt_pack} / {tr.adapter_id}
+                  {tr.prompt_pack} / {modelLabel(tr.adapter_id)}
                 </strong>
                 <div>{tr.narrative_excerpt || tr.redacted_prompt}</div>
                 {tr.mechanic_intent ? <pre>{JSON.stringify(tr.mechanic_intent, null, 2)}</pre> : null}
