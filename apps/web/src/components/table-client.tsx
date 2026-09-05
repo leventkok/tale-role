@@ -55,6 +55,7 @@ export function TableClient({ roomId }: { roomId: string }) {
   const [skill, setSkill] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sheetError, setSheetError] = useState<string | null>(null);
   const [cast, setCast] = useState<DiceCastShow | null>(null);
   const [sceneCards, setSceneCards] = useState<{ idx: number; prose: string; svg?: string }[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
@@ -64,21 +65,19 @@ export function TableClient({ roomId }: { roomId: string }) {
   const seenTurns = useRef<number | null>(null);
 
   async function refresh() {
-    const result = await gql<{ room: Parameters<typeof mapRoom>[0] | null }>(ROOM_QUERY, { id: roomId });
-    const data = gqlData(result);
+    const [roomResult, meResult] = await Promise.all([
+      gql<{ room: Parameters<typeof mapRoom>[0] | null }>(ROOM_QUERY, { id: roomId }),
+      gql<{ me: { id: string; portraitId?: string } | null }>("{ me { id portraitId } }"),
+    ]);
+    const data = gqlData(roomResult);
     if (data?.room) {
       setRoom(mapRoom(data.room));
     }
+    const who = meResult.data?.me;
+    if (who?.id) setMe(who.id);
+    if (who?.portraitId) setMyPortrait(who.portraitId as PortraitId);
+    else if (who?.id) setMyPortrait(readStoredPortrait());
   }
-
-  useEffect(() => {
-    void gql<{ me: { id: string; portraitId?: string } | null }>("{ me { id portraitId } }").then((result) => {
-      const data = gqlData(result);
-      if (data?.me?.id) setMe(data.me.id);
-      if (data?.me?.portraitId) setMyPortrait(data.me.portraitId as PortraitId);
-      else setMyPortrait(readStoredPortrait());
-    });
-  }, []);
 
   useEffect(() => {
     void refresh();
@@ -169,17 +168,33 @@ export function TableClient({ roomId }: { roomId: string }) {
     });
   }
 
+  function sheetFailMessage(message: string | undefined) {
+    const raw = (message ?? "").toLowerCase();
+    if (raw.includes("invalid stats")) return t("saveBadStats");
+    if (raw.includes("character exists")) return t("saveAlreadySeated");
+    if (raw.includes("forbidden") || raw.includes("unauthorized")) return t("joinForbidden");
+    return t("saveFailed");
+  }
+
   async function saveCharacter(e: React.FormEvent) {
     e.preventDefault();
+    setSheetError(null);
     setBusy(true);
-    await gql(
-      `mutation ($roomId: ID!, $name: String!, $stats: StatsInput!, $species: String, $path: String, $backstory: String, $skills: [String!]) {
-        setCharacter(roomId: $roomId, name: $name, stats: $stats, species: $species, path: $path, backstory: $backstory, skills: $skills)
-      }`,
-      { roomId, name, stats, species, path, backstory, skills: picks },
-    );
-    setBusy(false);
-    await refresh();
+    try {
+      const result = await gql<{ setCharacter: boolean }>(
+        `mutation ($roomId: ID!, $name: String!, $stats: StatsInput!, $species: String, $path: String, $backstory: String, $skills: [String!]) {
+          setCharacter(roomId: $roomId, name: $name, stats: $stats, species: $species, path: $path, backstory: $backstory, skills: $skills)
+        }`,
+        { roomId, name, stats, species, path, backstory, skills: picks },
+      );
+      if (!gqlData(result)?.setCharacter) {
+        setSheetError(sheetFailMessage(result.errors?.[0]?.message));
+        return;
+      }
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function start() {
@@ -437,6 +452,11 @@ export function TableClient({ roomId }: { roomId: string }) {
                 ))}
               </div>
             </fieldset>
+            {sheetError ? (
+              <p className="alert" role="alert">
+                {sheetError}
+              </p>
+            ) : null}
             <button type="submit" disabled={busy || total !== 18 || picks.length !== 3}>
               {t("saveCharacter")}
             </button>
