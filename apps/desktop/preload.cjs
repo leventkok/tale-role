@@ -1,13 +1,9 @@
 const { contextBridge } = require("electron");
+const os = require("node:os");
+const crypto = require("node:crypto");
 
 function deviceId() {
-  try {
-    const os = require("node:os");
-    const crypto = require("node:crypto");
-    return crypto.createHash("sha256").update(os.hostname()).digest("hex").slice(0, 16);
-  } catch {
-    return "desktop";
-  }
+  return crypto.createHash("sha256").update(String(os.hostname() || "host")).digest("hex").slice(0, 16);
 }
 
 try {

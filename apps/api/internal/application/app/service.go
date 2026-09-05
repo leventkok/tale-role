@@ -210,14 +210,23 @@ func (s *Service) RegisterLicense(userID, deviceID, platform string) (*license.P
 	if userID == "" || deviceID == "" {
 		return nil, ErrInvalidCredentials
 	}
+	var keep *license.ProductLicense
 	for _, row := range s.store.LicensesForUser(userID) {
-		if row.DeviceID == deviceID {
-			if platform != "" && row.Platform != platform {
-				row.Platform = platform
-				s.store.PutLicense(row)
-			}
-			return row, nil
+		if row.DeviceID != deviceID {
+			continue
 		}
+		if keep == nil {
+			keep = row
+			continue
+		}
+		s.store.DeleteLicense(row.ID)
+	}
+	if keep != nil {
+		if platform != "" && keep.Platform != platform {
+			keep.Platform = platform
+			s.store.PutLicense(keep)
+		}
+		return keep, nil
 	}
 	l := &license.ProductLicense{
 		ID:        uuid.NewString(),
@@ -231,7 +240,18 @@ func (s *Service) RegisterLicense(userID, deviceID, platform string) (*license.P
 }
 
 func (s *Service) Licenses(userID string) []*license.ProductLicense {
-	return s.store.LicensesForUser(userID)
+	rows := s.store.LicensesForUser(userID)
+	seen := map[string]struct{}{}
+	out := make([]*license.ProductLicense, 0, len(rows))
+	for _, row := range rows {
+		if _, ok := seen[row.DeviceID]; ok {
+			s.store.DeleteLicense(row.ID)
+			continue
+		}
+		seen[row.DeviceID] = struct{}{}
+		out = append(out, row)
+	}
+	return out
 }
 
 func (s *Service) RevokeLicense(userID, licenseID string) error {
@@ -240,7 +260,7 @@ func (s *Service) RevokeLicense(userID, licenseID string) error {
 	}
 	for _, row := range s.store.LicensesForUser(userID) {
 		if row.ID == licenseID {
-			s.store.DeleteLicense(licenseID)
+			s.store.DeleteLicensesForDevice(userID, row.DeviceID)
 			return nil
 		}
 	}

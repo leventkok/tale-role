@@ -174,7 +174,9 @@ export function AccountPanel() {
       setError("error");
       return;
     }
-    await refresh();
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
   }
 
   function onOpenDesktop(e: MouseEvent<HTMLAnchorElement>) {

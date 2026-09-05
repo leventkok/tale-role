@@ -261,7 +261,7 @@
     "thisDevice": "bu makine",
     "openDesktop": "Masaüstü uygulamayı aç",
     "disconnectDevice": "Bağlantıyı kopar",
-    "disconnectConfirm": "Bu masaüstü tekrar kaydolmadan oynayamaz.",
+    "disconnectConfirm": "Bu masaüstü hesaptan çıkar. Tekrar oynamak için kaydolması gerekir.",
     "licenseGateTitle": "Bu masaüstünü kaydet",
     "licenseGateLead": "Masaüstü uygulamada oynamak için bu makineyi hesabına kaydet. Tarayıcıda lisans gerekmez.",
     "lantern": "Fener",

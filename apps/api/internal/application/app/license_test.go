@@ -52,4 +52,11 @@ func TestRegisterLicenseIdempotentAndPlayGate(t *testing.T) {
 	if err := svc.RevokeLicense(u.ID, first.ID); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("second revoke: %v", err)
 	}
+	again2, err := svc.RegisterLicense(u.ID, "desk-1", "win32")
+	if err != nil || again2.ID == "" {
+		t.Fatalf("reregister: %v", err)
+	}
+	if n := len(svc.Licenses(u.ID)); n != 1 {
+		t.Fatalf("reregister duplicates: %d", n)
+	}
 }
