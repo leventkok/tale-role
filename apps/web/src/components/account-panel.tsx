@@ -4,20 +4,13 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { gql, gqlData } from "@/lib/gql";
-import { isDesktopShell } from "@/lib/desktop-shell";
+import { isDesktopShell, useDesktopBridge } from "@/lib/desktop-shell";
 import { TotpQr } from "@/components/totp-qr";
 import { AppearanceControls } from "@/components/appearance-controls";
 import { ProfilePortrait } from "@/components/art/profile-portrait";
 import { defaultPortraitId, portraitIds, normalizePortraitId, readStoredPortrait, writeStoredPortrait, type PortraitId } from "@/lib/portraits";
 
 type License = { id: string; device_id: string; platform: string; created_at?: string };
-
-function desktopBridge(): { platform: string; deviceId: string } | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-  return (window as Window & { taleRoleDesktop?: { platform: string; deviceId: string } }).taleRoleDesktop;
-}
 
 export function AccountPanel() {
   const t = useTranslations("account");
@@ -34,7 +27,7 @@ export function AccountPanel() {
   const [lanternXp, setLanternXp] = useState(0);
   const [lanternLevel, setLanternLevel] = useState(1);
   const [portrait, setPortrait] = useState<PortraitId>(defaultPortraitId);
-  const desktop = desktopBridge();
+  const desktop = useDesktopBridge();
   const lanternNeed = 100 * lanternLevel;
   const lanternPct = Math.max(4, Math.min(100, Math.round((lanternXp / lanternNeed) * 100)));
 

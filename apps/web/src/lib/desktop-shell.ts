@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 type DesktopBridge = { platform?: string; deviceId?: string };
 
 function desktopWindow(): Window & { taleRoleDesktop?: DesktopBridge } {
@@ -21,12 +25,50 @@ export function isDesktopShell(): boolean {
   return /\bTaleRoleDesktop\b/i.test(navigator.userAgent);
 }
 
-export function desktopDeviceHeaders(): Record<string, string> {
+export function readDesktopBridge(): { platform: string; deviceId: string } | undefined {
   if (typeof window === "undefined") {
-    return {};
+    return undefined;
   }
   const bridge = desktopWindow().taleRoleDesktop;
-  if (!bridge?.deviceId) {
+  const deviceId = (bridge?.deviceId || "").trim();
+  if (!deviceId) {
+    return undefined;
+  }
+  return { platform: (bridge?.platform || "").trim(), deviceId };
+}
+
+/** After mount — SSR HTML never has the Electron bridge, so the register button must wait. */
+export function useDesktopBridge() {
+  const [desktop, setDesktop] = useState<{ platform: string; deviceId: string } | undefined>(undefined);
+  useEffect(() => {
+    function tick() {
+      const next = readDesktopBridge();
+      if (next) {
+        setDesktop(next);
+        return true;
+      }
+      return false;
+    }
+    if (tick()) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      if (tick()) {
+        window.clearInterval(id);
+      }
+    }, 200);
+    const stop = window.setTimeout(() => window.clearInterval(id), 5000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(stop);
+    };
+  }, []);
+  return desktop;
+}
+
+export function desktopDeviceHeaders(): Record<string, string> {
+  const bridge = readDesktopBridge();
+  if (!bridge) {
     return {};
   }
   const headers: Record<string, string> = { "X-TaleRole-Device": bridge.deviceId };
