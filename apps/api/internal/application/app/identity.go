@@ -15,5 +15,6 @@ type Identity interface {
 	DeleteOTP(email string)
 	PutLicense(*license.ProductLicense)
 	LicensesForUser(userID string) []*license.ProductLicense
+	DeleteLicense(id string)
 	DeleteUserByID(id string)
 }

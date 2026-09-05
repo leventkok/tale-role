@@ -88,6 +88,17 @@ func (s *Store) LicensesForUser(userID string) []*license.ProductLicense {
 	return out
 }
 
+func (s *Store) DeleteLicense(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, l := range s.licenses {
+		if l.ID == id {
+			delete(s.licenses, k)
+			return
+		}
+	}
+}
+
 func (s *Store) DeleteUserByID(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

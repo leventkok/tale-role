@@ -117,6 +117,12 @@ func (s *Store) PutLicense(l *license.ProductLicense) {
 	}, options.Replace().SetUpsert(true))
 }
 
+func (s *Store) DeleteLicense(id string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, _ = s.licenses.DeleteOne(ctx, bson.M{"_id": id})
+}
+
 func (s *Store) LicensesForUser(userID string) []*license.ProductLicense {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
