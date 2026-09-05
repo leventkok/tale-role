@@ -88,6 +88,21 @@ type RuntimeView struct {
 	AdapterDirConfigured bool   `json:"adapter_dir_configured"`
 	WeightsReady         bool   `json:"weights_ready"`
 	Inference            string `json:"inference"`
+	LiveStoryteller      string `json:"live_storyteller,omitempty"`
+	CandidateStoryteller string `json:"candidate_storyteller,omitempty"`
+	CandidateReady       bool   `json:"candidate_ready"`
+}
+
+type LiveView struct {
+	RoomID    string `json:"room_id"`
+	Prose     string `json:"prose"`
+	Pack      string `json:"prompt_pack"`
+	Adapter   string `json:"adapter_id"`
+	Streaming bool   `json:"streaming"`
+}
+
+type PackStore interface {
+	SavePromptPack(id, en, tr string) error
 }
 
 type Trace struct {
@@ -121,6 +136,13 @@ type Service struct {
 	mechanicsRR     uint64
 	voiceOverride   map[string]string
 	client          *http.Client
+	packStore       PackStore
+	proseHook       func(roomID, prose string, done bool)
+	live            map[string]LiveView
+	liveStoryteller string
+	liveMechanics   string
+	candStoryteller string
+	candMechanics   string
 }
 
 func New() *Service {
@@ -136,6 +158,9 @@ func (s *Service) Runtime() RuntimeView {
 		AdapterDirConfigured: s.adapterDirSet,
 		WeightsReady:         s.weightsReady,
 		Inference:            s.inferenceLocked(),
+		LiveStoryteller:      s.liveStoryteller,
+		CandidateStoryteller: s.candStoryteller,
+		CandidateReady:       strings.TrimSpace(s.candStoryteller) != "",
 	}
 }
 
@@ -150,17 +175,43 @@ func (s *Service) Swap(pack, adapter string) error {
 		adapter = packs.Stub
 	}
 	adapter = packs.NormalizeAdapter(adapter)
-	if adapter != packs.Stub && adapter != packs.Hub {
+	if adapter != packs.Stub && adapter != packs.Hub && adapter != packs.Candidate {
 		return fmt.Errorf("unknown adapter")
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if adapter == packs.Hub && !s.weightsReady {
+		s.mu.Unlock()
 		return fmt.Errorf("hub models missing")
+	}
+	if adapter == packs.Candidate && strings.TrimSpace(s.candStoryteller) == "" {
+		s.mu.Unlock()
+		return fmt.Errorf("candidate adapter unset")
 	}
 	s.pack = pack
 	s.adapter = adapter
+	s.mu.Unlock()
+	go s.reloadSlot(adapter)
 	return nil
+}
+
+func (s *Service) reloadSlot(adapter string) {
+	if adapter == packs.Stub {
+		return
+	}
+	s.mu.Lock()
+	story := s.liveStoryteller
+	if adapter == packs.Candidate {
+		story = s.candStoryteller
+	}
+	urls := append([]string{}, s.storytellerURLs...)
+	s.mu.Unlock()
+	if story == "" {
+		return
+	}
+	for _, u := range urls {
+		var ignored map[string]any
+		_ = s.callJSON(u+"/v1/load", map[string]string{"model_id": story}, &ignored)
+	}
 }
 
 func (s *Service) ConfigureHub(storyteller, mechanics string) {
@@ -168,11 +219,20 @@ func (s *Service) ConfigureHub(storyteller, mechanics string) {
 	defer s.mu.Unlock()
 	s.hubStoryteller = strings.TrimSpace(storyteller)
 	s.hubMechanics = strings.TrimSpace(mechanics)
+	s.liveStoryteller = s.hubStoryteller
+	s.liveMechanics = s.hubMechanics
 	s.adapterDirSet = s.hubStoryteller != "" || s.hubMechanics != ""
 	s.weightsReady = s.adapterDirSet
 	if s.weightsReady {
 		s.adapter = packs.Hub
 	}
+}
+
+func (s *Service) ConfigureCandidate(storyteller, mechanics string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.candStoryteller = strings.TrimSpace(storyteller)
+	s.candMechanics = strings.TrimSpace(mechanics)
 }
 
 func (s *Service) ConfigureLocal(dir string) {
@@ -255,12 +315,24 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	req.Locale = locale
 	var remote Narrative
 	host := strings.TrimSpace(req.Opening + " " + notes)
+	s.publishLive(req.RoomID, "", false)
+	if s.streamNarrate(req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host, req.Success, notes) {
+		remote.Locale = locale
+		remote.Prose = pii.Redact(remote.Prose)
+		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
+			remote.Prose = strings.ReplaceAll(remote.Prose, "system_admin", "")
+		}
+		s.publishLive(req.RoomID, remote.Prose, true)
+		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
+		return remote
+	}
 	if s.callRole("storyteller", "/v1/narrate", req, &remote) && runnerProseOK(remote.Prose, locale, req.Kind, req.RoomName, host, req.Success, notes) {
 		remote.Locale = locale
 		remote.Prose = pii.Redact(remote.Prose)
 		if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 			remote.Prose = strings.ReplaceAll(remote.Prose, "system_admin", "")
 		}
+		s.publishLive(req.RoomID, remote.Prose, true)
 		s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(remote.Prose))
 		return remote
 	}
@@ -268,6 +340,7 @@ func (s *Service) Narrate(req NarrateRequest) Narrative {
 	if strings.Contains(strings.ToLower(strings.Join(req.PresenceNames, " ")), "system_admin") {
 		prose = strings.ReplaceAll(prose, "system_admin", "")
 	}
+	s.publishLive(req.RoomID, prose, true)
 	n := Narrative{Locale: locale, Prose: prose, NPCLines: []NPCLine{}}
 	s.record(req.RoomID, voice+" actor="+actor+" notes="+notes, MechanicIntent{}, excerpt(prose))
 	return n
@@ -287,7 +360,6 @@ func (s *Service) PutPack(id, en, tr string) error {
 		return fmt.Errorf("unknown prompt pack")
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.voiceOverride == nil {
 		s.voiceOverride = map[string]string{}
 	}
@@ -297,7 +369,56 @@ func (s *Service) PutPack(id, en, tr string) error {
 	if strings.TrimSpace(tr) != "" {
 		s.voiceOverride[id+":tr"] = strings.TrimSpace(tr)
 	}
+	store := s.packStore
+	s.mu.Unlock()
+	if store != nil {
+		return store.SavePromptPack(id, strings.TrimSpace(en), strings.TrimSpace(tr))
+	}
 	return nil
+}
+
+func (s *Service) SetPackStore(store PackStore) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.packStore = store
+}
+
+func (s *Service) WatchProse(hook func(roomID, prose string, done bool)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.proseHook = hook
+}
+
+func (s *Service) Live(roomID string) LiveView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.live == nil {
+		return LiveView{RoomID: roomID, Pack: s.pack, Adapter: s.adapter}
+	}
+	v, ok := s.live[roomID]
+	if !ok {
+		return LiveView{RoomID: roomID, Pack: s.pack, Adapter: s.adapter}
+	}
+	return v
+}
+
+func (s *Service) publishLive(roomID, prose string, done bool) {
+	if strings.TrimSpace(roomID) == "" {
+		return
+	}
+	s.mu.Lock()
+	if s.live == nil {
+		s.live = map[string]LiveView{}
+	}
+	view := LiveView{
+		RoomID: roomID, Prose: pii.Redact(prose), Pack: s.pack, Adapter: s.adapter, Streaming: !done,
+	}
+	s.live[roomID] = view
+	hook := s.proseHook
+	s.mu.Unlock()
+	if hook != nil && strings.TrimSpace(view.Prose) != "" {
+		hook(roomID, view.Prose, done)
+	}
 }
 
 func (s *Service) voice(pack, locale string) string {

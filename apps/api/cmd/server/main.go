@@ -31,6 +31,7 @@ func main() {
 	var ident app.Identity = memory.NewStore()
 	table := game.NewTable()
 	worlds := world.NewCatalog()
+	var mongoPacks *mongostore.Store
 	if cfg.MongoURI != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		store, err := mongostore.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
@@ -40,6 +41,7 @@ func main() {
 			os.Exit(1)
 		}
 		ident = store
+		mongoPacks = store
 		loadCtx, loadCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		rooms, err := store.LoadRooms(loadCtx)
 		if err != nil {
@@ -83,7 +85,14 @@ func main() {
 	}
 	llm := gateway.New()
 	llm.ConfigureHub(os.Getenv("HF_STORYTELLER_MODEL"), os.Getenv("HF_MECHANICS_MODEL"))
+	llm.ConfigureCandidate(os.Getenv("HF_STORYTELLER_CANDIDATE"), os.Getenv("HF_MECHANICS_CANDIDATE"))
 	llm.SetRunners(gateway.RunnerURLsFromEnv())
+	if mongoPacks != nil {
+		for _, p := range mongoPacks.LoadPromptPacks() {
+			_ = llm.PutPack(p.ID, p.EN, p.TR)
+		}
+		llm.SetPackStore(mongoPacks)
+	}
 	if os.Getenv("HF_STORYTELLER_MODEL") != "" || os.Getenv("HF_MECHANICS_MODEL") != "" || os.Getenv("LLM_RUNNER_URL") != "" || os.Getenv("LLM_STORYTELLER_URL") != "" {
 		rt := llm.Runtime()
 		log.Info("llm adapters", "hub_configured", rt.AdapterDirConfigured, "weights_ready", rt.WeightsReady, "inference", rt.Inference)

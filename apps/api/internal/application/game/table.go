@@ -584,6 +584,24 @@ func (t *Table) AttachNarrative(roomID string, n Narrative) error {
 	return nil
 }
 
+func (t *Table) PatchNarrative(roomID, prose string, persist bool) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	r, ok := t.rooms[roomID]
+	if !ok || len(r.Turns) == 0 {
+		return ErrNotFound
+	}
+	last := &r.Turns[len(r.Turns)-1]
+	if last.Narrative == nil {
+		last.Narrative = &Narrative{}
+	}
+	last.Narrative.Prose = prose
+	if persist {
+		t.persist(r)
+	}
+	return nil
+}
+
 func (t *Table) View(roomID, userID string) (*PublicRoom, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()

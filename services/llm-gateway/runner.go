@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/leventkok/tale-role/services/llm-gateway/internal/packs"
+	"github.com/leventkok/tale-role/services/llm-gateway/internal/pii"
 )
 
 const runnerTimeout = 30 * time.Second
@@ -62,7 +64,7 @@ func (s *Service) SetRunners(storyteller, mechanics string) {
 }
 
 func (s *Service) inferenceLocked() string {
-	if (s.adapter == packs.Hub || s.adapter == packs.Local) && s.weightsReady && len(s.storytellerURLs) > 0 {
+	if (s.adapter == packs.Hub || s.adapter == packs.Local || s.adapter == packs.Candidate) && s.weightsReady && len(s.storytellerURLs) > 0 {
 		return packs.Hub
 	}
 	return packs.Stub
@@ -107,6 +109,78 @@ func (s *Service) callRole(role, path string, payload, dest any) bool {
 		}
 	}
 	return false
+}
+
+func (s *Service) streamNarrate(req NarrateRequest, dest *Narrative) bool {
+	urls := s.replicaURLs("storyteller")
+	if len(urls) == 0 {
+		return false
+	}
+	start := s.nextReplica("storyteller", len(urls))
+	for i := 0; i < len(urls); i++ {
+		base := urls[(start+i)%len(urls)]
+		if err := s.callStream(base+"/v1/narrate/stream", req, dest); err == nil && strings.TrimSpace(dest.Prose) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) callStream(url string, payload any, dest *Narrative) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	cli := s.client
+	s.mu.Unlock()
+	if cli == nil {
+		cli = runnerClient()
+	}
+	res, err := cli.Post(url, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		return fmt.Errorf("runner status %d", res.StatusCode)
+	}
+	scan := bufio.NewScanner(res.Body)
+	scan.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	acc := ""
+	for scan.Scan() {
+		line := strings.TrimSpace(scan.Text())
+		if line == "" {
+			continue
+		}
+		var chunk struct {
+			Prose string `json:"prose"`
+			Done  bool   `json:"done"`
+		}
+		if json.Unmarshal([]byte(line), &chunk) != nil {
+			continue
+		}
+		if strings.TrimSpace(chunk.Prose) != "" {
+			acc = pii.Redact(chunk.Prose)
+			s.publishLive(reqRoomID(payload), acc, chunk.Done)
+		}
+		if chunk.Done {
+			break
+		}
+	}
+	if strings.TrimSpace(acc) == "" {
+		return fmt.Errorf("empty stream")
+	}
+	dest.Prose = acc
+	return scan.Err()
+}
+
+func reqRoomID(payload any) string {
+	req, ok := payload.(NarrateRequest)
+	if !ok {
+		return ""
+	}
+	return req.RoomID
 }
 
 func (s *Service) callJSON(url string, payload any, dest any) error {
