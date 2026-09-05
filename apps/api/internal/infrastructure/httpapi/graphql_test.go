@@ -299,4 +299,27 @@ func TestDesktopLicenseRequired(t *testing.T) {
 	if bytes.Contains(play.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(play.Body.Bytes(), []byte(`"id"`)) {
 		t.Fatalf("licensed desktop: %s", play.Body.String())
 	}
+	var licBody struct {
+		Data struct {
+			RegisterLicense struct {
+				ID string `json:"id"`
+			} `json:"registerLicense"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(reg.Body.Bytes(), &licBody); err != nil || licBody.Data.RegisterLicense.ID == "" {
+		t.Fatalf("license id: %v %s", err, reg.Body.String())
+	}
+	revoked := authed(t, h, http.MethodPost, "/graphql", token, map[string]any{
+		"query":     `mutation ($id: ID!) { revokeLicense(id: $id) }`,
+		"variables": map[string]string{"id": licBody.Data.RegisterLicense.ID},
+	})
+	if bytes.Contains(revoked.Body.Bytes(), []byte(`"errors"`)) || !bytes.Contains(revoked.Body.Bytes(), []byte(`"revokeLicense":true`)) {
+		t.Fatalf("revokeLicense: %s", revoked.Body.String())
+	}
+	again := authedDevice(t, h, http.MethodPost, "/graphql", token, "desk-1", map[string]any{
+		"query": `mutation { createRoom(name: "Desk2", joinMode: "link") { id } }`,
+	})
+	if !bytes.Contains(again.Body.Bytes(), []byte("license required")) {
+		t.Fatalf("play after revoke: %s", again.Body.String())
+	}
 }

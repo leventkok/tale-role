@@ -32,6 +32,35 @@ function joinDest(requestUrl) {
   return `${WEB_URL}/${LOCALE}/join/${encodeURIComponent(roomId)}${url.search}`;
 }
 
+function isJoinUrl(requestUrl) {
+  try {
+    const url = new URL(requestUrl);
+    if (url.hostname === "join") {
+      return true;
+    }
+    return url.pathname.split("/").filter(Boolean)[0] === "join";
+  } catch {
+    return false;
+  }
+}
+
+function openShell() {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  createWindow();
+}
+
+function handleDeepLink(requestUrl) {
+  if (isJoinUrl(requestUrl)) {
+    loadJoin(requestUrl);
+    return;
+  }
+  openShell();
+}
+
 function loadJoin(requestUrl) {
   const dest = joinDest(requestUrl);
   if (mainWindow) {
@@ -157,16 +186,15 @@ if (!locked) {
   app.on("second-instance", (_event, argv) => {
     const deep = argv.find((a) => typeof a === "string" && a.startsWith("talerole:"));
     if (deep) {
-      loadJoin(deep);
-    } else if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
+      handleDeepLink(deep);
+    } else {
+      openShell();
     }
   });
 
   app.on("open-url", (event, url) => {
     event.preventDefault();
-    loadJoin(url);
+    handleDeepLink(url);
   });
 
   app.whenReady().then(() => {
@@ -174,12 +202,17 @@ if (!locked) {
     if (process.platform === "darwin" && app.dock) {
       app.dock.setIcon(APP_ICON);
     }
-    protocol.handle("talerole", (request) => Response.redirect(joinDest(request.url), 302));
+    protocol.handle("talerole", (request) => {
+      if (isJoinUrl(request.url)) {
+        return Response.redirect(joinDest(request.url), 302);
+      }
+      return Response.redirect(`${WEB_URL}/${LOCALE}`, 302);
+    });
     initAutoUpdate();
     createWindow();
     const fromArg = process.argv.find((a) => typeof a === "string" && a.startsWith("talerole:"));
     if (fromArg) {
-      loadJoin(fromArg);
+      handleDeepLink(fromArg);
     }
   });
 

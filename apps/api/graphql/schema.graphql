@@ -8,6 +8,7 @@ type Query {
   universes: [UniverseSummary!]!
   universe(id: ID!): Universe
   lobbies: [Lobby!]!
+  licenses: [License!]!
 }
 
 type Mutation {
@@ -21,6 +22,8 @@ type Mutation {
   joinRoom(roomId: ID!, password: String): Boolean!
   startRoom(roomId: ID!, locale: String): Boolean!
   completeRoom(roomId: ID!): Boolean!
+  registerLicense(deviceId: String!, platform: String): License
+  revokeLicense(id: ID!): Boolean!
   createUniverse(
     nameEn: String!
     nameTr: String
@@ -105,6 +108,13 @@ type RoomCreated {
   id: ID!
   diceSystem: String!
   universeId: String
+}
+
+type License {
+  id: ID!
+  deviceId: String!
+  platform: String!
+  createdAt: String
 }
 
 type Lobby {

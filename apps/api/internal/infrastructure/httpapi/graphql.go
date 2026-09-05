@@ -631,6 +631,23 @@ func (s *Server) graphQLSchema() (graphql.Schema, error) {
 					}, nil
 				},
 			},
+			"revokeLicense": &graphql.Field{
+				Type: graphql.NewNonNull(graphql.Boolean),
+				Args: graphql.FieldConfigArgument{
+					"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.ID)},
+				},
+				Resolve: func(p graphql.ResolveParams) (any, error) {
+					u := gqlUser(p)
+					if u == nil {
+						return nil, fmt.Errorf("unauthorized")
+					}
+					id, _ := p.Args["id"].(string)
+					if err := s.svc.RevokeLicense(u.ID, id); err != nil {
+						return nil, err
+					}
+					return true, nil
+				},
+			},
 			"setPortrait": &graphql.Field{
 				Type: graphql.NewNonNull(graphql.Boolean),
 				Args: graphql.FieldConfigArgument{

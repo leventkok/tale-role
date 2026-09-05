@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { gql, gqlData } from "@/lib/gql";
+import { isDesktopShell } from "@/lib/desktop-shell";
 import { TotpQr } from "@/components/totp-qr";
 import { AppearanceControls } from "@/components/appearance-controls";
 import { ProfilePortrait } from "@/components/art/profile-portrait";
@@ -158,6 +159,30 @@ export function AccountPanel() {
     await refresh();
   }
 
+  async function onRevokeDevice(id: string) {
+    if (!window.confirm(t("disconnectConfirm"))) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await gql<{ revokeLicense: boolean }>(
+      `mutation ($id: ID!) { revokeLicense(id: $id) }`,
+      { id },
+    );
+    setBusy(false);
+    if (!gqlData(result)?.revokeLicense) {
+      setError("error");
+      return;
+    }
+    await refresh();
+  }
+
+  function onOpenDesktop(e: MouseEvent<HTMLAnchorElement>) {
+    if (isDesktopShell()) {
+      e.preventDefault();
+    }
+  }
+
   async function onErase(e: React.FormEvent) {
     e.preventDefault();
     if (confirm !== "DELETE") {
@@ -290,11 +315,16 @@ export function AccountPanel() {
       <section>
         <h2>{t("devices")}</h2>
         {licenses.length === 0 ? <p className="muted">{t("noDevices")}</p> : null}
-        <ul>
+        <ul className="device-list">
           {licenses.map((row) => (
-            <li key={row.id}>
-              {row.platform} · {row.device_id}
-              {desktop && row.device_id === desktop.deviceId ? ` · ${t("thisDevice")}` : ""}
+            <li key={row.id} className="device-row">
+              <a className="device-open" href="talerole://open" onClick={onOpenDesktop} aria-label={t("openDesktop")}>
+                {row.platform} · {row.device_id}
+                {desktop && row.device_id === desktop.deviceId ? ` · ${t("thisDevice")}` : ""}
+              </a>
+              <button type="button" className="ghost" disabled={busy} onClick={() => void onRevokeDevice(row.id)}>
+                {t("disconnectDevice")}
+              </button>
             </li>
           ))}
         </ul>

@@ -43,4 +43,13 @@ func TestRegisterLicenseIdempotentAndPlayGate(t *testing.T) {
 	if err := svc.RequireDesktopLicense(u.ID, "desk-1"); err != nil {
 		t.Fatal(err)
 	}
+	if err := svc.RevokeLicense(u.ID, first.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RequireDesktopLicense(u.ID, "desk-1"); !errors.Is(err, ErrLicenseRequired) {
+		t.Fatalf("revoked still licensed: %v", err)
+	}
+	if err := svc.RevokeLicense(u.ID, first.ID); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("second revoke: %v", err)
+	}
 }

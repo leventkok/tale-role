@@ -234,6 +234,19 @@ func (s *Service) Licenses(userID string) []*license.ProductLicense {
 	return s.store.LicensesForUser(userID)
 }
 
+func (s *Service) RevokeLicense(userID, licenseID string) error {
+	if strings.TrimSpace(userID) == "" || strings.TrimSpace(licenseID) == "" {
+		return ErrInvalid
+	}
+	for _, row := range s.store.LicensesForUser(userID) {
+		if row.ID == licenseID {
+			s.store.DeleteLicense(licenseID)
+			return nil
+		}
+	}
+	return ErrUnauthorized
+}
+
 func (s *Service) HasLicense(userID, deviceID string) bool {
 	if userID == "" || deviceID == "" {
 		return false
