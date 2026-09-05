@@ -75,6 +75,7 @@ export function AdminConsole() {
   const [busyRoom, setBusyRoom] = useState<string | null>(null);
   const [watchId, setWatchId] = useState<string | null>(null);
   const [live, setLive] = useState<Live | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   async function load() {
     const rt = await fetch("/api/admin/runtime", { cache: "no-store" });
@@ -185,11 +186,20 @@ export function AdminConsole() {
   }
 
   async function swap(pack: string, adapter: string) {
-    await fetch("/api/admin/runtime", {
+    setSwitching(true);
+    setError(null);
+    const res = await fetch("/api/admin/runtime", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt_pack: pack, adapter_id: adapter }),
     });
+    const data = (await res.json().catch(() => ({}))) as Runtime & { error?: string };
+    setSwitching(false);
+    if (!res.ok) {
+      setError(typeof data.error === "string" ? data.error : "could not switch model");
+      return;
+    }
+    setRuntime(data);
     await load();
   }
 
@@ -267,10 +277,16 @@ export function AdminConsole() {
     <div>
       <section className="panel">
         <h2>Runtime</h2>
+        <p className="using">
+          Using <strong>{modelLabel(runtime.adapter_id)}</strong>
+          {switching ? " — switching…" : ""}
+        </p>
+        {error ? <p className="alert">{error}</p> : null}
+        <p className="hint">
+          Traces keep the label from when that turn ran. After Spare, take a new turn — the next
+          trace should say Spare. GPU load can take 1–3 minutes.
+        </p>
         <div className="runtime-bar">
-          <span>
-            Model <code>{modelLabel(runtime.adapter_id)}</code>
-          </span>
           <span>
             Pack <code>{runtime.prompt_pack}</code>
           </span>
@@ -279,33 +295,53 @@ export function AdminConsole() {
           </span>
           {runtime.live_storyteller ? (
             <span>
-              Live <code>{hubLabel(runtime.live_storyteller)}</code>
+              Live slot <code>{hubLabel(runtime.live_storyteller)}</code>
             </span>
           ) : null}
           {runtime.candidate_storyteller ? (
             <span>
-              Spare <code>{hubLabel(runtime.candidate_storyteller)}</code>
+              Spare slot <code>{hubLabel(runtime.candidate_storyteller)}</code>
             </span>
           ) : null}
         </div>
         <div className="row">
-          <button type="button" onClick={() => void swap("v1", adapter)}>
+          <button type="button" onClick={() => void swap("v1", adapter)} disabled={switching}>
             Use v1
           </button>
-          <button type="button" onClick={() => void swap("v1-terse", adapter)}>
+          <button type="button" onClick={() => void swap("v1-terse", adapter)} disabled={switching}>
             Use v1-terse
           </button>
-          <button type="button" onClick={() => void swap(pack, "hub")}>
+          <button
+            type="button"
+            className={runtime.adapter_id === "hub" ? "on" : undefined}
+            aria-pressed={runtime.adapter_id === "hub"}
+            disabled={switching}
+            onClick={() => void swap(pack, "hub")}
+          >
             Live model
           </button>
-          <button type="button" onClick={() => void swap(pack, "stub")}>
+          <button
+            type="button"
+            className={runtime.adapter_id === "stub" ? "on" : undefined}
+            aria-pressed={runtime.adapter_id === "stub"}
+            disabled={switching}
+            onClick={() => void swap(pack, "stub")}
+          >
             Stub
           </button>
           {runtime.candidate_ready ? (
-            <button type="button" onClick={() => void swap(pack, "candidate")}>
+            <button
+              type="button"
+              className={runtime.adapter_id === "candidate" ? "on" : undefined}
+              aria-pressed={runtime.adapter_id === "candidate"}
+              disabled={switching}
+              onClick={() => void swap(pack, "candidate")}
+            >
               Spare
             </button>
-          ) : null}
+          ) : (
+            <p className="hint">Spare is unset on the API. Add HF_STORYTELLER_CANDIDATE and redeploy.</p>
+          )}
         </div>
       </section>
 

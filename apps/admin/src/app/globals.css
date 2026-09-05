@@ -64,6 +64,16 @@ body {
   line-height: 1.5;
 }
 
+.using {
+  margin: 0 0 0.45rem;
+  font-size: 1.2rem;
+  color: #efe8e4;
+}
+
+.using strong {
+  color: #c9a227;
+}
+
 .runtime-bar {
   display: flex;
   flex-wrap: wrap;
@@ -71,6 +81,10 @@ body {
   margin: 0 0 0.85rem;
   color: #bdb0b8;
   font-size: 0.92rem;
+}
+
+button.on {
+  box-shadow: 0 0 0 2px #efe8e4;
 }
 
 form {
