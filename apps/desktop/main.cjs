@@ -95,6 +95,7 @@ function createWindow() {
   const hideDownloadScript =
     "document.documentElement.dataset.taleroleShell='desktop';" +
     "if(document.body)document.body.dataset.taleroleShell='desktop';" +
+    `if(!window.taleRoleDesktop||!window.taleRoleDesktop.deviceId){window.taleRoleDesktop={deviceId:${JSON.stringify(deviceId())},platform:${JSON.stringify(process.platform)}}};` +
     "document.querySelectorAll(\".desktop-download,a[href*='Tale-Role-Setup'],a[href*='Tale-Role.dmg'],a[href*='/downloads/Tale-Role']\")" +
     ".forEach(function(el){(el.closest&&el.closest('.desktop-download')||el).remove();});";
   const hideDownloadCta = () => {

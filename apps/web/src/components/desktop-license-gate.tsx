@@ -20,19 +20,31 @@ export function DesktopLicenseGate({ signedIn, children }: { signedIn: boolean; 
       setBlocked(false);
       return;
     }
-    const device = desktopDeviceHeaders()["X-TaleRole-Device"];
-    if (!device) {
-      setBlocked(true);
-      return;
-    }
     let alive = true;
-    void gql<{ licenses: { deviceId: string }[] }>(`{ licenses { deviceId } }`).then((result) => {
+    let tries = 0;
+    function check() {
       if (!alive) {
         return;
       }
-      const rows = gqlData(result)?.licenses ?? [];
-      setBlocked(!rows.some((row) => row.deviceId === device));
-    });
+      const device = desktopDeviceHeaders()["X-TaleRole-Device"];
+      if (!device) {
+        tries += 1;
+        if (tries < 20) {
+          window.setTimeout(check, 200);
+        } else {
+          setBlocked(true);
+        }
+        return;
+      }
+      void gql<{ licenses: { deviceId: string }[] }>(`{ licenses { deviceId } }`).then((result) => {
+        if (!alive) {
+          return;
+        }
+        const rows = gqlData(result)?.licenses ?? [];
+        setBlocked(!rows.some((row) => row.deviceId === device));
+      });
+    }
+    check();
     return () => {
       alive = false;
     };
