@@ -25,6 +25,10 @@ services:
         sync: false
       - key: TALEROLE_ADMIN_EMAIL
         sync: false
+      - key: TALEROLE_DEMO_EMAIL
+        sync: false
+      - key: TALEROLE_DEMO_PASSWORD
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_USER
