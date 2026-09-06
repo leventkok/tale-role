@@ -41,12 +41,13 @@ On **Render** (`talerole-api`):
 - `SMTP_FROM=Tale Role <noreply@talerole.com>`
 - `SMTP_USER` / `SMTP_PASS` — mailbox, not the Cloudflare token
 - `CORS_ALLOWED_ORIGINS=https://talerole.com,https://www.talerole.com,https://admin.talerole.com`
+- `TALEROLE_DEMO_EMAIL` / `TALEROLE_DEMO_PASSWORD` — optional verified jury login; dashboard only
 
 On **Vercel** (web + admin):
 
 - `API_URL=https://api.talerole.com`
 
-Leave `TALEROLE_DEV_OTP` unset. Atlas Network Access must allow Render egress (for an alpha, `0.0.0.0/0` is the blunt option).
+Leave `TALEROLE_DEV_OTP` unset. Optional `TALEROLE_DEMO_EMAIL` / `TALEROLE_DEMO_PASSWORD` seed one verified jury account (no OTP). Atlas Network Access must allow Render egress (for an alpha, `0.0.0.0/0` is the blunt option).
 
 ## Cut over from the laptop tunnel
 

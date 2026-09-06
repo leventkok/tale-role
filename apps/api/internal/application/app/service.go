@@ -72,6 +72,41 @@ func (s *Service) Register(email, password string) error {
 	return s.issueOTP(email)
 }
 
+// EnsureDemoUser upserts a verified account that signs in with password only.
+// Empty email and password is a no-op. Do not use TALEROLE_DEV_OTP on hosted API.
+func (s *Service) EnsureDemoUser(email, password string) error {
+	email = normalizeEmail(email)
+	if email == "" && password == "" {
+		return nil
+	}
+	if email == "" || len(password) < 8 {
+		return ErrInvalidCredentials
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	u, ok := s.store.GetUser(email)
+	if !ok {
+		u = &iam.User{
+			ID:           uuid.NewString(),
+			Email:        email,
+			LanternLevel: 1,
+			CreatedAt:    time.Now().UTC(),
+		}
+	}
+	u.Email = email
+	u.PasswordHash = hash
+	u.Verified = true
+	u.TOTPEnabled = false
+	if u.LanternLevel < 1 {
+		u.LanternLevel = 1
+	}
+	s.store.PutUser(u)
+	s.store.DeleteOTP(email)
+	return nil
+}
+
 func (s *Service) Login(email, password string) (token string, err error) {
 	email = normalizeEmail(email)
 	u, ok := s.store.GetUser(email)

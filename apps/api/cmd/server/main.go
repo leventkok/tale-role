@@ -64,6 +64,13 @@ func main() {
 	}
 
 	svc := app.NewService(ident, cfg.JWTSecret, cfg.JWTExpiry, cfg.OTPTTL)
+	if err := svc.EnsureDemoUser(cfg.DemoEmail, cfg.DemoPassword); err != nil {
+		log.Error("demo user", "error", err)
+		os.Exit(1)
+	}
+	if cfg.DemoEmail != "" {
+		log.Info("demo user ready", "email", cfg.DemoEmail)
+	}
 	if cfg.ResendAPIKey != "" {
 		svc.Mailer = mail.Resend{APIKey: cfg.ResendAPIKey, From: cfg.ResendFrom}
 		log.Info("mail", "transport", "resend")

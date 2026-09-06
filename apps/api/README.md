@@ -23,7 +23,7 @@ Without `PORT`, the process binds `127.0.0.1:8080` (laptop / Cloudflare tunnel).
 - `POST /api/v1/licenses/register` — Electron registered product
 - `GET /api/v1/licenses/me`
 
-OTP is emailed when `RESEND_API_KEY` is set (HTTPS, works on Render free) or `SMTP_HOST` is set (local Mailhog). Resend wins if both are set. Tests inject a fixed issuer and skip delivery. Codes are bcrypt-hashed at rest and never written to logs or JSON. `TALEROLE_DEV_OTP` is a local-only bypass.
+OTP is emailed when `RESEND_API_KEY` is set (HTTPS, works on Render free) or `SMTP_HOST` is set (local Mailhog). Resend wins if both are set. Tests inject a fixed issuer and skip delivery. Codes are bcrypt-hashed at rest and never written to logs or JSON. `TALEROLE_DEV_OTP` is a local-only bypass. Optional `TALEROLE_DEMO_EMAIL` + `TALEROLE_DEMO_PASSWORD` upsert a verified jury account on boot (password login, no OTP); keep those values in the host dashboard.
 
 ## LLM
 
